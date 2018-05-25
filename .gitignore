@@ -29,6 +29,7 @@ nohup.out
 *.log
 *.ldb
 
+**/*cache*
 **/*Cache*
 **/*LOG*
 **/*Log*
