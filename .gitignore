@@ -60,3 +60,5 @@ nohup.out
 
 **/.java
 **/.oracle_jre*
+
+_local/h/.arduino15/staging/

@@ -13,6 +13,9 @@ _arduino_deconfigure_sequence() {
 	grep -v '^last\.' "$safeTmp"/preferences.txt > "$safeTmp"/intermediate
 	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
 	
+	grep -v '^recent\.' "$safeTmp"/preferences.txt > "$safeTmp"/intermediate
+	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
+	
 	mv "$safeTmp"/preferences.txt "$arduinoPreferences"
 	
 	_stop

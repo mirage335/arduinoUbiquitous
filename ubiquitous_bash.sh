@@ -11473,6 +11473,16 @@ _test_prog() {
 	! _check_prog && echo 'missing: dependency mismatch' && stop 1
 }
 
+_setup_udev() {
+	_mustGetSudo
+	sudo -n cp "$scriptLocal"/98-openocd.rules /etc/udev/rules.d/
+	sudo -n usermod -a -G plugdev "$USER"
+}
+
+_setup_prog() {
+	_setup_udev
+}
+
 #####Installation
 
 #Verifies the timeout and sleep commands work properly, with subsecond specifications.
@@ -11845,6 +11855,9 @@ _arduino_deconfigure_sequence() {
 	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
 	
 	grep -v '^last\.' "$safeTmp"/preferences.txt > "$safeTmp"/intermediate
+	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
+	
+	grep -v '^recent\.' "$safeTmp"/preferences.txt > "$safeTmp"/intermediate
 	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
 	
 	mv "$safeTmp"/preferences.txt "$arduinoPreferences"

@@ -1,6 +1,6 @@
 Copyright (C) 2018 mirage335
 See the end of the file for license conditions.
-See license.txt for ArduinoUbiquitous license conditions.
+See license.txt for arduinoUbiquitous license conditions.
 
 # Usage
 
@@ -8,21 +8,30 @@ See license.txt for ArduinoUbiquitous license conditions.
 # Design
 
 
-# Safety
+# Issues
+* Programmer support for M0 requires PR265.
+https://github.com/arduino/ArduinoCore-samd/pull/265
+
+* Programmer requires udev rule.
+https://blog.kylemanna.com/hardware/start-openocd-on-usb-hotplug/
+
+# Diagnostic
+PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
+__asm__("nop\n\t");
 
 
 __Copyright__
-This file is part of ArduinoUbiquitous.
+This file is part of arduinoUbiquitous.
 
-ArduinoUbiquitous is free software: you can redistribute it and/or modify
+arduinoUbiquitous is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-ArduinoUbiquitous is distributed in the hope that it will be useful,
+arduinoUbiquitous is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with ArduinoUbiquitous.  If not, see <http://www.gnu.org/licenses/>.
+along with arduinoUbiquitous.  If not, see <http://www.gnu.org/licenses/>.
