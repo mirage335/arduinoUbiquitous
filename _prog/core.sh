@@ -2,6 +2,7 @@
 
 #command
 _arduino_command() {
+	export _JAVA_OPTIONS=-Duser.home="$HOME" "$_JAVA_OPTIONS"
 	"$scriptAbsoluteFolder"/_local/arduino-1.8.5/arduino "$@"
 }
 

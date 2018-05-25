@@ -11836,6 +11836,7 @@ _package() {
 
 #command
 _arduino_command() {
+	export _JAVA_OPTIONS=-Duser.home="$HOME"
 	"$scriptAbsoluteFolder"/_local/arduino-1.8.5/arduino "$@"
 }
 
@@ -11880,7 +11881,7 @@ _refresh_anchors() {
 
 #Typically launches an application - ie. through virtualized container.
 _launch() {
-	_app "$@"
+	_arduino "$@"
 }
 
 #Typically gathers command/variable scripts from other (ie. yaml) file types (ie. AppImage recipes).
