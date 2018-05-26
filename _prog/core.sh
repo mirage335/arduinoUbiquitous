@@ -35,27 +35,41 @@ _arduino_deconfigure() {
 	"$scriptAbsoluteLocation" _arduino_deconfigure_sequence "$@"
 }
 
+# WARNING: Assumes first fileparameter given to arduino is sketch .
 _arduino_configure_compile() {
-	! [[ -e "$1" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
+	_messagePlain_nominal 'aU: set: build.path'
 	
-	_messagePlain_good 'aU: found: sketch= '"$1"
+	local currentArg
 	
-	local compilerInputAbsolute
-	compilerInputAbsolute=$(getAbsoluteLocation "$1")
+	#for currentArg in "$1"
+	for currentArg in "$@"
+	do
+		! [[ -e "$currentArg" ]] && continue
+		
+		
+		_messagePlain_good 'aU: found: sketch= '"$currentArg"
+		
+		local compilerInputAbsolute
+		compilerInputAbsolute=$(getAbsoluteLocation "$currentArg")
+		
+		local compilerInputAbsoluteDirectory
+		compilerInputAbsoluteDirectory=$(_findDir "$compilerInputAbsolute")
+		
+		mkdir -p "$compilerInputAbsoluteDirectory"/_build
+		
+		_messagePlain_probe _arduino_executable --save-prefs --pref build.path="$compilerInputAbsoluteDirectory"/_build
+		_arduino_executable --save-prefs --pref build.path="$compilerInputAbsoluteDirectory"/_build
+		
+		return 0
+	done
 	
-	local compilerInputAbsoluteDirectory
-	compilerInputAbsoluteDirectory=$(_findDir "$compilerInputAbsolute")
-	
-	mkdir -p "$compilerInputAbsoluteDirectory"/_build
-	
-	_messagePlain_probe _arduino_executable --save-prefs --pref build.path="$compilerInputAbsoluteDirectory"/_build
-	_arduino_executable --save-prefs --pref build.path="$compilerInputAbsoluteDirectory"/_build
+	_messagePlain_warn 'aU: undef: sketch' && return 1
 }
 
 _arduino_configure() {
 	_arduino_configure_compile "$@"
 	
-	_messagePlain_good 'aU: set: sketchbook.path'
+	_messagePlain_nominal 'aU: set: sketchbook.path'
 	_arduino_executable --save-prefs --pref sketchbook.path="$HOME"/Arduino
 }
 
@@ -63,13 +77,13 @@ _arduino_configure() {
 
 #command
 _arduino_command() {
-	_messagePlain_nominal "aU: Configure."
+	_messageNormal "aU: Configure."
 	_arduino_configure "$@"
 	
-	_messagePlain_nominal "aU: Launch."
+	_messageNormal "aU: Launch."
 	_arduino_executable "$@"
 	
-	_messagePlain_nominal "aU: Deconfigure."
+	_messageNormal "aU: Deconfigure."
 	_arduino_deconfigure "$@"
 }
 
@@ -90,16 +104,20 @@ _v_arduino() {
 
 #default
 _arduino() {
+	export sharedHostProjectDir=/
+	export sharedGuestProjectDir=/
+	_virtUser "$@"
+	
 	if ! _check_prog
 	then
 		_messageNormal 'Launch: _v'${FUNCNAME[0]}
-		_v${FUNCNAME[0]} "$@"
+		_v${FUNCNAME[0]} "${processedArgs[@]}"
 		return
 	fi
-	_arduino_user "$@" && return 0
+	_arduino_user "${processedArgs[@]}" && return 0
 
 	#_messageNormal 'Launch: _v'${FUNCNAME[0]}
-	#_v${FUNCNAME[0]} "$@"
+	#_v${FUNCNAME[0]} "${processedArgs[@]}"
 }
 
 _arduino_compile() {
