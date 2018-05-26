@@ -22,6 +22,9 @@ https://github.com/arduino/ArduinoCore-samd/issues/164
 * Debugging with bootloader may not be possible with current versions.
 https://github.com/arduino/ArduinoCore-samd/issues/187
 
+* High drive current may not be available.
+https://github.com/arduino/ArduinoCore-samd/issues/158
+
 # Diagnostic
 PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
 __asm__("nop\n\t");
