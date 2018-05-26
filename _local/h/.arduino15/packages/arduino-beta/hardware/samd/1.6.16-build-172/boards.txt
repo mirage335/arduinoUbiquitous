@@ -327,6 +327,43 @@ mzero_bl.bootloader.low_fuses=0xff
 mzero_bl.bootloader.file=mzero/Bootloader_D21_M0_150515.hex
 
 ######################################################
+#ARDUINO M0 (WITHOUT) BOOTLOADER
+mzero_nobl.name=Arduino M0 nobl
+mzero_nobl.vid.0=0x2a03
+mzero_nobl.pid.0=0x004d
+mzero_nobl.vid.1=0x2a03
+mzero_nobl.pid.1=0x804d
+mzero_nobl.vid.2=0x2a03
+mzero_nobl.pid.2=0x004e
+mzero_nobl.vid.3=0x2a03
+mzero_nobl.pid.3=0x804e
+mzero_nobl.upload.tool=avrdude
+mzero_nobl.upload.protocol=stk500v2
+mzero_nobl.upload.maximum_size=262144
+mzero_nobl.upload.use_1200bps_touch=true
+mzero_nobl.upload.wait_for_upload_port=true
+mzero_nobl.upload.native_usb=true
+mzero_nobl.upload.speed=57600
+mzero_nobl.build.mcu=cortex-m0plus
+mzero_nobl.build.f_cpu=48000000L
+mzero_nobl.build.usb_product="Arduino M0"
+mzero_nobl.build.board=SAM_ZERO
+mzero_nobl.build.core=arduino
+mzero_nobl.build.extra_flags=-D__SAMD21G18A__ -mthumb {build.usb_flags}
+mzero_nobl.build.ldscript=linker_scripts/gcc/flash_without_bootloader.ld
+mzero_nobl.build.openocdscript=openocd_scripts/arduino_zero.cfg
+mzero_nobl.build.variant=arduino_mzero
+mzero_nobl.build.variant_system_lib=
+mzero_nobl.build.vid=0x2a03
+mzero_nobl.build.pid=0x804e
+mzero_nobl.build.preferred_out_format=hex
+mzero_nobl.bootloader.size=0x4000
+mzero_nobl.build.emu.mcu=atmega2560
+mzero_nobl.bootloader.tool=openocd-withbootsize
+mzero_nobl.bootloader.low_fuses=0xff
+mzero_nobl.bootloader.file=mzero/Bootloader_D21_M0_150515.hex
+
+######################################################
 #ARDUINO TIAN (WITH) BOOTLOADER
 
 tian.name=Arduino Tian

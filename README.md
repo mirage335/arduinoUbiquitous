@@ -15,6 +15,10 @@ https://github.com/arduino/ArduinoCore-samd/pull/265
 * Programmer requires udev rule.
 https://blog.kylemanna.com/hardware/start-openocd-on-usb-hotplug/
 
+* Upload using Programmer - fails.
+https://forum.arduino.cc/index.php?topic=375270.0
+https://github.com/arduino/ArduinoCore-samd/issues/164
+
 # Diagnostic
 PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
 __asm__("nop\n\t");
