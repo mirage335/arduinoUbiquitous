@@ -7,11 +7,12 @@ _check_prog() {
 _test_prog() {
 	_getDep java
 	
-	! _check_prog && echo 'missing: dependency mismatch' && stop 1
+	! _check_prog && echo 'missing: dependency mismatch' && _stop 1
 }
 
 _setup_udev() {
-	_mustGetSudo
+	! _wantSudo && echo 'denied: sudo' && _stop 1
+	
 	sudo -n cp "$scriptLocal"/98-openocd.rules /etc/udev/rules.d/
 	sudo -n usermod -a -G plugdev "$USER"
 }
