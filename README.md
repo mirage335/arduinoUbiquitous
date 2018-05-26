@@ -19,9 +19,15 @@ https://blog.kylemanna.com/hardware/start-openocd-on-usb-hotplug/
 https://forum.arduino.cc/index.php?topic=375270.0
 https://github.com/arduino/ArduinoCore-samd/issues/164
 
+* Debugging with bootloader may not be possible with current versions.
+https://github.com/arduino/ArduinoCore-samd/issues/187
+
 # Diagnostic
 PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
 __asm__("nop\n\t");
+
+# Reference
+* https://learn.adafruit.com/debugging-the-samd21-with-gdb/setup
 
 
 __Copyright__

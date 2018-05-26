@@ -171,8 +171,7 @@ _arduino_upload_m0() {
 	fi
 	
 	#Upload over SWD debugger.
-	"$scriptLocal"/h/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$scriptLocal"/h/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLocal"/h/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/board/arduino_zero.cfg -c "telnet_port disabled; program {{"$arduinoBin"}} verify reset 0x00000000; shutdown"
-	#0x00002000
+	"$scriptLocal"/h/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$scriptLocal"/h/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLocal"/h/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/board/arduino_zero.cfg -c "telnet_port disabled; program {{"$arduinoBin"}} verify reset 0x00002000; shutdown"
 
 	if [[ $? != 0 ]]	#SWD upload failed.
 	then
