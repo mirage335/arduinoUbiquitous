@@ -7673,11 +7673,12 @@ _check_prog() {
 _test_prog() {
 	_getDep java
 	
-	! _check_prog && echo 'missing: dependency mismatch' && stop 1
+	! _check_prog && echo 'missing: dependency mismatch' && _stop 1
 }
 
 _setup_udev() {
-	_mustGetSudo
+	! _wantSudo && echo 'denied: sudo' && _stop 1
+	
 	sudo -n cp "$scriptLocal"/98-openocd.rules /etc/udev/rules.d/
 	sudo -n usermod -a -G plugdev "$USER"
 }
@@ -8604,7 +8605,19 @@ _generate_compile_bash() {
 
 _generate_compile_bash_prog() {
 	"$scriptAbsoluteLocation" _true
-} 
+	
+	rm "$scriptAbsoluteFolder"/ubiquitous_bash.sh
+	
+	#"$scriptAbsoluteLocation" _compile_bash cautossh cautossh
+	#"$scriptAbsoluteLocation" _compile_bash lean lean.sh
+	
+	"$scriptAbsoluteLocation" _compile_bash core ubiquitous_bash.sh
+	
+	#"$scriptAbsoluteLocation" _compile_bash "" ""
+	#"$scriptAbsoluteLocation" _compile_bash ubiquitous_bash ubiquitous_bash.sh
+	
+	#"$scriptAbsoluteLocation" _package
+}
 
 #Default is to include all, or run a specified configuration. For this reason, it will be more typical to override this entire function, rather than append any additional code.
 _compile_bash_deps() {
@@ -8625,7 +8638,48 @@ _compile_bash_deps() {
 		return 0
 	fi
 	
-	if [[ "$1" == "" ]]
+	if [[ "$1" == "core" ]]
+	then
+		_deps_notLean
+		_deps_os_x11
+		
+		_deps_x11
+		_deps_image
+		_deps_virt
+		_deps_chroot
+		_deps_qemu
+		_deps_vbox
+		#_deps_docker
+		_deps_wine
+		_deps_dosbox
+		_deps_msw
+		_deps_fakehome
+		
+		_deps_git
+		_deps_bup
+		
+		#_deps_blockchain
+		
+		#_deps_command
+		#_deps_synergy
+		
+		#_deps_hardware
+		#_deps_x220t
+		
+		#_deps_user
+		
+		#_deps_proxy
+		#_deps_proxy_special
+		
+		_deps_build
+		
+		_deps_build_bash
+		_deps_build_bash_ubiquitous
+		
+		return 0
+	fi
+	
+	if [[ "$1" == "" ]] || [[ "$1" == "ubiquitous_bash" ]] || [[ "$1" == "ubiquitous_bash.sh" ]] || [[ "$1" == "complete" ]]
 	then
 		_deps_notLean
 		_deps_os_x11
@@ -8642,6 +8696,7 @@ _compile_bash_deps() {
 		_deps_msw
 		_deps_fakehome
 		
+		_deps_git
 		_deps_bup
 		
 		_deps_blockchain
@@ -8664,6 +8719,8 @@ _compile_bash_deps() {
 		
 		return 0
 	fi
+	
+	return 1
 }
 
 _vars_compile_bash() {
@@ -9145,64 +9202,11 @@ _compile_bash_deps_prog() {
 
 #Default is to include all, or run a specified configuration. For this reason, it will be more typical to override this entire function, rather than append any additional code.
 # WARNING Find current version of this function at "build/bash/compile_bash.sh"
-_compile_bash_deps() {
-	[[ "$1" == "lean" ]] && return 0
-	
-	if [[ "$1" == "cautossh" ]]
-	then
-		_deps_os_x11
-		_deps_proxy
-		_deps_proxy_special
-		
-		_deps_git
-		_deps_bup
-		
-		_deps_command
-		_deps_synergy
-		
-		return 0
-	fi
-	
-	if [[ "$1" == "" ]]
-	then
-		_deps_notLean
-		_deps_os_x11
-		
-		_deps_x11
-		_deps_image
-		_deps_virt
-		_deps_chroot
-		_deps_qemu
-		_deps_vbox
-		#_deps_docker
-		_deps_wine
-		_deps_dosbox
-		_deps_msw
-		_deps_fakehome
-		
-		_deps_bup
-		
-		#_deps_blockchain
-		
-		#_deps_command
-		#_deps_synergy
-		
-		#_deps_hardware
-		#_deps_x220t
-		
-		#_deps_user
-		
-		#_deps_proxy
-		#_deps_proxy_special
-		
-		_deps_build
-		
-		_deps_build_bash
-		_deps_build_bash_ubiquitous
-		
-		return 0
-	fi
-}
+# _compile_bash_deps() {
+# 	[[ "$1" == "lean" ]] && return 0
+# 	
+# 	false
+# }
 
 _vars_compile_bash_prog() {
 	#export configDir="$scriptAbsoluteFolder"/_config
@@ -9412,6 +9416,12 @@ _echo() {
 	echo "$@"
 }
 
+#Stop if script is imported into an existing shell and bypass not requested.
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]] && [[ "$1" != "--bypass" ]]
+then
+	return
+fi
+
 #Set "ubOnlyMain" in "ops" overrides as necessary.
 if [[ "$ubOnlyMain" != "true" ]]
 then
@@ -9453,12 +9463,6 @@ then
 	fi
 fi
 [[ "$ubOnlyMain" == "true" ]] && export  ubOnlyMain="false"
-
-#Stop if script is imported into an existing shell and bypass not requested.
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]] && [[ "$1" != "--bypass" ]]
-then
-	return
-fi
 
 if ! [[ "$1" != "--bypass" ]]
 then
