@@ -58,5 +58,6 @@ nohup.out
 **/.oracle_jre*
 
 _local/h/.arduino15/staging/
+**/arduino*/portable/staging/
 
 _local/templates
