@@ -6,7 +6,12 @@ See license.txt for arduinoUbiquitous license conditions.
 
 
 # Design
+Portable operation supported through fakeHome, and Arduino built-in portable functionality. Both are expected to use the same files.
 
+## Requirements
+* Arduino installation placed under "_local/h".
+* Path to Arduino installation, relative to script, specified under "_prog/specglobalvars.sh" .
+* Symbolic links established to link portable installation to typical Arduino home folders.
 
 # Issues
 * Programmer support for M0 requires PR265.

@@ -6979,6 +6979,7 @@ export hostToGuestDir="$instancedVirtDir"/htg
 export hostToGuestFiles="$hostToGuestDir"/files
 export hostToGuestISO="$instancedVirtDir"/htg/htg.iso 
 
+export au_arduinoInstallation="$globalFakeHome"/arduino-1.8.5
 
 
 
@@ -8066,9 +8067,11 @@ _package() {
 
 _arduino_executable() {
 	local arduinoExecutable
-	arduinoExecutable="$scriptAbsoluteFolder"/_local/arduino-1.8.5/arduino
+	#arduinoExecutable="$scriptAbsoluteFolder"/_local/arduino-1.8.5/arduino
+	arduinoExecutable="$au_arduinoInstallation"/arduino
 	
-	export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
+	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, unset: java: user.home'
+	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, set: java: user.home' && export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
 	
 	"$arduinoExecutable" "$@"
 }
@@ -8101,7 +8104,12 @@ _arduino_deconfigure_sequence() {
 	_start
 	
 	local arduinoPreferences
-	arduinoPreferences="$HOME"/.arduino15/preferences.txt
+	
+	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, preferences: portable' && arduinoPreferences="$au_arduinoInstallation"/portable/preferences.txt
+	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, set: preferences: home' && arduinoPreferences="$HOME"/.arduino15/preferences.txt
+	
+	! [[ -e "$arduinoPreferences" ]] && arduinoPreferences="$HOME"/.arduino15/preferences.txt
+	
 	
 	mv "$arduinoPreferences" "$safeTmp"/preferences.txt
 	
@@ -8124,7 +8132,7 @@ _arduino_deconfigure() {
 }
 
 # WARNING: Assumes first fileparameter given to arduino is sketch .
-_arduino_configure_compile() {
+_arduino_prepare_compile() {
 	_messagePlain_nominal 'aU: set: build.path'
 	
 	local arduinoBuildPath
@@ -8146,11 +8154,12 @@ _arduino_configure_compile() {
 	return 1
 }
 
-_arduino_configure() {
-	_arduino_configure_compile "$@"
-	
+_arduino_prepare() {
+	_arduino_prepare_compile "$@"
 	_messagePlain_nominal 'aU: set: sketchbook.path'
-	_arduino_executable --save-prefs --pref sketchbook.path="$HOME"/Arduino
+	
+	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, set: sketchbook.path: portable' && _arduino_executable --save-prefs --pref sketchbook.path="$au_arduinoInstallation"/portable/sketchbook && return 0
+	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, set: sketchbook.path: home' && _arduino_executable --save-prefs --pref sketchbook.path="$HOME"/Arduino
 }
 
 
@@ -8158,7 +8167,7 @@ _arduino_configure() {
 #command
 _arduino_command() {
 	_messageNormal "aU: Configure."
-	_arduino_configure "$@"
+	_arduino_prepare "$@"
 	
 	_messageNormal "aU: Launch."
 	_arduino_executable "$@"
@@ -8175,6 +8184,11 @@ _arduino_edit() {
 #user
 _arduino_user() {
 	"$scriptAbsoluteLocation" _userFakeHome "$scriptAbsoluteLocation" _arduino_command "$@"
+}
+
+#config, assumes portable directories have been setup
+_arduino_config() {
+	"$scriptAbsoluteLocation" _arduino_command "$@"
 }
 
 #virtualized
