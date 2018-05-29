@@ -58,7 +58,7 @@ _arduino_deconfigure() {
 }
 
 # WARNING: Assumes first fileparameter given to arduino is sketch .
-_arduino_configure_compile() {
+_arduino_prepare_compile() {
 	_messagePlain_nominal 'aU: set: build.path'
 	
 	local arduinoBuildPath
@@ -80,8 +80,8 @@ _arduino_configure_compile() {
 	return 1
 }
 
-_arduino_configure() {
-	_arduino_configure_compile "$@"
+_arduino_prepare() {
+	_arduino_prepare_compile "$@"
 	
 	_messagePlain_nominal 'aU: set: sketchbook.path'
 	_arduino_executable --save-prefs --pref sketchbook.path="$HOME"/Arduino
@@ -92,7 +92,7 @@ _arduino_configure() {
 #command
 _arduino_command() {
 	_messageNormal "aU: Configure."
-	_arduino_configure "$@"
+	_arduino_prepare "$@"
 	
 	_messageNormal "aU: Launch."
 	_arduino_executable "$@"
@@ -109,6 +109,11 @@ _arduino_edit() {
 #user
 _arduino_user() {
 	"$scriptAbsoluteLocation" _userFakeHome "$scriptAbsoluteLocation" _arduino_command "$@"
+}
+
+#config, assumes portable directories have been setup
+_arduino_config() {
+	"$scriptAbsoluteLocation" _arduino_command "$@"
 }
 
 #virtualized
