@@ -12,6 +12,8 @@ Portable operation supported through fakeHome, and Arduino built-in portable fun
 * Arduino installation placed under "_local/h".
 * Path to Arduino installation, relative to script, specified under "_prog/specglobalvars.sh" .
 * Symbolic links established to link portable installation to typical Arduino home folders.
+_local/h/.arduino15/sketchbook -> ../Arduino
+_local/h/arduino-1.8.5/portable -> ../.arduino15
 
 # Issues
 * Programmer support for M0 requires PR265.
