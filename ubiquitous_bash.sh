@@ -5753,7 +5753,7 @@ _atomDev_sequence() {
 	
 	export keepFakeHome="false"
 	
-	atom --foreground true "$@"
+	atom --foreground "$@"
 }
 
 _atomDev() {
@@ -5770,7 +5770,7 @@ _atomDev_edit_sequence() {
 	
 	export keepFakeHome="false"
 	
-	_editFakeHome atom --foreground true "$@"
+	_editFakeHome atom --foreground "$@"
 }
 
 _atomDev_edit() {
@@ -5797,17 +5797,17 @@ _atom_tmp_sequence() {
 	rsync -q -ax --exclude "/.cache" "$atomFakeHomeSource"/.atom/ "$safeTmp"/appcfg/
 	
 	export ATOM_HOME="$safeTmp"/appcfg
-	atom --foreground true "$@"
+	atom --foreground "$@"
 	
 	_stop
 }
 
 _atom_tmp() {
-	_atom_tmp_sequence "$@"
+	"$scriptAbsoluteLocation" _atom_tmp_sequence "$@"  > /dev/null 2>&1 &
 }
 
 _atom() {
-	_atom_user "$@"
+	_atom_tmp "$@"
 }
 
 _ubide() {
@@ -6742,6 +6742,24 @@ _setupUbiquitous_nonet() {
 _upgradeUbiquitous() {
 	_setupUbiquitous
 }
+
+_refresh_anchors_ubiquitous() {
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_ubide
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_ubdb
+}
+
+_anchor() {
+	[[ "$scriptAbsoluteFolder" == *"ubiquitous_bash" ]] && _refresh_anchors_ubiquitous
+	
+	if type "_refresh_anchors" > /dev/null 2>&1
+	then
+		_tryExec "_refresh_anchors"
+		return
+	fi
+	
+	return 0
+}
+
 
 #####Basic Variable Management
 

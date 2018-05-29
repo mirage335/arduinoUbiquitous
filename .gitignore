@@ -1,22 +1,18 @@
-
 w_*/
 v_*/
 h_*/
+*.tar
+*.zip
+*.iso
 vm.vdi
 vm.img
 vm*.img
 WARNING
-_index
 *.log
 devtask*
 devtask/
 USAGE.*.html
 _buried
-
-id_rsa
-pubring.kbx
-pubring.kbx*
-trustdb.gpg
 
 \#*\#
 *~
@@ -62,3 +58,6 @@ nohup.out
 **/.oracle_jre*
 
 _local/h/.arduino15/staging/
+
+_local/h
+_local/templates
