@@ -1,3 +1,6 @@
 [submodule "_lib/ubiquitous_bash"]
 	path = _lib/ubiquitous_bash
 	url = git@github.com:mirage335/ubiquitous_bash.git
+[submodule "_lib/openocd-static"]
+	path = _lib/openocd-static
+	url = git@github.com:mirage335/openocd-static.git
