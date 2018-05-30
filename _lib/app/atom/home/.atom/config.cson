@@ -1,12 +1,15 @@
 "*":
+  "autocomplete-plus":
+    confirmCompletion: "tab always, enter when suggestion explicitly selected"
   core:
     automaticallyUpdate: false
     closeDeletedFileTabs: true
     disabledPackages: [
       "tree-view-git-modified"
-      "github"
-      "open-on-github"
+      "metrics"
+      "welcome"
     ]
+    fileSystemWatcher: "poll"
     openEmptyEditorOnStart: false
     restorePreviousWindowsOnStart: "no"
     telemetryConsent: "no"
