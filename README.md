@@ -13,6 +13,13 @@ Persistent changes to the IDE can be made through "./ubiquitous_bash.sh _arduino
 
 See "_prog/core.sh" for details.
 
+# Development
+Fork this repository to create specialized variants of this IDE for other purposes (ie. custom hardware support).
+
+# Distribution
+Create tar packages by command "./ubiquitous_bash.sh _package". These will contain the bare ".git" directory, an "arduino" directory, and an "arduino/portable" directory. End users can either populate the repository with "git reset --hard", or directly run the "arduino/arduino" executable, which will rely on the "arduino/portable" directory.
+
+In this way, custom IDEs can be shipped out, for example alongside specialized device firmware, as a single tar package, to end users.
 
 # Design
 Portable operation supported through fakeHome, and Arduino built-in portable functionality. Both are expected to use the same files.
@@ -44,8 +51,6 @@ https://github.com/arduino/ArduinoCore-samd/issues/158
 # Future Work
 * Integrate Arduino Builder as well.
 https://github.com/arduino/arduino-builder
-* Create fork script to speed up construction of other IDEs.
-* Remove default Arduino configuration from repository.
 
 # Diagnostic
 PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
