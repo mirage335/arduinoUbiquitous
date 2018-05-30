@@ -61,3 +61,5 @@ _local/h/.arduino15/staging/
 **/arduino*/portable/staging/
 
 _local/templates
+
+package.tar.gz

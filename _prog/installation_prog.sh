@@ -21,9 +21,8 @@ _setup_prog() {
 }
 
 _package_prog() {
-	cp -a "$scriptAbsoluteFolder"/.git "$safeTmp"/package/
-	
-	cp -a "$au_arduinoInstallation" "$safeTmp"/package/
+	export safeToDeleteGit="true"
+	cp -a "$scriptAbsoluteFolder"/.git "$safeTmp"/package/.git
 	
 	mkdir -p "$safeTmp"/package/arduino
 	cp -a "$au_arduinoInstallation"/. "$safeTmp"/package/arduino
