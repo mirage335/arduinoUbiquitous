@@ -4,7 +4,7 @@ _arduino_executable() {
 	arduinoExecutable="$au_arduinoInstallation"/arduino
 	
 	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, unset: java: user.home'
-	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, set: java: user.home' && export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
+	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, update: arduinoExecutable, set: java: user.home' && arduinoExecutable="$HOME"/"$au_arduinoDir"/arduino && export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
 	
 	"$arduinoExecutable" "$@"
 }
@@ -64,15 +64,32 @@ _arduino_deconfigure() {
 	"$scriptAbsoluteLocation" _arduino_deconfigure_sequence "$@"
 }
 
+_arduino_set_board_zero_native() {
+	_messagePlain_nominal 'aU: set: board'
+	_arduino_executable --save-prefs --pref target_platform=samd
+	_arduino_executable --save-prefs --pref board=arduino_zero_native
+}
+
+#Intended to be used as "ops" override.
+_arduino_prepare_board() {
+	true
+}
+
+#Intended to be used as an ops override.
+_arduino_sketch_ops() {
+	true
+}
+
 # WARNING: Assumes first fileparameter given to arduino is sketch .
 _arduino_prepare_compile() {
 	_messagePlain_nominal 'aU: set: build.path'
 	
 	local arduinoBuildPath
+	local arduinoSketchDir
 	
-	if arduinoBuildPath=$(_arduino_sketchDir "$@")
+	if arduinoSketchDir=$(_arduino_sketchDir "$@")
 	then
-		arduinoBuildPath="$arduinoBuildPath"/_build
+		arduinoBuildPath="$arduinoSketchDir"/_build
 		
 		_messagePlain_good 'aU: found: sketch= '"$arduinoBuildPath"
 		
@@ -80,6 +97,9 @@ _arduino_prepare_compile() {
 		
 		_messagePlain_probe _arduino_executable --save-prefs --pref build.path="$arduinoBuildPath"
 		_arduino_executable --save-prefs --pref build.path="$arduinoBuildPath"
+		
+		#Looks for an ops file in same directory as sketch.
+		[[ -e "$arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$arduinoSketchDir"/ops
 		
 		return 0
 	fi
@@ -89,6 +109,11 @@ _arduino_prepare_compile() {
 
 _arduino_prepare() {
 	_arduino_prepare_compile "$@"
+	
+	_arduino_sketch_ops "$@"
+	
+	_arduino_prepare_board "$@"
+	
 	_messagePlain_nominal 'aU: set: sketchbook.path'
 	
 	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, set: sketchbook.path: portable' && _arduino_executable --save-prefs --pref sketchbook.path="$au_arduinoInstallation"/portable/sketchbook && return 0

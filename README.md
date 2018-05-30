@@ -3,6 +3,15 @@ See the end of the file for license conditions.
 See license.txt for arduinoUbiquitous license conditions.
 
 # Usage
+Define board type to compile for under "_local/ops", or through the IDE GUI in persistent mode.
+
+Arbitrary code may be added to "ops" file in same directory as sketch. Especially intended to set sketch-specific preferences (ie. board type).
+
+Launch Arduino IDE with "./_arduino" . Compile with "./_arduino_compile" . Upload with "./ubiquitous_bash.sh _arduino_upload_m0" or similar.
+
+Persistent changes to the IDE can be made through "./ubiquitous_bash.sh _arduino_edit" .
+
+See "_prog/core.sh" for details.
 
 
 # Design
