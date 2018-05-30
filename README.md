@@ -44,6 +44,8 @@ https://github.com/arduino/ArduinoCore-samd/issues/158
 # Future Work
 * Integrate Arduino Builder as well.
 https://github.com/arduino/arduino-builder
+* Create fork script to speed up construction of other IDEs.
+* Remove default Arduino configuration from repository.
 
 # Diagnostic
 PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
