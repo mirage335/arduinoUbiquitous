@@ -41,6 +41,10 @@ https://github.com/arduino/ArduinoCore-samd/issues/187
 * High drive current may not be available.
 https://github.com/arduino/ArduinoCore-samd/issues/158
 
+# Future Work
+* Integrate Arduino Builder as well.
+https://github.com/arduino/arduino-builder
+
 # Diagnostic
 PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
 __asm__("nop\n\t");
