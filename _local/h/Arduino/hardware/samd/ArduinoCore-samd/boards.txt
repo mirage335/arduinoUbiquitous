@@ -1,0 +1,92 @@
+# Copyright (c) 2014-2015 Arduino LLC.  All right reserved.
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+
+# test
+# ---------------------------------------
+test.name=test
+test.vid.0=0x2341
+test.pid.0=0x804d
+test.vid.1=0x2341
+test.pid.1=0x004d
+
+test.vid.2=0x2341
+test.pid.2=0x824d
+# If the board is a 2341:824d use 2341:824d for build and set other parameters as well
+test.vid.2.build.vid=0x2341
+test.vid.2.build.pid=0x824d
+test.vid.2.build.usb_product="Genuino Zero"
+test.vid.2.bootloader.file=zero/samd21_sam_ba_genuino.bin
+
+test.vid.3=0x2341
+test.pid.3=0x024d
+# If the board is a 2341:024d use 2341:824d for build and set other parameters as well
+test.vid.3.build.vid=0x2341
+test.vid.3.build.pid=0x824d
+test.vid.3.build.usb_product="Genuino Zero"
+test.vid.3.bootloader.file=zero/samd21_sam_ba_genuino.bin
+
+test.upload.tool=bossac
+test.upload.protocol=sam-ba
+test.upload.maximum_size=262144
+test.upload.use_1200bps_touch=true
+test.upload.wait_for_upload_port=true
+test.upload.native_usb=true
+test.build.mcu=cortex-m0plus
+test.build.f_cpu=48000000L
+test.build.usb_product="Arduino Zero"
+test.build.usb_manufacturer="Arduino LLC"
+test.build.board=SAMD_ZERO
+test.build.core=arduino
+test.build.extra_flags=-D__SAMD21J18A__ {build.usb_flags} -D ARDUINO_ARCH_SAMD
+test.build.ldscript=linker_scripts/gcc/flash_with_bootloader.ld
+test.build.openocdscript=openocd_scripts/arduino_zero.cfg
+test.build.variant=arduino_zero
+test.build.variant_system_lib=
+test.build.vid=0x2341
+test.build.pid=0x804d
+test.bootloader.tool=openocd
+test.bootloader.file=zero/samd21_sam_ba.bin
+
+
+# test (SWD w/SAM-ICE)
+# ---------------------------------------
+test_swd.name=test_SWD
+test_swd.vid.0=0x03eb
+#test_swd.pid.0=0x2157
+test_swd.pid.0=0x2141
+
+test_swd.upload.tool=openocd
+test_swd.upload.protocol=sam-ba
+test_swd.upload.maximum_size=262144
+test_swd.upload.use_1200bps_touch=false
+test_swd.upload.wait_for_upload_port=false
+test_swd.upload.native_usb=false
+test_swd.build.mcu=cortex-m0plus
+test_swd.build.f_cpu=48000000L
+test_swd.build.usb_product="Arduino Zero"
+test_swd.build.usb_manufacturer="Arduino LLC"
+test_swd.build.board=SAMD_ZERO
+test_swd.build.core=arduino
+test_swd.build.extra_flags=-D__SAMD21J18A__ {build.usb_flags} -D ARDUINO_ARCH_SAMD
+test_swd.build.ldscript=linker_scripts/gcc/flash_with_bootloader.ld
+test_swd.build.openocdscript=openocd_scripts/arduino_zero.cfg
+test_swd.build.variant=arduino_zero
+test_swd.build.variant_system_lib=
+test_swd.build.vid=0x2341
+test_swd.build.pid=0x804d
+test_swd.bootloader.tool=openocd
+test_swd.bootloader.file=zero/samd21_sam_ba.bin

@@ -1,4 +1,4 @@
-board=yun
+board=arduino_zero_native
 boardsmanager.additional.urls=
 browser=mozilla
 build.path=/home/commonadmin/projects/_random/arduino/_ref/Blink/_build
@@ -74,8 +74,8 @@ serial.port.file=ttyACM0
 serial.port.iserial=null
 serial.stopbits=1
 software=ARDUINO
-target_package=arduino
-target_platform=avr
+target_package=samd
+target_platform=ArduinoCore-samd
 update.check=true
 update.id=-4148081490426623706
 upload.using=bootloader

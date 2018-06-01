@@ -4,3 +4,6 @@
 [submodule "_lib/openocd-static"]
 	path = _lib/openocd-static
 	url = git@github.com:mirage335/openocd-static.git
+[submodule "_lib/ArduinoCore-samd"]
+	path = _lib/ArduinoCore-samd
+	url = git@github.com:arduino/ArduinoCore-samd.git
