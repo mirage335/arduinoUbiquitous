@@ -195,7 +195,7 @@ _arduino_upload_bossac_serial() {
 
 #Requires bootloader.
 _arduino_upload_openocd_swd_zero() {
-	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" -f "$globalFakeHome"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; program {{"$1"}} verify reset 0x00002000; shutdown"
+	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; program {""$1""} verify reset 0x00002000; shutdown"
 }
 
 #Applicable to other Arduino SAMD21 variants.
@@ -233,7 +233,7 @@ _arduino_upload_zero() {
 	
 	#Upload over SWD debugger.
 	_arduino_upload_openocd_swd_zero "$arduinoBin"
-
+	
 	if [[ $? != 0 ]]	#SWD upload failed.
 	then
 		_arduino_upload_bossac_serial "$arduinoBin"
