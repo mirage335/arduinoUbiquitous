@@ -1,3 +1,29 @@
+#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
+_arduino_upload_serial_bossac() {
+	local arduinoSerialPort
+	
+	arduinoSerialPort=/dev/ttyACM0
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM1
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM2
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB0
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB1
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB2
+	! [[ -e "$arduinoSerialPort" ]] && return 1
+	
+	stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";
+	sleep 2
+	"$globalFakeHome"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port=ttyACM0 -U true -i -e -w -v "$1" -R
+}
+
+_arduino_swd_openocd() {
+	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg "$@"
+}
+
+#Requires bootloader.
+_arduino_upload_swd_openocd_zero() {
+	_arduino_swd_openocd -c "telnet_port disabled; program {""$1""} verify reset 0x00002000; shutdown"
+}
+
 _arduino_executable() {
 	local arduinoExecutable
 	#arduinoExecutable="$scriptAbsoluteFolder"/_local/arduino-1.8.5/arduino
@@ -55,6 +81,9 @@ _arduino_deconfigure_sequence() {
 	grep -v '^recent\.' "$safeTmp"/preferences.txt > "$safeTmp"/intermediate
 	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
 	
+	grep -v '^build\.path' "$safeTmp"/preferences.txt > "$safeTmp"/intermediate
+	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
+	
 	mv "$safeTmp"/preferences.txt "$arduinoPreferences"
 	
 	_stop
@@ -66,6 +95,7 @@ _arduino_deconfigure() {
 
 _arduino_set_board_zero_native() {
 	_messagePlain_nominal 'aU: set: board'
+	_arduino_executable --save-prefs --pref programmer=arduino:sam_ice
 	_arduino_executable --save-prefs --pref target_platform=samd
 	_arduino_executable --save-prefs --pref board=arduino_zero_native
 }
@@ -173,29 +203,7 @@ _arduino() {
 }
 
 _arduino_compile() {
-	_arduino "$@" --verify
-}
-
-#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
-_arduino_upload_bossac_serial() {
-	local arduinoSerialPort
-	
-	arduinoSerialPort=/dev/ttyACM0
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM1
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM2
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB0
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB1
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB2
-	! [[ -e "$arduinoSerialPort" ]] && return 1
-	
-	stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";
-	sleep 2
-	"$globalFakeHome"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port=ttyACM0 -U true -i -e -w -v "$1" -R
-}
-
-#Requires bootloader.
-_arduino_upload_openocd_swd_zero() {
-	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; program {""$1""} verify reset 0x00002000; shutdown"
+	_arduino_config "$@" --verify
 }
 
 #Applicable to other Arduino SAMD21 variants.
@@ -223,7 +231,7 @@ _arduino_upload_zero() {
 	
 	local arduinoBin
 	
-	if arduinoBin=$(find "$arduinoBuildPath" -name '*.bin' | head -n 1) && [[ -e "$arduinoBin" ]]
+	if arduinoBin=$(find "$arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1) && [[ -e "$arduinoBin" ]]
 	then
 		_messagePlain_good 'aU: found: binary= '"$arduinoBin"
 	else
@@ -232,11 +240,11 @@ _arduino_upload_zero() {
 	fi
 	
 	#Upload over SWD debugger.
-	_arduino_upload_openocd_swd_zero "$arduinoBin"
+	_arduino_upload_swd_openocd_zero "$arduinoBin"
 	
 	if [[ $? != 0 ]]	#SWD upload failed.
 	then
-		_arduino_upload_bossac_serial "$arduinoBin"
+		_arduino_upload_serial_bossac "$arduinoBin"
 	fi
 }
 
@@ -257,6 +265,88 @@ _arduino_bootloader() {
 }
 
 
+_here_gdbinit() {
+cat << CZXWXcRMTo8EmM8i4d
+#####Config
+#search path
+#	/arduino/sketch
+
+#####Startup
+
+file $au_arduinoSketchBinary
+
+#set substitute-path /arduino/_build/sketch /arduino/sketch
+#set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
+
+#####Remote
+
+target remote localhost:3333
+
+monitor reset halt
+
+monitor reset init
+
+
+CZXWXcRMTo8EmM8i4d
+}
+
+
+_debug_sequence() {
+	_start
+	
+	_messagePlain_nominal 'set: debug'
+	
+	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
+	export au_arduinoBuildDir="$au_arduinoSketchDir"/_build
+	export au_remotePortGDB="3333"	# TODO Replace, _findPort.
+	! [[ -e "$au_arduinoBuildDir" ]] && _stop 1
+	
+	export au_arduinoSketchBinary=$(find "$au_arduinoBuildDir" -maxdepth 1 -name '*.elf' | head -n 1)
+	
+	_messagePlain_probe 'au_arduinoSketchBinary= '"$au_arduinoSketchBinary"
+	
+	_arduino_swd_openocd &
+	
+	_here_gdbinit > "$safeTmp"/.gdbinit
+	
+	ddd --debugger "$globalFakeHome"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb -d "$au_arduinoSketchDir" -x "$safeTmp"/.gdbinit
+	
+	
+	
+	
+	
+	pkill openocd # TODO Replace, _killDaemon.
+	
+	_stop
+}
+
+
+_debug() {
+	"$scriptAbsoluteLocation" _debug_sequence "$@"
+}
+
+
+
+
+
+
+
+
+
+#"AppIDE", not "AtomIDE", or "ArduinoIDE".
+_aide() {
+	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
+	export au_arduinoBuildDir="$au_arduinoSketchDir"/_build
+	export au_remotePortGDB="3333"	# TODO Replace, _findPort.
+	
+	
+	_atom "$au_arduinoSketchDir" "$@"
+}
+
+
+
+
+
 
 #duplicate _anchor
 _refresh_anchors() {
@@ -264,6 +354,7 @@ _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_compile
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_upload
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_aide
 }
 
 

@@ -1,4 +1,4 @@
-board=arduino_zero_edbg
+board=arduino_zero_native
 boardsmanager.additional.urls=
 browser=mozilla
 build.verbose=false
@@ -49,7 +49,7 @@ preproc.save_build_files=false
 preproc.substitute_floats=true
 preproc.substitute_unicode=true
 preproc.web_colors=true
-programmer=samd:sam_ice
+programmer=arduino:sam_ice
 proxy.manual.hostname=
 proxy.manual.password=
 proxy.manual.port=

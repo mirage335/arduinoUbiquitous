@@ -91,6 +91,8 @@ __asm__("nop\n\t");
 * http://www.rogerclark.net/work-around-for-arduino-stm32-with-ide-v-1-6-3-or-newer/
 * https://atadiat.com/en/e-arduino-core-source-files-make-new-core-building-steps/#Adding_New_Arduino_Core_to_IDE_Offline
 
+* https://cdn-learn.adafruit.com/downloads/pdf/debugging-the-samd21-with-gdb.pdf
+
 
 __Copyright__
 This file is part of arduinoUbiquitous.
