@@ -176,7 +176,29 @@ _arduino_compile() {
 	_arduino "$@" --verify
 }
 
-#Applicable to other arduino variants.
+#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
+_arduino_upload_bossac_serial() {
+	local arduinoSerialPort
+	
+	arduinoSerialPort=/dev/ttyACM0
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM1
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM2
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB0
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB1
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB2
+	! [[ -e "$arduinoSerialPort" ]] && return 1
+	
+	stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";
+	sleep 2
+	"$globalFakeHome"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port=ttyACM0 -U true -i -e -w -v "$1" -R
+}
+
+#Requires bootloader.
+_arduino_upload_openocd_swd_zero() {
+	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" -f "$globalFakeHome"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; program {{"$1"}} verify reset 0x00002000; shutdown"
+}
+
+#Applicable to other Arduino SAMD21 variants.
 _arduino_upload_zero() {
 	_messageNormal 'Detecting build path.'
 	
@@ -210,14 +232,11 @@ _arduino_upload_zero() {
 	fi
 	
 	#Upload over SWD debugger.
-	"$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/board/arduino_zero.cfg -c "telnet_port disabled; program {{"$arduinoBin"}} verify reset 0x00002000; shutdown"
+	_arduino_upload_openocd_swd_zero "$arduinoBin"
 
 	if [[ $? != 0 ]]	#SWD upload failed.
 	then
-		#Upload over serial COM.
-		stty --file=/dev/ttyACM0 1200;stty stop x --file=/dev/ttyACM0;stty --file=/dev/ttyACM0 1200;stty stop x --file=/dev/ttyACM0;
-		sleep 2
-		"$globalFakeHome"/arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port=ttyACM0 -U true -i -e -w -v "$arduinoBin" -R
+		_arduino_upload_bossac_serial "$arduinoBin"
 	fi
 }
 
@@ -226,11 +245,11 @@ _arduino_upload() {
 }
 
 _arduino_bootloader_m0() {
-	"$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$globalFakeHome"/.arduino15/packages/arduino-beta/hardware/samd/1.6.16-build-172/variants/arduino_mzero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLocal""/h/.arduino15/packages/arduino-beta/hardware/samd/1.6.16-build-172/bootloaders/mzero/Bootloader_D21_M0_150515.hex}} verify reset; shutdown"
+	"$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLib"/ArduinoCore-samd/variants/arduino_mzero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLib""/ArduinoCore-samd/bootloaders/mzero/Bootloader_D21_M0_150515.hex}} verify reset; shutdown"
 }
 
 _arduino_bootloader_zero() {
-	"$globalFakeHome"/arduino-1.8.5/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/arduino-1.8.5/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$globalFakeHome"/arduino-1.8.5/portable/packages/arduino-beta/hardware/samd/1.6.16-build-172/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$globalFakeHome""/arduino-1.8.5/portable/packages/arduino-beta/hardware/samd/1.6.16-build-172/bootloaders/zero/samd21_sam_ba.bin}} verify reset; shutdown"
+	"$globalFakeHome"/arduino-1.8.5/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/arduino-1.8.5/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLib""/ArduinoCore-samd/bootloaders/zero/samd21_sam_ba.bin}} verify reset; shutdown"
 }
 
 _arduino_bootloader() {
@@ -244,6 +263,7 @@ _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_compile
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_upload
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader
 }
 
 

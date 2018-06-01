@@ -50,7 +50,7 @@ WARNING: Do not copy ".git" files or folders into "_local/h".
 * Tools, under "$HOME"/.arduino15/packages/arduino/hardware/tools , and similar, may not be available from tracked git submodules. Typically, these are obtained as automatic dependencies installed by the ArduinoIDE board manager. As a workaround, run the ArduinoIDE in a temporary intstance, gather the files, collect them from the 'h_<uid>' directory, and install them in an apporpriate location. Run ArduinoIDE with "_arduino_user". Or, directly install them using "_arduino_edit".
 
 # Issues
-* Programmer support for M0 requires PR265.
+* Programmer support for M0 and Zero requires PR265. Bootloader may need to be rewriten after sketch.
 https://github.com/arduino/ArduinoCore-samd/pull/265
 
 * Programmer requires udev rule.
