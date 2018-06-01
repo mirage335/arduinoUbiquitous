@@ -47,8 +47,7 @@ WARNING: Do not copy ".git" files or folders into "_local/h".
 
 * ArduinoIDE itself cannot be kept directly as a git submodule under "_lib", as it must be copied to temporary home directories. As a workaround, install the IDE files to the "_local/h" global home directory.
 * Forks of Arduino cores (eg. ArduinoCore-samd), while kept directly as git submodules under "_lib", cannot be safely updated in place where they must be copied from the "_local/h" global home directory. Install them under "_local/h/Arduino", and test whether needed tools can be found by the ArduinoIDE.
-* Tools, under "$HOME"/.arduino15/packages/arduino/hardware/tools , and similar, may not be available from tracked git submodules. Typically, these are obtained as automatic dependencies installed by the ArduinoIDE board manager. As a workaround, run the ArduinoIDE in a temporary intstance, gather the files, collect them from the 'h_<uid>' directory, and install them in an apporpriate location. Or, directly install them using "_arduino_edit".
-"_arduino_user"
+* Tools, under "$HOME"/.arduino15/packages/arduino/hardware/tools , and similar, may not be available from tracked git submodules. Typically, these are obtained as automatic dependencies installed by the ArduinoIDE board manager. As a workaround, run the ArduinoIDE in a temporary intstance, gather the files, collect them from the 'h_<uid>' directory, and install them in an apporpriate location. Run ArduinoIDE with "_arduino_user". Or, directly install them using "_arduino_edit".
 
 # Issues
 * Programmer support for M0 requires PR265.
