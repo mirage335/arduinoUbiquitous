@@ -1,3 +1,15 @@
+_prepareArduinoHome() {
+	mkdir -p "$globalFakeHome"
+	mkdir -p "$instancedFakeHome"
+
+	mkdir -p "$scriptLocal"/app/.app
+
+	_relink "$scriptLocal"/app/.app "$globalFakeHome"/.app
+
+	_relink "$scriptLocal"/app/.app "$instancedFakeHome"/.app
+}
+
+
 #Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
 _arduino_upload_serial_bossac() {
 	local arduinoSerialPort
@@ -33,6 +45,23 @@ _arduino_executable() {
 	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, update: arduinoExecutable, set: java: user.home' && arduinoExecutable="$HOME"/"$au_arduinoDir"/arduino && export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
 	
 	"$arduinoExecutable" "$@"
+}
+
+# DANGER Not recommended!
+_make_clean() {
+	[[ "$1" == "" ]] && return 1
+	! [[ -e "$1" ]] && return 1
+	
+	local arduinoBuildPathRM
+	local arduinoSketchDirRM
+	
+	if arduinoSketchDirRM=$(_arduino_sketchDir "$@")
+	then
+		arduinoBuildPathRM="$arduinoSketchDirRM"/_build
+		_messagePlain_warn 'rm -rf '"$arduinoBuildPathRM"
+		# DANGER Do NOT change this carelessly!
+		[[ -e "$arduinoBuildPathRM" ]] && _safeBackup "$arduinoBuildPathRM" && rm -rf "$arduinoBuildPathRM"
+	fi
 }
 
 # WARNING: Assumes first fileparameter given to arduino is sketch .
@@ -202,19 +231,14 @@ _arduino() {
 	#_v${FUNCNAME[0]} "${processedArgs[@]}"
 }
 
+_arduino_compile_sequence() {
+	_arduino_command --verify "$@"
+}
+
 _arduino_compile() {
-	local arduinoBuildPathRM
-	local arduinoSketchDirRM
+	#_make_clean "$@" # DANGER Not recommended!
 	
-	if arduinoSketchDirRM=$(_arduino_sketchDir "$@")
-	then
-		arduinoBuildPathRM="$arduinoSketchDirRM"/_build
-		_messagePlain_warn 'rm -rf '"$arduinoBuildPathRM"
-		# DANGER Do NOT change this carelessly!
-		#[[ -e "$arduinoBuildPathRM" ]] && _safeBackup "$arduinoBuildPathRM" && rm -rf "$arduinoBuildPathRM"
-	fi
-	
-	_arduino_config "$@" --verify
+	"$scriptAbsoluteLocation" _userShortHome _arduino_compile_sequence "$@"
 }
 
 #Applicable to other Arduino SAMD21 variants.
