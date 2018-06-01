@@ -27,6 +27,10 @@ Create tar packages by command "./ubiquitous_bash.sh _package". These will conta
 
 In this way, custom IDEs can be shipped out, for example alongside specialized device firmware, as a single tar package, to end users.
 
+# Likely Problems
+
+* Cores installed under "~/Arduino/hardware/" require a programmer in the IDE to be selected from the list of programmers under the "programmers.txt" file of that core.
+
 # Design
 Portable operation supported through fakeHome, and Arduino built-in portable functionality. Both are expected to use the same files.
 
@@ -42,7 +46,7 @@ _local/h/arduino-1.8.5/portable -> ../.arduino15
 WARNING: Do not copy ".git" files or folders into "_local/h".
 
 * ArduinoIDE itself cannot be kept directly as a git submodule under "_lib", as it must be copied to temporary home directories. As a workaround, install the IDE files to the "_local/h" global home directory.
-* Forks of Arduino cores (eg. ArduinoCore-samd), while kept directly as git submodules under "_lib", cannot be safely updated in place where they must be copied from the "_local/h" global home directory. Install them, and test whether needed tools can be found by the ArduinoIDE.
+* Forks of Arduino cores (eg. ArduinoCore-samd), while kept directly as git submodules under "_lib", cannot be safely updated in place where they must be copied from the "_local/h" global home directory. Install them under "_local/h/Arduino", and test whether needed tools can be found by the ArduinoIDE.
 * Tools, under "$HOME"/.arduino15/packages/arduino/hardware/tools , and similar, may not be available from tracked git submodules. Typically, these are obtained as automatic dependencies installed by the ArduinoIDE board manager. As a workaround, run the ArduinoIDE in a temporary intstance, gather the files, collect them from the 'h_<uid>' directory, and install them in an apporpriate location. Or, directly install them using "_arduino_edit".
 "_arduino_user"
 
@@ -67,6 +71,7 @@ https://github.com/arduino/ArduinoCore-samd/issues/158
 * Keep "_lib/ArduinoCore-samd" to a version compatible with uploading sketch and bootloader code by external programmer.
 https://github.com/arduino/ArduinoCore-samd/pull/265
 d72f11735d3588f4128b016b346f41ef9812b060
+* Cores must not use '-' character in their name as does 'ArduinoCore-samd'. Recommend restricted character set. Allowing such characters causes confusing warnings about whitespace.
 
 # Future Work
 * Integrate Arduino Builder as well.
