@@ -76,6 +76,8 @@ d72f11735d3588f4128b016b346f41ef9812b060
 * Integrate Arduino Builder as well.
 https://github.com/arduino/arduino-builder
 
+* Driver to retrieve firmware information over USBSerial, upload new firmware by device type.
+
 # Diagnostic
 PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
 __asm__("nop\n\t");
@@ -92,6 +94,9 @@ __asm__("nop\n\t");
 * https://atadiat.com/en/e-arduino-core-source-files-make-new-core-building-steps/#Adding_New_Arduino_Core_to_IDE_Offline
 
 * https://cdn-learn.adafruit.com/downloads/pdf/debugging-the-samd21-with-gdb.pdf
+
+* https://github.com/arduino/Arduino/issues/3746
+* https://github.com/arduino/arduino-builder/pull/9
 
 
 __Copyright__

@@ -203,6 +203,17 @@ _arduino() {
 }
 
 _arduino_compile() {
+	local arduinoBuildPathRM
+	local arduinoSketchDirRM
+	
+	if arduinoSketchDirRM=$(_arduino_sketchDir "$@")
+	then
+		arduinoBuildPathRM="$arduinoSketchDirRM"/_build
+		_messagePlain_warn 'rm -rf '"$arduinoBuildPathRM"
+		# DANGER Do NOT change this carelessly!
+		#[[ -e "$arduinoBuildPathRM" ]] && _safeBackup "$arduinoBuildPathRM" && rm -rf "$arduinoBuildPathRM"
+	fi
+	
 	_arduino_config "$@" --verify
 }
 
