@@ -8173,6 +8173,9 @@ _arduino_deconfigure_sequence() {
 	grep -v '^recent\.' "$safeTmp"/preferences.txt > "$safeTmp"/intermediate
 	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
 	
+	grep -v '^build\.path' "$safeTmp"/preferences.txt > "$safeTmp"/intermediate
+	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
+	
 	mv "$safeTmp"/preferences.txt "$arduinoPreferences"
 	
 	_stop
@@ -8443,6 +8446,7 @@ _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_compile
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_upload
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_debug
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_aide
 }
 
