@@ -50,7 +50,7 @@ _prepare_arduino_compile() {
 	[[ "$1" == "" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
 	
 	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
-	export au_arduinoBuildPath="$arduinoSketchDir"/build
+	export au_arduinoBuildPath="$au_arduinoSketchDir"/build
 	
 	! [[ -e "$au_arduinoSketchDir" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
 	_messagePlain_good 'aU: found: sketch= '"$au_arduinoSketchDir"
@@ -90,9 +90,9 @@ _prepare_arduino() {
 	fi
 }
 
-#Intended to be used as "ops" override.
+# ATTENTION Overload with ops!
 _prepare_arduino_board() {
-	true
+	_set_arduino_board_zero_native
 }
 
 _set_arduino_board_zero_native() {
@@ -266,14 +266,23 @@ _arduino() {
 	#_v${FUNCNAME[0]} "$@"
 }
 
+# ATTENTION Overload with ops! (well no, actually probably not any reason to do so here)
 _arduino_compile_commands() {
+	_messagePlain_nominal 'Compile.'
+	
 	mkdir -p "$shortTmp"/build
 	_arduino_executable --save-prefs --pref build.path="$shortTmp"/build
 	
 	_arduino_executable --verify "$@"
+	
+	mkdir -p "$au_arduinoBuildPath"
+	cp "$shortTmp"/build/*.bin "$au_arduinoBuildPath"/
+	cp "$shortTmp"/build/*.hex "$au_arduinoBuildPath"/
+	cp "$shortTmp"/build/*.elf "$au_arduinoBuildPath"/
 }
 
 _arduino_compile_actions() {
+	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
 	_start
 	
 	_arduino_compile_commands "$@"
@@ -292,38 +301,16 @@ _arduino_compile() {
 	_userShortHome "$scriptAbsoluteLocation" _arduino_compile_sequence "$@"
 }
 
-#Applicable to other Arduino SAMD21 variants.
-_arduino_upload_zero() {
-	_messageNormal 'Detecting build path.'
-	
-	local arduinoBuildPath
-	
-	if arduinoBuildPath=$(_arduino_sketchDir "$@")
-	then
-		arduinoBuildPath="$arduinoBuildPath"/_build
-		_messagePlain_good 'aU: found: sketch= '"$arduinoBuildPath"
-	else
-		_messagePlain_warn 'aU: undef: sketch'
-		arduinoBuildPath="$PWD"/_build
-	fi
-	
-	if ! [[ -e "$arduinoBuildPath" ]]
-	then
-		_messagePlain_bad 'aU: missing: sketch='"$arduinoBuildPath"
-		_stop 1
-	fi
-	
-	_messageNormal 'Detecting binary.'
+
+_arduino_upload_zero_commands() {
+	_messagePlain_nominal 'Upload.'
 	
 	local arduinoBin
+	arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
 	
-	if arduinoBin=$(find "$arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1) && [[ -e "$arduinoBin" ]]
-	then
-		_messagePlain_good 'aU: found: binary= '"$arduinoBin"
-	else
-		_messagePlain_bad 'aU: missing: binary'"$arduinoBin"
-		_stop 1
-	fi
+	[[ "$1" != "" ]] && arduinoBin="$1"
+	
+	! [[ -e "$arduinoBin" ]] && _messagePlain_bad 'missing: arduinoBin= '"$arduinoBin" && return 1 
 	
 	#Upload over SWD debugger.
 	_arduino_upload_swd_openocd_zero "$arduinoBin"
@@ -334,8 +321,49 @@ _arduino_upload_zero() {
 	fi
 }
 
+# ATTENTION Overload with ops!
+_arduino_upload_commands() {
+	_arduino_upload_zero_commands "$@"
+}
+
+
+_arduino_upload_actions() {
+	_start
+	
+	_arduino_upload_commands
+	
+	_stop
+}
+
+_arduino_upload_sequence() {
+	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
+	_launch_arduino _arduino_upload_actions "$@"
+}
+
+#Applicable to other Arduino SAMD21 variants.
 _arduino_upload() {
-	_arduino_upload_zero "$@"
+	_userShortHome "$scriptAbsoluteLocation" _arduino_upload_sequence "$@"
+}
+
+
+_arduino_run_actions() {
+	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
+	_start
+	
+	_arduino_compile_commands "$@"
+	_arduino_upload_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.bin' | head -n 1)
+	
+	_stop
+}
+
+_arduino_run_sequence() {
+	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
+	_launch_arduino _arduino_run_actions "$@"
+}
+
+#Applicable to other Arduino SAMD21 variants.
+_arduino_run() {
+	_userShortHome "$scriptAbsoluteLocation" _arduino_run_sequence "$@"
 }
 
 _arduino_bootloader_m0() {
@@ -429,6 +457,7 @@ _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_compile
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_upload
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_run
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_debug
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_aide

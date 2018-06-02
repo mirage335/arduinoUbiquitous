@@ -25,8 +25,8 @@ _setup_prog() {
 }
 
 _package_prog() {
-	_set_arduino_installation
-	_prepare_installation
+	_set_arduino_installation > /dev/null
+	_prepare_installation > /dev/null
 	
 	export safeToDeleteGit="true"
 	cp -a "$scriptAbsoluteFolder"/.git "$safeTmp"/package/.git
