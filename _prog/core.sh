@@ -306,10 +306,9 @@ _arduino_upload_zero_commands() {
 	_messagePlain_nominal 'Upload.'
 	
 	local arduinoBin
-	arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
 	
-	[[ "$1" != "" ]] && arduinoBin="$1"
-	
+	arduinoBin="$1"
+	! [[ -e "$arduinoBin" ]] && arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
 	! [[ -e "$arduinoBin" ]] && _messagePlain_bad 'missing: arduinoBin= '"$arduinoBin" && return 1 
 	
 	#Upload over SWD debugger.
@@ -319,6 +318,10 @@ _arduino_upload_zero_commands() {
 	then
 		_arduino_upload_serial_bossac "$arduinoBin"
 	fi
+	
+	sleep 1
+	! [[ -e "/dev/ttyACM0" ]] && ! [[ -e "/dev/ttyACM1" ]] && ! [[ -e "/dev/ttyACM2" ]] && ! [[ -e "/dev/ttyUSB0" ]] && ! [[ -e "/dev/ttyUSB1" ]] && ! [[ -e "/dev/ttyUSB2" ]] && sleep 3
+	! [[ -e "/dev/ttyACM0" ]] && ! [[ -e "/dev/ttyACM1" ]] && ! [[ -e "/dev/ttyACM2" ]] && ! [[ -e "/dev/ttyUSB0" ]] && ! [[ -e "/dev/ttyUSB1" ]] && ! [[ -e "/dev/ttyUSB2" ]] && sleep 9
 }
 
 # ATTENTION Overload with ops!
@@ -366,19 +369,6 @@ _arduino_run() {
 	_userShortHome "$scriptAbsoluteLocation" _arduino_run_sequence "$@"
 }
 
-_arduino_bootloader_m0() {
-	"$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLib"/ArduinoCore-samd/variants/arduino_mzero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLib""/ArduinoCore-samd/bootloaders/mzero/Bootloader_D21_M0_150515.hex}} verify reset; shutdown"
-}
-
-_arduino_bootloader_zero() {
-	"$globalFakeHome"/"$au_arduinoDir"/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/"$au_arduinoDir"/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLib""/ArduinoCore-samd/bootloaders/zero/samd21_sam_ba.bin}} verify reset; shutdown"
-}
-
-_arduino_bootloader() {
-	_arduino_bootloader_zero "$@"
-}
-
-
 _here_gdbinit() {
 cat << CZXWXcRMTo8EmM8i4d
 #####Config
@@ -387,7 +377,7 @@ cat << CZXWXcRMTo8EmM8i4d
 
 #####Startup
 
-file $au_arduinoSketchBinary
+file $1
 
 #set substitute-path /arduino/_build/sketch /arduino/sketch
 #set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
@@ -405,38 +395,48 @@ CZXWXcRMTo8EmM8i4d
 }
 
 
-_debug_sequence() {
-	_start
+_arduino_debug_zero_commands() {
+	_messagePlain_nominal 'Debug.'
 	
-	_messagePlain_nominal 'set: debug'
+	local arduinoBin
 	
-	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
-	export au_arduinoBuildDir="$au_arduinoSketchDir"/_build
-	export au_remotePortGDB="3333"	# TODO Replace, _findPort.
-	! [[ -e "$au_arduinoBuildDir" ]] && _stop 1
-	
-	export au_arduinoSketchBinary=$(find "$au_arduinoBuildDir" -maxdepth 1 -name '*.elf' | head -n 1)
-	
-	_messagePlain_probe 'au_arduinoSketchBinary= '"$au_arduinoSketchBinary"
+	arduinoBin="$1"
+	! [[ -e "$arduinoBin" ]] && arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
+	! [[ -e "$arduinoBin" ]] && _messagePlain_bad 'missing: arduinoBin= '"$arduinoBin" && return 1 
 	
 	_arduino_swd_openocd &
 	
-	_here_gdbinit > "$safeTmp"/.gdbinit
+	_here_gdbinit "$arduinoBin" > "$safeTmp"/.gdbinit
 	
-	ddd --debugger "$globalFakeHome"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb -d "$au_arduinoSketchDir" -x "$safeTmp"/.gdbinit
-	
-	
-	
-	
+	ddd --debugger "$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb -d "$2" -x "$safeTmp"/.gdbinit
 	
 	pkill openocd # TODO Replace, _killDaemon.
+}
+
+# ATTENTION Overload with ops!
+_arduino_debug_commands() {
+	_arduino_debug_zero_commands "$@"
+}
+
+_arduino_debug_actions() {
+	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
+	_start
+	
+	_arduino_compile_commands "$@"
+	_arduino_upload_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.bin' | head -n 1)
+	_arduino_debug_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.elf' | head -n 1) "$shortTmp"/build
 	
 	_stop
 }
 
+_arduino_debug_sequence() {
+	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
+	_launch_arduino _arduino_debug_actions "$@"
+}
 
-_debug() {
-	"$scriptAbsoluteLocation" _debug_sequence "$@"
+#Applicable to other Arduino SAMD21 variants.
+_arduino_debug() {
+	_userShortHome "$scriptAbsoluteLocation" _arduino_debug_sequence "$@"
 }
 
 
@@ -453,6 +453,20 @@ _aide() {
 
 
 
+
+_arduino_bootloader_m0() {
+	"$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLib"/ArduinoCore-samd/variants/arduino_mzero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLib""/ArduinoCore-samd/bootloaders/mzero/Bootloader_D21_M0_150515.hex}} verify reset; shutdown"
+}
+
+_arduino_bootloader_zero() {
+	"$globalFakeHome"/"$au_arduinoDir"/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/"$au_arduinoDir"/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLib""/ArduinoCore-samd/bootloaders/zero/samd21_sam_ba.bin}} verify reset; shutdown"
+}
+
+_arduino_bootloader() {
+	_arduino_bootloader_zero "$@"
+}
+
+
 _arduino_blink() {
 	_arduino_run "$scriptLib"/Blink/Blink.ino
 }
@@ -465,7 +479,7 @@ _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_upload
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_run
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_debug
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_debug
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_aide
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_blink

@@ -5,3 +5,7 @@ _prepare_arduino_board() {
 _arduino_upload_commands() {
 	_arduino_upload_zero_commands "$@"
 }
+
+_arduino_debug_commands() {
+	_arduino_debug_zero_commands "$@"
+}
