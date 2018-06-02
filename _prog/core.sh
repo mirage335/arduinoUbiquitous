@@ -1,7 +1,4 @@
-_prepareArduinoHome() {
-	mkdir -p "$globalFakeHome"
-	mkdir -p "$instancedFakeHome"
-	
+_prepare_installation() {
 	mkdir -p "$scriptLocal"/arduino/.arduino15
 	mkdir -p "$scriptLocal"/arduino/Arduino
 	
@@ -9,15 +6,30 @@ _prepareArduinoHome() {
 	
 	_relink "$scriptLocal"/arduino/.arduino15 "$globalFakeHome"/.arduino15
 	_relink "$scriptLocal"/arduino/Arduino "$globalFakeHome"/Arduino
-	
 	_relink "$scriptLocal"/arduino/"$au_arduinoDir" "$globalFakeHome"/"$au_arduinoDir"
 	
-	_relink "$scriptLocal"/arduino/.arduino15 "$instancedFakeHome"/.arduino15
-	_relink "$scriptLocal"/arduino/Arduino "$instancedFakeHome"/Arduino
+	_relink ../.arduino15 "$globalFakeHome"/"$au_arduinoDir"/portable
+	_relink ../Arduino "$globalFakeHome"/"$au_arduinoDir"/portable/sketchbook
+}
+
+_prepareAppHome() {
+	mkdir -p "$globalFakeHome"
+	mkdir -p "$instancedFakeHome"
 	
-	_relink "$scriptLocal"/arduino/"$au_arduinoDir" "$instancedFakeHome"/"$au_arduinoDir"
+	_prepare_installation
 	
-	export au_arduinoInstallation="$globalFakeHome"/"$au_arduinoDir"
+	#rm "$instancedFakeHome"/.arduino15
+	mkdir -p "$instancedFakeHome"/.arduino15
+	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$scriptLocal"/arduino/.arduino15/. "$instancedFakeHome"/.arduino15/
+	#rm "$instancedFakeHome"/Arduino
+	mkdir -p "$instancedFakeHome"/Arduino
+	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$scriptLocal"/arduino/Arduino/. "$instancedFakeHome"/Arduino/
+	#rm "$instancedFakeHome"/"$au_arduinoDir"
+	mkdir -p "$instancedFakeHome"/"$au_arduinoDir"
+	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$scriptLocal"/arduino/"$au_arduinoDir"/. "$instancedFakeHome"/"$au_arduinoDir"/
+}
+
+_set_arduino_installation() {
 	if [[ "$setFakeHome" == "true" ]]
 	then
 		export au_arduinoInstallation="$HOME"/"$au_arduinoDir"
@@ -25,8 +37,9 @@ _prepareArduinoHome() {
 		_messagePlain_good 'aU: detected: setFakeHome, set: au_arduinoInstallation= '"$au_arduinoInstallation"
 		_messagePlain_good 'aU: detected: setFakeHome, set: java: user.home'
 	else
+		export au_arduinoInstallation="$globalFakeHome"/"$au_arduinoDir"
 		_messagePlain_warn 'aU: undetected: setFakeHome, default: au_arduinoInstallation= '"$au_arduinoInstallation"
-		_messagePlain_warn 'aU: undetected: setFakeHome, unset: java: user.home'
+		_messagePlain_warn 'aU: undetected: setFakeHome, default: java: user.home'
 	fi
 }
 
@@ -34,12 +47,12 @@ _prepareArduinoHome() {
 _prepare_arduino_compile() {
 	_messagePlain_nominal 'aU: set: sketch'
 	
-	! [[ -e "$1" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
 	[[ "$1" == "" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
 	
 	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
 	export au_arduinoBuildPath="$arduinoSketchDir"/build
 	
+	! [[ -e "$au_arduinoSketchDir" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
 	_messagePlain_good 'aU: found: sketch= '"$au_arduinoSketchDir"
 	
 	#Looks for an ops file in same directory as sketch.
@@ -54,6 +67,10 @@ _prepare_arduino_compile() {
 #au_arduinoSketchDir
 #au_arduinoBuildPath (save binaries, do NOT build here!)
 _prepare_arduino() {
+	_set_arduino_installation "$@"
+	
+	_prepare_installation "$@"
+	
 	_prepare_arduino_compile "$@"
 	
 	_ops_arduino_sketch "$@"
@@ -61,8 +78,16 @@ _prepare_arduino() {
 	_prepare_arduino_board "$@"
 	
 	_messagePlain_nominal 'aU: set: sketchbook.path'
-	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, set: sketchbook.path: portable' && _arduino_executable --save-prefs --pref sketchbook.path="$au_arduinoInstallation"/portable/sketchbook && return 0
-	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, set: sketchbook.path: home' && _arduino_executable --save-prefs --pref sketchbook.path="$HOME"/Arduino
+	if [[ "$setFakeHome" == "true" ]]
+	then
+		_messagePlain_good 'aU: detected: setFakeHome, set: sketchbook.path: home, rm: portable '
+		_arduino_executable --save-prefs --pref sketchbook.path="$HOME"/Arduino
+		rm "$HOME"/"$au_arduinoDir"/portable/sketchbook
+		rm "$HOME"/"$au_arduinoDir"/portable
+	else
+		 _messagePlain_warn 'aU: undetected: setFakeHome, set: sketchbook.path: portable'
+		 _arduino_executable --save-prefs --pref sketchbook.path="$au_arduinoInstallation"/portable/sketchbook && return 0
+	fi
 }
 
 #Intended to be used as "ops" override.
@@ -107,6 +132,7 @@ _arduino_sketchDir() {
 	for currentArg in "$@"
 	do
 		! [[ -e "$currentArg" ]] && continue
+		[[ "$currentArg" == *'ubiquitous_bash.sh' ]] && continue
 		
 		local compilerInputAbsolute
 		compilerInputAbsolute=$(_getAbsoluteLocation "$currentArg")
@@ -130,9 +156,8 @@ _arduino_deconfigure_sequence() {
 	
 	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, preferences: portable' && arduinoPreferences="$au_arduinoInstallation"/portable/preferences.txt
 	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, set: preferences: home' && arduinoPreferences="$HOME"/.arduino15/preferences.txt
-	_arduino_prepare
-	! [[ -e "$arduinoPreferences" ]] && arduinoPreferences="$HOME"/.arduino15/preferences.txt
 	
+	! [[ -e "$arduinoPreferences" ]] && arduinoPreferences="$HOME"/.arduino15/preferences.txt
 	
 	mv "$arduinoPreferences" "$safeTmp"/preferences.txt
 	
@@ -162,7 +187,7 @@ _launch_arduino() {
 	_prepare_arduino "$@"
 	
 	_messageNormal "aU: Launch."
-	"$@"
+	"$scriptAbsoluteLocation" "$@"
 	
 	_messageNormal "aU: Deconfigure."
 	_arduino_deconfigure "$@"
@@ -176,6 +201,7 @@ _arduino_executable() {
 	export sharedGuestProjectDir=/
 	_virtUser "$@"
 	
+	_messagePlain_probe "$arduinoExecutable" "${processedArgs[@]}"
 	"$arduinoExecutable" "${processedArgs[@]}"
 }
 
@@ -213,7 +239,7 @@ _arduino_edit() {
 
 #user
 _arduino_user() {
-	_userFakeHome "$scriptAbsoluteLocation" _launch_arduino _arduino_executable "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_arduino _arduino_executable "$@"
 }
 
 #config, assumes portable directories have been setup
@@ -256,13 +282,14 @@ _arduino_compile_actions() {
 }
 
 _arduino_compile_sequence() {
-	_launch_arduino "$scriptAbsoluteLocaton" _arduino_compile_actions "$@"
+	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
+	_launch_arduino _arduino_compile_actions "$@"
 }
 
 _arduino_compile() {
 	#_make_clean "$@" # DANGER Not recommended!
 	
-	_userShortHome _arduino_compile_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _arduino_compile_sequence "$@"
 }
 
 #Applicable to other Arduino SAMD21 variants.
@@ -316,7 +343,7 @@ _arduino_bootloader_m0() {
 }
 
 _arduino_bootloader_zero() {
-	"$globalFakeHome"/arduino-1.8.5/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/arduino-1.8.5/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLib""/ArduinoCore-samd/bootloaders/zero/samd21_sam_ba.bin}} verify reset; shutdown"
+	"$globalFakeHome"/"$au_arduinoDir"/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/"$au_arduinoDir"/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLib""/ArduinoCore-samd/bootloaders/zero/samd21_sam_ba.bin}} verify reset; shutdown"
 }
 
 _arduino_bootloader() {
@@ -386,12 +413,6 @@ _debug() {
 
 
 
-
-
-
-
-
-
 #"AppIDE", not "AtomIDE", or "ArduinoIDE".
 _aide() {
 	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
@@ -401,10 +422,6 @@ _aide() {
 	
 	_atom "$au_arduinoSketchDir" "$@"
 }
-
-
-
-
 
 
 #duplicate _anchor
