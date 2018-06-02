@@ -1,50 +1,85 @@
 _prepareArduinoHome() {
 	mkdir -p "$globalFakeHome"
 	mkdir -p "$instancedFakeHome"
-
-	mkdir -p "$scriptLocal"/app/.app
-
-	_relink "$scriptLocal"/app/.app "$globalFakeHome"/.app
-
-	_relink "$scriptLocal"/app/.app "$instancedFakeHome"/.app
+	
+	mkdir -p "$scriptLocal"/arduino/.arduino15
+	mkdir -p "$scriptLocal"/arduino/Arduino
+	
+	mkdir -p "$scriptLocal"/arduino/"$au_arduinoDir"
+	
+	_relink "$scriptLocal"/arduino/.arduino15 "$globalFakeHome"/.arduino15
+	_relink "$scriptLocal"/arduino/Arduino "$globalFakeHome"/Arduino
+	
+	_relink "$scriptLocal"/arduino/"$au_arduinoDir" "$globalFakeHome"/"$au_arduinoDir"
+	
+	_relink "$scriptLocal"/arduino/.arduino15 "$instancedFakeHome"/.arduino15
+	_relink "$scriptLocal"/arduino/Arduino "$instancedFakeHome"/Arduino
+	
+	_relink "$scriptLocal"/arduino/"$au_arduinoDir" "$instancedFakeHome"/"$au_arduinoDir"
+	
+	export au_arduinoInstallation="$globalFakeHome"/"$au_arduinoDir"
+	if [[ "$setFakeHome" == "true" ]]
+	then
+		export au_arduinoInstallation="$HOME"/"$au_arduinoDir"
+		export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
+		_messagePlain_good 'aU: detected: setFakeHome, set: au_arduinoInstallation= '"$au_arduinoInstallation"
+		_messagePlain_good 'aU: detected: setFakeHome, set: java: user.home'
+	else
+		_messagePlain_warn 'aU: undetected: setFakeHome, default: au_arduinoInstallation= '"$au_arduinoInstallation"
+		_messagePlain_warn 'aU: undetected: setFakeHome, unset: java: user.home'
+	fi
 }
 
-
-#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
-_arduino_upload_serial_bossac() {
-	local arduinoSerialPort
+# WARNING: Assumes first fileparameter given to arduino is sketch .
+_prepare_arduino_compile() {
+	_messagePlain_nominal 'aU: set: sketch'
 	
-	arduinoSerialPort=/dev/ttyACM0
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM1
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM2
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB0
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB1
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB2
-	! [[ -e "$arduinoSerialPort" ]] && return 1
+	! [[ -e "$1" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
+	[[ "$1" == "" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
 	
-	stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";
-	sleep 2
-	"$globalFakeHome"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port=ttyACM0 -U true -i -e -w -v "$1" -R
+	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
+	export au_arduinoBuildPath="$arduinoSketchDir"/build
+	
+	_messagePlain_good 'aU: found: sketch= '"$au_arduinoSketchDir"
+	
+	#Looks for an ops file in same directory as sketch.
+	! [[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_warn 'aU: undef: sketch ops'
+	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
+	
+	return 0
 }
 
-_arduino_swd_openocd() {
-	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg "$@"
+#Ultimately sets several global variables and preferences.
+#au_arduinoInstallation
+#au_arduinoSketchDir
+#au_arduinoBuildPath (save binaries, do NOT build here!)
+_prepare_arduino() {
+	_prepare_arduino_compile "$@"
+	
+	_ops_arduino_sketch "$@"
+	
+	_prepare_arduino_board "$@"
+	
+	_messagePlain_nominal 'aU: set: sketchbook.path'
+	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, set: sketchbook.path: portable' && _arduino_executable --save-prefs --pref sketchbook.path="$au_arduinoInstallation"/portable/sketchbook && return 0
+	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, set: sketchbook.path: home' && _arduino_executable --save-prefs --pref sketchbook.path="$HOME"/Arduino
 }
 
-#Requires bootloader.
-_arduino_upload_swd_openocd_zero() {
-	_arduino_swd_openocd -c "telnet_port disabled; program {""$1""} verify reset 0x00002000; shutdown"
+#Intended to be used as "ops" override.
+_prepare_arduino_board() {
+	true
 }
 
-_arduino_executable() {
-	local arduinoExecutable
-	#arduinoExecutable="$scriptAbsoluteFolder"/_local/arduino-1.8.5/arduino
-	arduinoExecutable="$au_arduinoInstallation"/arduino
-	
-	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, unset: java: user.home'
-	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, update: arduinoExecutable, set: java: user.home' && arduinoExecutable="$HOME"/"$au_arduinoDir"/arduino && export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
-	
-	"$arduinoExecutable" "$@"
+_set_arduino_board_zero_native() {
+	_messagePlain_nominal 'aU: set: board'
+	_arduino_executable --save-prefs --pref programmer=arduino:sam_ice
+	_arduino_executable --save-prefs --pref target_platform=samd
+	_arduino_executable --save-prefs --pref board=arduino_zero_native
+}
+
+#Intended to be used as an ops override.
+_ops_arduino_sketch() {
+	true
 }
 
 # DANGER Not recommended!
@@ -87,7 +122,7 @@ _arduino_sketchDir() {
 	return 1
 }
 
-#Arduino may ignore "--pref" parameters, possibly due to bugs present in some versions. Consequently, it is possible some stored perferences may interfere with normal script operation. As a precaution, these are deleted.
+#Arduino may ignore "--pref" parameters, possibly due to bugs present in some versions. Consequently, it is possible some stored preferences may interfere with normal script operation. As a precaution, these are deleted.
 _arduino_deconfigure_sequence() {
 	_start
 	
@@ -95,7 +130,7 @@ _arduino_deconfigure_sequence() {
 	
 	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, preferences: portable' && arduinoPreferences="$au_arduinoInstallation"/portable/preferences.txt
 	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, set: preferences: home' && arduinoPreferences="$HOME"/.arduino15/preferences.txt
-	
+	_arduino_prepare
 	! [[ -e "$arduinoPreferences" ]] && arduinoPreferences="$HOME"/.arduino15/preferences.txt
 	
 	
@@ -122,90 +157,68 @@ _arduino_deconfigure() {
 	"$scriptAbsoluteLocation" _arduino_deconfigure_sequence "$@"
 }
 
-_arduino_set_board_zero_native() {
-	_messagePlain_nominal 'aU: set: board'
-	_arduino_executable --save-prefs --pref programmer=arduino:sam_ice
-	_arduino_executable --save-prefs --pref target_platform=samd
-	_arduino_executable --save-prefs --pref board=arduino_zero_native
-}
-
-#Intended to be used as "ops" override.
-_arduino_prepare_board() {
-	true
-}
-
-#Intended to be used as an ops override.
-_arduino_sketch_ops() {
-	true
-}
-
-# WARNING: Assumes first fileparameter given to arduino is sketch .
-_arduino_prepare_compile() {
-	_messagePlain_nominal 'aU: set: build.path'
-	
-	local arduinoBuildPath
-	local arduinoSketchDir
-	
-	if arduinoSketchDir=$(_arduino_sketchDir "$@")
-	then
-		arduinoBuildPath="$arduinoSketchDir"/_build
-		
-		_messagePlain_good 'aU: found: sketch= '"$arduinoBuildPath"
-		
-		mkdir -p "$arduinoBuildPath"
-		
-		_messagePlain_probe _arduino_executable --save-prefs --pref build.path="$arduinoBuildPath"
-		_arduino_executable --save-prefs --pref build.path="$arduinoBuildPath"
-		
-		#Looks for an ops file in same directory as sketch.
-		[[ -e "$arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$arduinoSketchDir"/ops
-		
-		return 0
-	fi
-	_messagePlain_warn 'aU: undef: sketch'
-	return 1
-}
-
-_arduino_prepare() {
-	_arduino_prepare_compile "$@"
-	
-	_arduino_sketch_ops "$@"
-	
-	_arduino_prepare_board "$@"
-	
-	_messagePlain_nominal 'aU: set: sketchbook.path'
-	
-	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, set: sketchbook.path: portable' && _arduino_executable --save-prefs --pref sketchbook.path="$au_arduinoInstallation"/portable/sketchbook && return 0
-	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, set: sketchbook.path: home' && _arduino_executable --save-prefs --pref sketchbook.path="$HOME"/Arduino
-}
-
-
-
-#command
-_arduino_command() {
+_launch_arduino() {
 	_messageNormal "aU: Configure."
-	_arduino_prepare "$@"
+	_prepare_arduino "$@"
 	
 	_messageNormal "aU: Launch."
-	_arduino_executable "$@"
+	"$@"
 	
 	_messageNormal "aU: Deconfigure."
 	_arduino_deconfigure "$@"
 }
 
+_arduino_executable() {
+	local arduinoExecutable
+	arduinoExecutable="$au_arduinoInstallation"/arduino
+	
+	export sharedHostProjectDir=/
+	export sharedGuestProjectDir=/
+	_virtUser "$@"
+	
+	"$arduinoExecutable" "${processedArgs[@]}"
+}
+
+_arduino_swd_openocd() {
+	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg "$@"
+}
+
+#Requires bootloader.
+_arduino_upload_swd_openocd_zero() {
+	_arduino_swd_openocd -c "telnet_port disabled; program {""$1""} verify reset 0x00002000; shutdown"
+}
+
+#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
+_arduino_upload_serial_bossac() {
+	local arduinoSerialPort
+	
+	arduinoSerialPort=/dev/ttyACM0
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM1
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM2
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB0
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB1
+	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB2
+	! [[ -e "$arduinoSerialPort" ]] && return 1
+	
+	stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";
+	sleep 2
+	"$globalFakeHome"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port=ttyACM0 -U true -i -e -w -v "$1" -R
+}
+
+
 #edit
 _arduino_edit() {
-	"$scriptAbsoluteLocation" _editFakeHome "$scriptAbsoluteLocation" _arduino_command "$@"
+	_editFakeHome "$scriptAbsoluteLocation" _launch_arduino _arduino_executable "$@"
 }
 
 #user
 _arduino_user() {
-	"$scriptAbsoluteLocation" _userFakeHome "$scriptAbsoluteLocation" _arduino_command "$@"
+	_userFakeHome "$scriptAbsoluteLocation" _launch_arduino _arduino_executable "$@"
 }
 
 #config, assumes portable directories have been setup
 _arduino_config() {
-	"$scriptAbsoluteLocation" _arduino_command "$@"
+	"$scriptAbsoluteLocation" _launch_arduino _arduino_executable "$@"
 }
 
 #virtualized
@@ -215,30 +228,41 @@ _v_arduino() {
 
 #default
 _arduino() {
-	export sharedHostProjectDir=/
-	export sharedGuestProjectDir=/
-	_virtUser "$@"
-	
 	if ! _check_prog
 	then
 		_messageNormal 'Launch: _v'${FUNCNAME[0]}
-		_v${FUNCNAME[0]} "${processedArgs[@]}"
+		_v${FUNCNAME[0]} "$@"
 		return
 	fi
-	_arduino_user "${processedArgs[@]}" && return 0
+	_arduino_user "$@" && return 0
 
 	#_messageNormal 'Launch: _v'${FUNCNAME[0]}
-	#_v${FUNCNAME[0]} "${processedArgs[@]}"
+	#_v${FUNCNAME[0]} "$@"
+}
+
+_arduino_compile_commands() {
+	mkdir -p "$shortTmp"/build
+	_arduino_executable --save-prefs --pref build.path="$shortTmp"/build
+	
+	_arduino_executable --verify "$@"
+}
+
+_arduino_compile_actions() {
+	_start
+	
+	_arduino_compile_commands "$@"
+	
+	_stop
 }
 
 _arduino_compile_sequence() {
-	_arduino_command --verify "$@"
+	_launch_arduino "$scriptAbsoluteLocaton" _arduino_compile_actions "$@"
 }
 
 _arduino_compile() {
 	#_make_clean "$@" # DANGER Not recommended!
 	
-	"$scriptAbsoluteLocation" _userShortHome _arduino_compile_sequence "$@"
+	_userShortHome _arduino_compile_sequence "$@"
 }
 
 #Applicable to other Arduino SAMD21 variants.
