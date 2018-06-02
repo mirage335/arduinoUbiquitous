@@ -384,7 +384,7 @@ file $1
 
 #####Remote
 
-target remote localhost:3333
+target extended-remote localhost:3333
 
 monitor reset halt
 
@@ -395,6 +395,7 @@ CZXWXcRMTo8EmM8i4d
 }
 
 
+#Applicable to other Arduino SAMD21 variants.
 _arduino_debug_zero_commands() {
 	_messagePlain_nominal 'Debug.'
 	
@@ -434,21 +435,43 @@ _arduino_debug_sequence() {
 	_launch_arduino _arduino_debug_actions "$@"
 }
 
-#Applicable to other Arduino SAMD21 variants.
 _arduino_debug() {
 	_userShortHome "$scriptAbsoluteLocation" _arduino_debug_sequence "$@"
 }
 
 
 
-#"AppIDE", not "AtomIDE", or "ArduinoIDE".
-_aide() {
+
+
+
+
+
+# TODO Atom must _NOT_ run in a separate fakeHome instance. Atom setup _MUST_ be added to _prepareAppHome.
+_aide_actions_commands() {
 	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
 	export au_arduinoBuildDir="$au_arduinoSketchDir"/_build
 	export au_remotePortGDB="3333"	# TODO Replace, _findPort.
-	
-	
 	_atom "$au_arduinoSketchDir" "$@"
+}
+
+
+_aide_actions() {
+	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
+	_start
+	
+	_aide_actions_commands "$@"
+	
+	_stop
+}
+
+_aide_sequence() {
+	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
+	_launch_arduino _aide_actions "$@"
+}
+
+#"AppIDE", not "AtomIDE", or "ArduinoIDE".
+_aide() {
+	_userShortHome "$scriptAbsoluteLocation" _arduino_debug_sequence "$@"
 }
 
 
