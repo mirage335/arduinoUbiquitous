@@ -452,6 +452,12 @@ _aide() {
 }
 
 
+
+_arduino_blink() {
+	_arduino_run "$scriptLib"/Blink/Blink.ino
+}
+
+
 #duplicate _anchor
 _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
@@ -461,6 +467,8 @@ _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_debug
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_aide
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_blink
 }
 
 

@@ -8360,6 +8360,7 @@ _arduino() {
 	#_v${FUNCNAME[0]} "$@"
 }
 
+# ATTENTION Overload with ops! (well no, actually probably not any reason to do so here)
 _arduino_compile_commands() {
 	_messagePlain_nominal 'Compile.'
 	
@@ -8545,6 +8546,12 @@ _aide() {
 }
 
 
+
+_arduino_blink() {
+	_arduino_run "$scriptLib"/Blink/Blink.ino
+}
+
+
 #duplicate _anchor
 _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
@@ -8554,6 +8561,8 @@ _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_debug
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_aide
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_blink
 }
 
 

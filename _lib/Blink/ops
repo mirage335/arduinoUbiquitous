@@ -1,0 +1,7 @@
+_prepare_arduino_board() {
+	_set_arduino_board_zero_native
+}
+
+_arduino_upload_commands() {
+	_arduino_upload_zero_commands "$@"
+}
