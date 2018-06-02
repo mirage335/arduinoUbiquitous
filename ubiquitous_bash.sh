@@ -2862,7 +2862,7 @@ _userFakeHome_sequence() {
 	_setFakeHomeEnv "$instancedFakeHome"
 	_makeFakeHome > /dev/null 2>&1
 	
-	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" dbus-run-session "$@"
+	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" userFakeHome="true" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" dbus-run-session "$@"
 	#"$@"
 	
 	[[ "$userFakeHome_enableMemMount" == "true" ]] && ! _umountUserFakeHome_instance && _stop 1
@@ -2892,7 +2892,7 @@ _userShortHome() {
 	
 	_prepareAppHome
 	
-	_userFakeHome_sequence "$@"
+	"$scriptAbsoluteLocation" _userFakeHome_sequence "$@"
 }
 
 _editShortHome() {
@@ -2900,7 +2900,7 @@ _editShortHome() {
 	
 	_prepareAppHome
 	
-	_editFakeHome_sequence "$@"
+	"$scriptAbsoluteLocation" _editFakeHome_sequence "$@"
 }
 
 _shortHome() {
@@ -8502,7 +8502,7 @@ _arduino_debug_zero_commands() {
 	
 	_here_gdbinit "$arduinoBin" > "$safeTmp"/.gdbinit
 	
-	ddd --debugger "$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb -d "$2" -x "$safeTmp"/.gdbinit
+	gdb "$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb -d "$2" -x "$safeTmp"/.gdbinit
 	
 	pkill openocd # TODO Replace, _killDaemon.
 }
@@ -8531,43 +8531,6 @@ _arduino_debug_sequence() {
 #Applicable to other Arduino SAMD21 variants.
 _arduino_debug() {
 	_userShortHome "$scriptAbsoluteLocation" _arduino_debug_sequence "$@"
-}
-
-
-
-
-
-
-
-
-_debug_sequence() {
-	_start
-	
-	_messagePlain_nominal 'set: debug'
-	
-	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
-	export au_arduinoBuildDir="$au_arduinoSketchDir"/_build
-	export au_remotePortGDB="3333"	# TODO Replace, _findPort.
-	! [[ -e "$au_arduinoBuildDir" ]] && _stop 1
-	
-	export au_arduinoSketchBinary=$(find "$au_arduinoBuildDir" -maxdepth 1 -name '*.elf' | head -n 1)
-	
-	_messagePlain_probe 'au_arduinoSketchBinary= '"$au_arduinoSketchBinary"
-	
-	
-	
-	
-	
-	
-	
-	pkill openocd # TODO Replace, _killDaemon.
-	
-	_stop
-}
-
-
-_debug() {
-	"$scriptAbsoluteLocation" _debug_sequence "$@"
 }
 
 
@@ -8711,9 +8674,9 @@ _findUbiquitous() {
 		return 0
 	fi
 	
-	if [[ -e "./_lib/ubiquitous_bash" ]]
+	if [[ -e "$ubiquitiousLibDir"/_lib/ubiquitous_bash ]]
 	then
-		export ubiquitiousLibDir="./_lib/ubiquitous_bash"
+		export ubiquitiousLibDir="$ubiquitiousLibDir"/_lib/ubiquitous_bash
 		return 0
 	fi
 	
