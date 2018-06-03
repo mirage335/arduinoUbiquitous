@@ -521,6 +521,13 @@ _test_permissions_ubiquitous() {
 
 
 
+#Takes "$@". Places in global array variable "globalArgs".
+# WARNING Adding this globalvariable to the "structure/globalvars.sh" declaration or similar to be overridden at script launch is not recommended.
+#"${globalArgs[@]}"
+_gather_params() {
+	export globalArgs=("${@}")
+}
+
 #"$1" == file path
 _includeFile() {
 	
@@ -6659,7 +6666,7 @@ _importShortcuts() {
 }
 
 _gitClone_ubiquitous() {
-	[[ "$nonet" != "true" ]] && type git > /dev/null 2>&1 && git clone git@github.com:mirage335/ubiquitous_bash.git
+	[[ "$nonet" != "true" ]] && type git > /dev/null 2>&1 && git clone --depth 1 git@github.com:mirage335/ubiquitous_bash.git
 }
 
 _cloneUbiquitous() {
@@ -6715,7 +6722,8 @@ _setupUbiquitous() {
 	echo -e -n > "$ubcoreFile"
 	echo 'export profileScriptLocation='"$ubcoreUBdir"/ubiquitous_bash.sh >> "$ubcoreFile"
 	echo 'export profileScriptFolder='"$ubcoreUBdir" >> "$ubcoreFile"
-	echo '. '"$ubcoreUBdir"/ubiquitous_bash.sh' _importShortcuts' >> "$ubcoreFile"
+	echo '[[ "$scriptAbsoluteLocation" == "" ]] && . '"$ubcoreUBdir"'/ubiquitous_bash.sh --return _importShortcuts' >> "$ubcoreFile"
+	echo '[[ "$scriptAbsoluteLocation" != "" ]] && . ''"$scriptAbsoluteLocation"'' --return _importShortcuts' >> "$ubcoreFile"
 	
 	! _permissions_ubiquitous_repo "$ubcoreUBdir" && cd "$outerPWD" && return 1
 	
@@ -6768,19 +6776,26 @@ _anchor() {
 #Fixed unique identifier for ubiquitious bash created global resources, such as bootdisc images to be automaticaly mounted by guests. Should NOT be changed.
 export ubiquitiousBashID="uk4uPhB663kVcygT0q"
 
-export sessionid=$(_uid)
+#Importing ubiquitous bash into a login shell with "~/.bashrc" is the only known cause for "_getScriptAbsoluteLocation" to return a result such as "/bin/bash". Also, "--bypass" or "--return" implies a requirement to keep current session.
+if ( [[ "$0" == "/bin/bash" ]] || [[ "$0" == "-bash" ]] || [[ "$0" == "/usr/bin/bash" ]] || [[ "$0" == "bash" ]] )  && [[ "${BASH_SOURCE[0]}" != "${0}" ]] && [[ "$profileScriptLocation" != "" ]] && [[ "$profileScriptFolder" != "" ]]
+then
+	if [[ "$scriptAbsoluteLocation" == "" ]] && [[ "$scriptAbsoluteFolder" == "" ]] && [[ "$sessionid" == "" ]]
+	then
+		export scriptAbsoluteLocation="$profileScriptLocation"
+		export scriptAbsoluteFolder="$profileScriptFolder"
+		export sessionid=$(_uid)
+	fi
+else
+	if [[ "$1" != "--bypass" ]] && [[ "$1" != "--return" ]]
+	then
+		export scriptAbsoluteLocation=$(_getScriptAbsoluteLocation)
+		export scriptAbsoluteFolder=$(_getScriptAbsoluteFolder)
+		export sessionid=$(_uid)
+	fi
+fi
+
 [[ "$sessionid" == "" ]] && exit 1
 export lowsessionid=$(echo -n "$sessionid" | tr A-Z a-z )
-
-#Importing ubiquitous bash into a login shell with "~/.bashrc" is the only known cause for "_getScriptAbsoluteLocation" to return a result such as "/bin/bash".
-if ( [[ "$0" == "/bin/bash" ]] || [[ "$0" == "-bash" ]] || [[ "$0" == "/usr/bin/bash" ]] )  && [[ "${BASH_SOURCE[0]}" != "${0}" ]] && [[ "$profileScriptLocation" != "" ]] && [[ "$profileScriptFolder" != "" ]]
-then
-	export scriptAbsoluteLocation="$profileScriptLocation"
-	export scriptAbsoluteFolder="$profileScriptFolder"
-else
-	export scriptAbsoluteLocation=$(_getScriptAbsoluteLocation)
-	export scriptAbsoluteFolder=$(_getScriptAbsoluteFolder)
-fi
 
 #Current directory for preservation.
 export outerPWD=$(_getAbsoluteLocation "$PWD")
@@ -8093,6 +8108,16 @@ _package_prog() {
 }
 
 _prepare_installation() {
+	mkdir -p "$globalFakeHome"
+	
+	
+	_set_atomFakeHomeSource
+	
+	_relink "$atomFakeHomeSource"/.atom "$globalFakeHome"/.atom
+	mkdir -p "$globalFakeHome"/.config/Atom
+	_relink "$atomFakeHomeSource"/.config/Atom "$globalFakeHome"/.config/Atom
+	
+	
 	mkdir -p "$scriptLocal"/arduino/.arduino15
 	mkdir -p "$scriptLocal"/arduino/Arduino
 	
@@ -8111,6 +8136,14 @@ _prepareAppHome() {
 	mkdir -p "$instancedFakeHome"
 	
 	_prepare_installation
+	
+	
+	_set_atomFakeHomeSource
+	
+	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$atomFakeHomeSource"/.atom/. "$instancedFakeHome"/.atom/
+	mkdir -p "$instancedFakeHome"/.config/Atom
+	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$atomFakeHomeSource"/.config/Atom/. "$instancedFakeHome"/.config/Atom/
+	
 	
 	#rm "$instancedFakeHome"/.arduino15
 	mkdir -p "$instancedFakeHome"/.arduino15
@@ -8161,6 +8194,9 @@ _prepare_arduino_compile() {
 #au_arduinoSketchDir
 #au_arduinoBuildPath (save binaries, do NOT build here!)
 _prepare_arduino() {
+	_gather_params "$@"
+	_messagePlain_probe 'globalArgs= '"${globalArgs[@]}"
+	
 	_set_arduino_installation "$@"
 	
 	_prepare_installation "$@"
@@ -8276,12 +8312,13 @@ _arduino_deconfigure() {
 	"$scriptAbsoluteLocation" _arduino_deconfigure_sequence "$@"
 }
 
-_launch_arduino() {
+_launch_env() {
 	_messageNormal "aU: Configure."
 	_prepare_arduino "$@"
 	
+	# TODO: Confirm "--bypass" does not have any side effects!
 	_messageNormal "aU: Launch."
-	"$scriptAbsoluteLocation" "$@"
+	"$scriptAbsoluteLocation" --bypass "$@"
 	
 	_messageNormal "aU: Deconfigure."
 	_arduino_deconfigure "$@"
@@ -8299,13 +8336,21 @@ _arduino_executable() {
 	"$arduinoExecutable" "${processedArgs[@]}"
 }
 
+_arduino_gdb() {
+	"$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb "$@"
+}
+
 _arduino_swd_openocd() {
-	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg "$@"
+	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
+}
+
+_arduino_swd_openocd_zero() {
+	_arduino_swd_openocd -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg "$@"
 }
 
 #Requires bootloader.
 _arduino_upload_swd_openocd_zero() {
-	_arduino_swd_openocd -c "telnet_port disabled; program {""$1""} verify reset 0x00002000; shutdown"
+	_arduino_swd_openocd_zero -c "telnet_port disabled; program {""$1""} verify reset 0x00002000; shutdown"
 }
 
 #Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
@@ -8328,17 +8373,17 @@ _arduino_upload_serial_bossac() {
 
 #edit
 _arduino_edit() {
-	_editFakeHome "$scriptAbsoluteLocation" _launch_arduino _arduino_executable "$@"
+	_editFakeHome "$scriptAbsoluteLocation" _launch_env _arduino_executable "$@"
 }
 
 #user
 _arduino_user() {
-	_userShortHome "$scriptAbsoluteLocation" _launch_arduino _arduino_executable "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_executable "$@"
 }
 
 #config, assumes portable directories have been setup
 _arduino_config() {
-	"$scriptAbsoluteLocation" _launch_arduino _arduino_executable "$@"
+	"$scriptAbsoluteLocation" _launch_env _arduino_executable "$@"
 }
 
 #virtualized
@@ -8386,7 +8431,7 @@ _arduino_compile_actions() {
 
 _arduino_compile_sequence() {
 	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_arduino _arduino_compile_actions "$@"
+	_launch_env _arduino_compile_actions "$@"
 }
 
 _arduino_compile() {
@@ -8434,7 +8479,7 @@ _arduino_upload_actions() {
 
 _arduino_upload_sequence() {
 	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_arduino _arduino_upload_actions "$@"
+	_launch_env _arduino_upload_actions "$@"
 }
 
 #Applicable to other Arduino SAMD21 variants.
@@ -8455,7 +8500,7 @@ _arduino_run_actions() {
 
 _arduino_run_sequence() {
 	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_arduino _arduino_run_actions "$@"
+	_launch_env _arduino_run_actions "$@"
 }
 
 #Applicable to other Arduino SAMD21 variants.
@@ -8499,11 +8544,17 @@ _arduino_debug_zero_commands() {
 	! [[ -e "$arduinoBin" ]] && arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
 	! [[ -e "$arduinoBin" ]] && _messagePlain_bad 'missing: arduinoBin= '"$arduinoBin" && return 1 
 	
+	local arduinoBuild
+	
+	arduinoBuild="$2"
+	! [[ -e "$arduinoBuild" ]] && arduinoBuild="$shortTmp"/build
+	! [[ -e "$arduinoBuild" ]] && _messagePlain_bad 'missing: arduinoBuild= '"$arduinoBuild" && return 1 
+	
 	_arduino_swd_openocd &
 	
 	_here_gdbinit "$arduinoBin" > "$safeTmp"/.gdbinit
 	
-	ddd --debugger "$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb -d "$2" -x "$safeTmp"/.gdbinit
+	ddd --debugger _arduino_gdb -d "$2" -x "$safeTmp"/.gdbinit
 	
 	pkill openocd # TODO Replace, _killDaemon.
 }
@@ -8526,7 +8577,7 @@ _arduino_debug_actions() {
 
 _arduino_debug_sequence() {
 	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_arduino _arduino_debug_actions "$@"
+	_launch_env _arduino_debug_actions "$@"
 }
 
 _arduino_debug() {
@@ -8538,14 +8589,20 @@ _arduino_debug() {
 
 
 
-
-
-# TODO Atom must _NOT_ run in a separate fakeHome instance. Atom setup _MUST_ be added to _prepareAppHome.
-_aide_actions_commands() {
-	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
-	export au_arduinoBuildDir="$au_arduinoSketchDir"/_build
-	export au_remotePortGDB="3333"	# TODO Replace, _findPort.
-	_atom "$au_arduinoSketchDir" "$@"
+# ATTENTION By now, everything is already within a fakeHome subshell. AIDE will possess same fakeHome environment, exported variables, ane exported functions. However, "$scriptAbsoluteLocation" was invoked by _launch_env, creating a new session. Login shells may lose, or reimport, unexported functions.
+_aide_commands() {
+	
+	_messagePlain_probe "$sessionid"
+	. "$scriptAbsoluteLocation" --return _echo true
+	_messagePlain_probe "$sessionid"
+	
+	_gather_params "$@"
+	_messagePlain_probe 'globalArgs= '"${globalArgs[@]}"
+	
+	export -f _arduino_run_actions
+	
+	#export keepFakeHome="false"
+	atom --foreground "$@"
 }
 
 
@@ -8553,19 +8610,19 @@ _aide_actions() {
 	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
 	_start
 	
-	_aide_actions_commands "$@"
+	_aide_commands "$@"
 	
 	_stop
 }
 
 _aide_sequence() {
 	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_arduino _aide_actions "$@"
+	_launch_env _aide_actions "$@"
 }
 
 #"AppIDE", not "AtomIDE", or "ArduinoIDE".
 _aide() {
-	_userShortHome "$scriptAbsoluteLocation" _arduino_debug_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _aide_sequence "$@"
 }
 
 
@@ -9120,6 +9177,7 @@ _compile_bash_essential_utilities() {
 	includeScriptList+=( "generic"/uid.sh )
 	includeScriptList+=( "generic/filesystem/permissions"/checkpermissions.sh )
 	includeScriptList+=( "generic"/findInfrastructure.sh )
+	includeScriptList+=( "generic"/gather.sh )
 	
 	[[ "$enUb_buildBash" == "true" ]] && includeScriptList+=( "build/bash"/include_bash.sh )
 }
@@ -9777,10 +9835,14 @@ _echo() {
 }
 
 #Stop if script is imported into an existing shell and bypass not requested.
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]] && [[ "$1" != "--bypass" ]]
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]] && [[ "$1" != "--bypass" ]]  && [[ "$1" != "--return" ]]
 then
 	return
 fi
+ub_bypass=
+ub_return=
+[[ "$1" == "--bypass" ]] && ub_bypass=true && shift
+[[ "$1" == "--return" ]] && ub_return=true && shift
 
 #Set "ubOnlyMain" in "ops" overrides as necessary.
 if [[ "$ubOnlyMain" != "true" ]]
@@ -9795,12 +9857,12 @@ then
 			internalFunctionExitStatus="$?"
 			
 			#Exit if not imported into existing shell, or bypass requested, else fall through to subsequent return.
-			if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || ! [[ "$1" != "--bypass" ]]
+			if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || ! [[ "$ub_bypass" != "true" ]]
 			then
 				#export noEmergency=true
-				exit "$internalFunctionExitStatus"
+				[[ "$ub_return" != "true" ]] && exit "$internalFunctionExitStatus"
 			fi
-			
+			return "$internalFunctionExitStatus"
 		fi
 	fi
 	
@@ -9813,21 +9875,19 @@ then
 		internalFunctionExitStatus="$?"
 		
 		#Exit if not imported into existing shell, or bypass requested, else fall through to subsequent return.
-		if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || ! [[ "$1" != "--bypass" ]]
+		if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]] || ! [[ "$ub_bypass" != "true" ]]
 		then
 			#export noEmergency=true
-			exit "$internalFunctionExitStatus"
+			[[ "$ub_return" != "true" ]] && exit "$internalFunctionExitStatus"
 		fi
-		
+		return "$internalFunctionExitStatus"
 		#_stop "$?"
 	fi
 fi
-[[ "$ubOnlyMain" == "true" ]] && export  ubOnlyMain="false"
+unset ub_bypass
+unset ub_return
 
-if ! [[ "$1" != "--bypass" ]]
-then
-	shift
-fi
+[[ "$ubOnlyMain" == "true" ]] && export  ubOnlyMain="false"
 
 #Do not continue script execution through program code if critical global variables are not sane.
 [[ ! -e "$scriptAbsoluteLocation" ]] && exit 1

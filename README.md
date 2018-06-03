@@ -9,15 +9,37 @@ Keeping copies of build dependencies, and tracking dependencies, within a single
 With specific versions of the full ArduinoIDE tracked and self-contained, and Atom based IDE is also included, adding debugging support to microcontroller projects using arduino.
 
 # Usage
-Define board type to compile for under "_local/ops", or through the ArduinoIDE GUI in persistent mode.
-
-Arbitrary code may be added to "ops" file in same directory as sketch. Especially intended to set sketch-specific preferences (ie. board type).
-
-Launch ArduinoIDE with "./_arduino" . Compile with "./_arduino_compile" . Upload with "./ubiquitous_bash.sh _arduino_upload_m0" or similar.
+Launch ArduinoIDE with "./_arduino" . Compile with "./_arduino_compile" . Upload with "./ubiquitous_bash.sh _arduino_upload" or similar.
 
 Persistent changes to the ArduinoIDE can be made through "./ubiquitous_bash.sh _arduino_edit" .
 
+Arbitrary shellcode may be added to "ops" file in same directory as sketch. Especially intended to set sketch-specific preferences (ie. board type). Example at "_lib/Blink". Run "./_arduino_blink" to compile and upload an LED blink example configured for Arduino M0 by default.
+
 See "_prog/core.sh" for details.
+
+# Dependencies
+Nothing that would not be installed on a typical Linux development machine. Just run "./ubiquitous_bash.sh _setup" or "./ubiquitous_bash.sh _test" to install/check.
+
+Arduino itself is included.
+
+# Internal
+When running Atom, a terminal emulator, or any other app, under the "_launch_env" function, as is done for the App (Atom) IDE, with the "_aide" command, some exported arduinoBash functions and variables will be usable by a subordinate shell.
+
+* "${globalArgs[@]}"
+* "$safeTmp", "$shortTmp"
+* "$setFakeHome"
+* "$au_*"
+	au_arduinoInstallation
+	au_arduinoSketchDir
+	au_arduinoBuildPath
+
+* _arduino_run_actions
+	_arduino_compile_commands #"$@"
+	_arduino_upload_commands
+* _arduino_swd_openocd
+	_arduino_swd_openocd_zero
+* _arduino_gdb
+
 
 # Development
 Fork this repository to create specialized variants of this IDE for other purposes (ie. custom hardware support).
@@ -27,42 +49,16 @@ Create tar packages by command "./ubiquitous_bash.sh _package". These will conta
 
 In this way, custom IDEs can be shipped out, for example alongside specialized device firmware, as a single tar package, to end users.
 
-# Likely Problems
-
-* Cores installed under "~/Arduino/hardware/" require a programmer in the IDE to be selected from the list of programmers under the "programmers.txt" file of that core.
-
 # Design
 Portable operation supported through fakeHome, and Arduino built-in portable functionality. Both are expected to use the same files.
 
 ## Requirements
-* Arduino installation placed under "_local/h".
-* Path to Arduino installation, relative to script, specified under "_prog/specglobalvars.sh" .
-* Symbolic links established to link portable installation to typical Arduino home folders.
-_local/h/.arduino15/sketchbook -> ../Arduino
-_local/h/arduino-1.8.5/portable -> ../.arduino15
+* Arduino installation placed under "_local/arduino".
 
 # External
-
-WARNING: Do not copy ".git" files or folders into "_local/h".
-
-* ArduinoIDE itself cannot be kept directly as a git submodule under "_lib", as it must be copied to temporary home directories. As a workaround, install the IDE files to the "_local/h" global home directory.
-* Forks of Arduino cores (eg. ArduinoCore-samd), while kept directly as git submodules under "_lib", cannot be safely updated in place where they must be copied from the "_local/h" global home directory. Install them under "_local/h/Arduino", and test whether needed tools can be found by the ArduinoIDE.
 * Tools, under "$HOME"/.arduino15/packages/arduino/hardware/tools , and similar, may not be available from tracked git submodules. Typically, these are obtained as automatic dependencies installed by the ArduinoIDE board manager. As a workaround, run the ArduinoIDE in a temporary intstance, gather the files, collect them from the 'h_<uid>' directory, and install them in an apporpriate location. Run ArduinoIDE with "_arduino_user". Or, directly install them using "_arduino_edit".
 
 # Issues
-* Programmer support for M0 and Zero requires PR265. Bootloader may need to be rewriten after sketch.
-https://github.com/arduino/ArduinoCore-samd/pull/265
-
-* Programmer requires udev rule.
-https://blog.kylemanna.com/hardware/start-openocd-on-usb-hotplug/
-
-* Upload using Programmer - fails.
-https://forum.arduino.cc/index.php?topic=375270.0
-https://github.com/arduino/ArduinoCore-samd/issues/164
-
-* Debugging with bootloader may not be possible with current versions.
-https://github.com/arduino/ArduinoCore-samd/issues/187
-
 * High drive current may not be available.
 https://github.com/arduino/ArduinoCore-samd/issues/158
 
