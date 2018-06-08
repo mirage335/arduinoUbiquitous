@@ -40,6 +40,7 @@ When running Atom, a terminal emulator, or any other app, under the "_launch_env
 	_arduino_swd_openocd_zero
 * _arduino_gdb
 
+WARNING: Since you are obviously operating with a single session, do not call "_stop" anywhere within it, as this will clean up the "temporary" directories.
 
 # Development
 Fork this repository to create specialized variants of this IDE for other purposes (ie. custom hardware support).
