@@ -207,9 +207,9 @@ _launch_env() {
 	_messageNormal "aU: Configure."
 	_prepare_arduino "$@"
 	
-	# TODO: Confirm "--bypass" does not have any side effects!
 	_messageNormal "aU: Launch."
-	"$scriptAbsoluteLocation" --bypass "$@"
+	# DANGER TODO Forking to "--parent" is undefined, as return statements may fail, disengaging safety checks. Test importing, or properly setup "--bypass".
+	"$scriptAbsoluteLocation" --parent "$@"
 	
 	_messageNormal "aU: Deconfigure."
 	_arduino_deconfigure "$@"
@@ -484,7 +484,7 @@ _arduino_debug() {
 _aide_commands() {
 	
 	_messagePlain_probe "$sessionid"
-	. "$scriptAbsoluteLocation" --return _echo true
+	. "$scriptAbsoluteLocation" --parent _echo true
 	_messagePlain_probe "$sessionid"
 	
 	_gather_params "$@"
