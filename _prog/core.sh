@@ -170,9 +170,7 @@ _arduino_sketchDir() {
 }
 
 #Arduino may ignore "--pref" parameters, possibly due to bugs present in some versions. Consequently, it is possible some stored preferences may interfere with normal script operation. As a precaution, these are deleted.
-_arduino_deconfigure_sequence() {
-	_start
-	
+_arduino_deconfigure_commands() {
 	local arduinoPreferences
 	
 	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, preferences: portable' && arduinoPreferences="$au_arduinoInstallation"/portable/preferences.txt
@@ -195,6 +193,12 @@ _arduino_deconfigure_sequence() {
 	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
 	
 	mv "$safeTmp"/preferences.txt "$arduinoPreferences"
+}
+
+_arduino_deconfigure_sequence() {
+	_start
+	
+	_arduino_deconfigure_commands "$@"
 	
 	_stop
 }
@@ -204,15 +208,17 @@ _arduino_deconfigure() {
 }
 
 _launch_env() {
+	_start
+	
 	_messageNormal "aU: Configure."
 	_prepare_arduino "$@"
 	
+	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
 	_messageNormal "aU: Launch."
-	# DANGER TODO Forking to "--parent" is undefined, as return statements may fail, disengaging safety checks. Test importing, or properly setup "--bypass".
-	"$scriptAbsoluteLocation" --parent "$@"
+	"$@"
 	
 	_messageNormal "aU: Deconfigure."
-	_arduino_deconfigure "$@"
+	_arduino_deconfigure_commands "$@"
 }
 
 _arduino_executable() {
@@ -311,24 +317,10 @@ _arduino_compile_commands() {
 	cp "$shortTmp"/build/*.elf "$au_arduinoBuildPath"/
 }
 
-_arduino_compile_actions() {
-	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
-	_start
-	
-	_arduino_compile_commands "$@"
-	
-	_stop
-}
-
-_arduino_compile_sequence() {
-	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_env _arduino_compile_actions "$@"
-}
-
 _arduino_compile() {
 	#_make_clean "$@" # DANGER Not recommended!
 	
-	_userShortHome "$scriptAbsoluteLocation" _arduino_compile_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_compile_commands "$@"
 }
 
 
@@ -359,44 +351,19 @@ _arduino_upload_commands() {
 	_arduino_upload_zero_commands "$@"
 }
 
-
-_arduino_upload_actions() {
-	_start
-	
-	_arduino_upload_commands
-	
-	_stop
-}
-
-_arduino_upload_sequence() {
-	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_env _arduino_upload_actions "$@"
-}
-
 #Applicable to other Arduino SAMD21 variants.
 _arduino_upload() {
-	_userShortHome "$scriptAbsoluteLocation" _arduino_upload_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_upload_commands "$@"
 }
 
-
-_arduino_run_actions() {
-	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
-	_start
-	
+_arduino_run_commands() {
 	_arduino_compile_commands "$@"
 	_arduino_upload_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.bin' | head -n 1)
-	
-	_stop
-}
-
-_arduino_run_sequence() {
-	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_env _arduino_run_actions "$@"
 }
 
 #Applicable to other Arduino SAMD21 variants.
 _arduino_run() {
-	_userShortHome "$scriptAbsoluteLocation" _arduino_run_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_run_commands "$@"
 }
 
 _here_gdbinit() {
@@ -456,23 +423,13 @@ _arduino_debug_commands() {
 }
 
 _arduino_debug_actions() {
-	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
-	_start
-	
 	_arduino_compile_commands "$@"
 	_arduino_upload_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.bin' | head -n 1)
 	_arduino_debug_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.elf' | head -n 1) "$shortTmp"/build
-	
-	_stop
-}
-
-_arduino_debug_sequence() {
-	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_env _arduino_debug_actions "$@"
 }
 
 _arduino_debug() {
-	_userShortHome "$scriptAbsoluteLocation" _arduino_debug_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_debug_actions "$@"
 }
 
 
@@ -496,27 +453,10 @@ _aide_commands() {
 	atom --foreground "$@"
 }
 
-
-_aide_actions() {
-	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
-	_start
-	
-	_aide_commands "$@"
-	
-	_stop
-}
-
-_aide_sequence() {
-	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_env _aide_actions "$@"
-}
-
 #"AppIDE", not "AtomIDE", or "ArduinoIDE".
 _aide() {
-	_userShortHome "$scriptAbsoluteLocation" _aide_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _aide_commands "$@"
 }
-
-
 
 
 _arduino_bootloader_m0() {

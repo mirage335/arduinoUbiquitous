@@ -73,7 +73,7 @@ _messagePlain_bad() {
 ##Parameters
 #"--shell", ""
 #"--profile"
-#"--parent", "--return", "--devenv"
+#"--parent", "--embed", "--return", "--devenv"
 #"--call", "--script" "--bypass"
 
 ub_import=
@@ -82,7 +82,7 @@ ub_import_script=
 ub_loginshell=
 
 [[ "${BASH_SOURCE[0]}" != "${0}" ]] && ub_import="true"
-([[ "$1" == '--profile' ]] || [[ "$1" == '--script' ]] || [[ "$1" == '--call' ]] || [[ "$1" == '--return' ]] || [[ "$1" == '--devenv' ]] || [[ "$1" == '--shell' ]] || [[ "$1" == '--bypass' ]] || [[ "$1" == '--parent' ]]) && ub_import_param="$1" && shift
+([[ "$1" == '--profile' ]] || [[ "$1" == '--script' ]] || [[ "$1" == '--call' ]] || [[ "$1" == '--return' ]] || [[ "$1" == '--devenv' ]] || [[ "$1" == '--shell' ]] || [[ "$1" == '--bypass' ]] || [[ "$1" == '--parent' ]] || [[ "$1" == '--embed' ]]) && ub_import_param="$1" && shift
 ([[ "$0" == "/bin/bash" ]] || [[ "$0" == "-bash" ]] || [[ "$0" == "/usr/bin/bash" ]] || [[ "$0" == "bash" ]]) && ub_loginshell="true"	#Importing ubiquitous bash into a login shell with "~/.bashrc" is the only known cause for "_getScriptAbsoluteLocation" to return a result such as "/bin/bash".
 [[ "$ub_import" == "true" ]] && ! [[ "$ub_loginshell" == "true" ]] && ub_import_script="true"
 
@@ -93,7 +93,7 @@ _messagePlain_probe_expr '$0= '"$0"'\n ''$1= '"$1"'\n ''ub_import= '"$ub_import"
 if [[ "$ub_import_param" == "--profile" ]]
 then
 	([[ "$profileScriptLocation" == "" ]] ||  [[ "$profileScriptFolder" == "" ]]) && _messagePlain_bad 'import: profile: missing: profileScriptLocation, missing: profileScriptFolder' | _user_log-ub && return 1
-elif ([[ "$ub_import_param" == "--parent" ]] || [[ "$ub_import_param" == "--return" ]] || [[ "$ub_import_param" == "--devenv" ]])
+elif ([[ "$ub_import_param" == "--parent" ]] || [[ "$ub_import_param" == "--embed" ]] || [[ "$ub_import_param" == "--return" ]] || [[ "$ub_import_param" == "--devenv" ]])
 then
 	([[ "$scriptAbsoluteLocation" == "" ]] || [[ "$scriptAbsoluteFolder" == "" ]] || [[ "$sessionid" == "" ]]) && _messagePlain_bad 'import: parent: missing: scriptAbsoluteLocation, missing: scriptAbsoluteFolder, missing: sessionid' | _user_log-ub && return 1
 elif [[ "$ub_import_param" == "--call" ]] || [[ "$ub_import_param" == "--script" ]] || [[ "$ub_import_param" == "--bypass" ]] || [[ "$ub_import_param" == "--shell" ]] || ([[ "$ub_import" == "true" ]] && [[ "$ub_import_param" == "" ]])
@@ -530,6 +530,23 @@ _command_safeBackup() {
 #http://stackoverflow.com/questions/687948/timeout-a-command-in-bash-without-unnecessary-delay
 _timeout() { ( set +b; sleep "$1" & "${@:2}" & wait -n; r=$?; kill -9 `jobs -p`; exit $r; ) } 
 
+_terminate() {
+	local processListFile
+	processListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
+	
+	local currentPID
+	
+	cat "$safeTmp"/.pid > "$processListFile"
+	
+	while read -r currentPID
+	do
+		pkill -P "$currentPID"
+		kill "$currentPID"
+	done < "$processListFile"
+	
+	rm "$processListFile"
+}
+
 _terminateAll() {
 	local processListFile
 	processListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
@@ -541,7 +558,7 @@ _terminateAll() {
 	while read -r currentPID
 	do
 		pkill -P "$currentPID"
-		pkill "$currentPID"
+		kill "$currentPID"
 	done < "$processListFile"
 	
 	rm "$processListFile"
@@ -1340,6 +1357,23 @@ _remoteSigTERM() {
 	kill -TERM "$pidToTERM"
 	
 	_pauseForProcess "$pidToTERM"
+}
+
+_embed_here() {
+	cat << CZXWXcRMTo8EmM8i4d
+#!/usr/bin/env bash
+
+export scriptAbsoluteLocation="$scriptAbsoluteLocation"
+export scriptAbsoluteFolder="$scriptAbsoluteFolder"
+export sessionid="$sessionid"
+. "$scriptAbsoluteLocation" --embed "\$@"
+CZXWXcRMTo8EmM8i4d
+}
+ 
+
+_embed() {
+	export sessionid="$1"
+	"$scriptAbsoluteLocation" --embed "$@"
 }
 
 #"$@" == URL
@@ -6990,7 +7024,7 @@ then
 	export scriptAbsoluteFolder="$profileScriptFolder"
 	export sessionid=$(_uid)
 	_messagePlain_probe_expr 'profile: scriptAbsoluteLocation= '"$scriptAbsoluteLocation"'\n ''profile: scriptAbsoluteFolder= '"$scriptAbsoluteFolder"'\n ''profile: sessionid= '"$sessionid" | _user_log-ub
-elif ([[ "$ub_import_param" == "--parent" ]] || [[ "$ub_import_param" == "--return" ]] || [[ "$ub_import_param" == "--devenv" ]])  && [[ "$scriptAbsoluteLocation" != "" ]] && [[ "$scriptAbsoluteFolder" != "" ]] && [[ "$sessionid" != "" ]]
+elif ([[ "$ub_import_param" == "--parent" ]] || [[ "$ub_import_param" == "--embed" ]] || [[ "$ub_import_param" == "--return" ]] || [[ "$ub_import_param" == "--devenv" ]])  && [[ "$scriptAbsoluteLocation" != "" ]] && [[ "$scriptAbsoluteFolder" != "" ]] && [[ "$sessionid" != "" ]]
 then
 	ub_import=true
 	true #Do not override.
@@ -7538,6 +7572,9 @@ _start() {
 	#. "$varStore"
 	
 	echo $$ > "$safeTmp"/.pid
+	echo "$sessionid" > "$safeTmp"/.sessionid
+	_embed_here > "$safeTmp"/.embed.sh
+	chmod 755 "$safeTmp"/.embed.sh
 	
 	_start_prog
 }
@@ -7561,6 +7598,17 @@ _stop() {
 	_stop_prog
 	
 	_preserveLog
+	
+	local ub_stop_pid
+	if [[ -e "$safeTmp"/.pid ]]
+	then
+		ub_stop_pid=$(cat "$safeTmp"/.pid)
+		if [[ $$ != "$ub_stop_pid" ]]
+		then
+			pkill -P "$ub_stop_pid"
+			kill "$ub_stop_pid"
+		fi
+	fi
 	
 	rm -f "$pidFile" > /dev/null 2>&1	#Redundant, as this usually resides in "$safeTmp".
 	_safeRMR "$shortTmp"
@@ -8502,9 +8550,7 @@ _arduino_sketchDir() {
 }
 
 #Arduino may ignore "--pref" parameters, possibly due to bugs present in some versions. Consequently, it is possible some stored preferences may interfere with normal script operation. As a precaution, these are deleted.
-_arduino_deconfigure_sequence() {
-	_start
-	
+_arduino_deconfigure_commands() {
 	local arduinoPreferences
 	
 	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, preferences: portable' && arduinoPreferences="$au_arduinoInstallation"/portable/preferences.txt
@@ -8527,6 +8573,12 @@ _arduino_deconfigure_sequence() {
 	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
 	
 	mv "$safeTmp"/preferences.txt "$arduinoPreferences"
+}
+
+_arduino_deconfigure_sequence() {
+	_start
+	
+	_arduino_deconfigure_commands "$@"
 	
 	_stop
 }
@@ -8536,15 +8588,17 @@ _arduino_deconfigure() {
 }
 
 _launch_env() {
+	_start
+	
 	_messageNormal "aU: Configure."
 	_prepare_arduino "$@"
 	
+	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
 	_messageNormal "aU: Launch."
-	# DANGER TODO Forking to "--parent" is undefined, as return statements may fail, disengaging safety checks. Test importing, or properly setup "--bypass".
-	"$scriptAbsoluteLocation" --parent "$@"
+	"$@"
 	
 	_messageNormal "aU: Deconfigure."
-	_arduino_deconfigure "$@"
+	_arduino_deconfigure_commands "$@"
 }
 
 _arduino_executable() {
@@ -8643,24 +8697,10 @@ _arduino_compile_commands() {
 	cp "$shortTmp"/build/*.elf "$au_arduinoBuildPath"/
 }
 
-_arduino_compile_actions() {
-	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
-	_start
-	
-	_arduino_compile_commands "$@"
-	
-	_stop
-}
-
-_arduino_compile_sequence() {
-	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_env _arduino_compile_actions "$@"
-}
-
 _arduino_compile() {
 	#_make_clean "$@" # DANGER Not recommended!
 	
-	_userShortHome "$scriptAbsoluteLocation" _arduino_compile_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_compile_commands "$@"
 }
 
 
@@ -8691,44 +8731,19 @@ _arduino_upload_commands() {
 	_arduino_upload_zero_commands "$@"
 }
 
-
-_arduino_upload_actions() {
-	_start
-	
-	_arduino_upload_commands
-	
-	_stop
-}
-
-_arduino_upload_sequence() {
-	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_env _arduino_upload_actions "$@"
-}
-
 #Applicable to other Arduino SAMD21 variants.
 _arduino_upload() {
-	_userShortHome "$scriptAbsoluteLocation" _arduino_upload_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_upload_commands "$@"
 }
 
-
-_arduino_run_actions() {
-	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
-	_start
-	
+_arduino_run_commands() {
 	_arduino_compile_commands "$@"
 	_arduino_upload_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.bin' | head -n 1)
-	
-	_stop
-}
-
-_arduino_run_sequence() {
-	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_env _arduino_run_actions "$@"
 }
 
 #Applicable to other Arduino SAMD21 variants.
 _arduino_run() {
-	_userShortHome "$scriptAbsoluteLocation" _arduino_run_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_run_commands "$@"
 }
 
 _here_gdbinit() {
@@ -8788,23 +8803,13 @@ _arduino_debug_commands() {
 }
 
 _arduino_debug_actions() {
-	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
-	_start
-	
 	_arduino_compile_commands "$@"
 	_arduino_upload_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.bin' | head -n 1)
 	_arduino_debug_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.elf' | head -n 1) "$shortTmp"/build
-	
-	_stop
-}
-
-_arduino_debug_sequence() {
-	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_env _arduino_debug_actions "$@"
 }
 
 _arduino_debug() {
-	_userShortHome "$scriptAbsoluteLocation" _arduino_debug_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_debug_actions "$@"
 }
 
 
@@ -8828,27 +8833,10 @@ _aide_commands() {
 	atom --foreground "$@"
 }
 
-
-_aide_actions() {
-	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
-	_start
-	
-	_aide_commands "$@"
-	
-	_stop
-}
-
-_aide_sequence() {
-	#"$scriptAbsoluteLocation" - taken out to avoid confusing sketch locator
-	_launch_env _aide_actions "$@"
-}
-
 #"AppIDE", not "AtomIDE", or "ArduinoIDE".
 _aide() {
-	_userShortHome "$scriptAbsoluteLocation" _aide_sequence "$@"
+	_userShortHome "$scriptAbsoluteLocation" _launch_env _aide_commands "$@"
 }
-
-
 
 
 _arduino_bootloader_m0() {
@@ -9432,6 +9420,9 @@ _compile_bash_utilities() {
 	includeScriptList+=( "generic/process"/daemon.sh )
 	
 	includeScriptList+=( "generic/process"/remotesig.sh )
+	
+	includeScriptList+=( "generic/process"/embed_here.sh )
+	includeScriptList+=( "generic/process"/embed.sh )
 	
 	includeScriptList+=( "generic/net"/fetch.sh )
 	
@@ -10113,6 +10104,9 @@ fi
 [[ ! -e "$scriptAbsoluteLocation" ]] && exit 1
 [[ ! -e "$scriptAbsoluteFolder" ]] && exit 1
 _failExec || exit 1
+
+#Return if script is under import mode, and bypass is not requested.
+[[ "$ub_import" == "true" ]] && [[ "$ub_import_param" != "--bypass" ]] && return 0
 
 #####Entry
 
