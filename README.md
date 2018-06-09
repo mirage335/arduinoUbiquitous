@@ -37,9 +37,14 @@ When running Atom, a terminal emulator, or any other app, under the "_launch_env
 
 
 However, subshells will not see unexported functions unless they are imported.
+* . "$scriptAbsoluteLocation" --parent
+
+Issue "_setupUbiquitous" to any comprehenisve Ubiquitous Bash script to add an automatic hook in the current user's bash profile. Doing so will also import a more informative shell prompt.
 * . "$scriptAbsoluteLocation" --parent _importShortcuts
 
-Issue "_setupUbiquitous" to any comprehenisve Ubiquitous Bash script to add an automatic hook in the current user's bash profile.
+Arbitrary commands from the parent script can be run within the curent session and/or shell.
+* "$scriptAbsoluteLocation" --parent _echo true
+* . "$scriptAbsoluteLocation" --parent _echo true
 
 
 WARNING: Since you are obviously operating with a single session, do not call "_stop" anywhere within it, as this will kill the parent process, and clean up the "temporary" directories.
