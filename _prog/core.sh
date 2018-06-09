@@ -23,6 +23,8 @@ _prepare_installation() {
 }
 
 _prepareAppHome() {
+	_messagePlain_nominal '_prepareAppHome'
+	
 	mkdir -p "$globalFakeHome"
 	mkdir -p "$instancedFakeHome"
 	
@@ -31,6 +33,7 @@ _prepareAppHome() {
 	
 	_set_atomFakeHomeSource
 	
+	mkdir -p "$instancedFakeHome"/.atom
 	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$atomFakeHomeSource"/.atom/. "$instancedFakeHome"/.atom/
 	mkdir -p "$instancedFakeHome"/.config/Atom
 	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$atomFakeHomeSource"/.config/Atom/. "$instancedFakeHome"/.config/Atom/
@@ -45,6 +48,8 @@ _prepareAppHome() {
 	#rm "$instancedFakeHome"/"$au_arduinoDir"
 	mkdir -p "$instancedFakeHome"/"$au_arduinoDir"
 	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$scriptLocal"/arduino/"$au_arduinoDir"/. "$instancedFakeHome"/"$au_arduinoDir"/
+	
+	export ub_disable_prepareFakeHome_instance=true
 }
 
 _set_arduino_installation() {
@@ -60,7 +65,7 @@ _set_arduino_installation() {
 		_messagePlain_warn 'aU: undetected: setFakeHome, default: java: user.home'
 	fi
 	
-	export au_gdbBin="$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb "$@"
+	export au_gdbBin="$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb
 	_messagePlain_probe 'au_gdbBin= '"$au_gdbBin"
 }
 
@@ -346,6 +351,8 @@ _arduino_upload_zero_commands() {
 	local arduinoBin
 	
 	arduinoBin="$1"
+	[[ -d "$arduinBin" ]] && arduinoBin=$(find "$arduinBin" -maxdepth 1 -name '*.bin' | head -n 1)
+	([[ "$arduinBin" == *".ino" ]] || [[ "$arduinBin" == "" ]] || ! [[ -e "$arduinoBin" ]]) && [[ -d "$au_arduinoBuildPath" ]] && arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
 	! [[ -e "$arduinoBin" ]] && arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
 	! [[ -e "$arduinoBin" ]] && _messagePlain_bad 'missing: arduinoBin= '"$arduinoBin" && return 1 
 	
@@ -358,8 +365,12 @@ _arduino_upload_zero_commands() {
 	fi
 	
 	sleep 1
-	! [[ -e "/dev/ttyACM0" ]] && ! [[ -e "/dev/ttyACM1" ]] && ! [[ -e "/dev/ttyACM2" ]] && ! [[ -e "/dev/ttyUSB0" ]] && ! [[ -e "/dev/ttyUSB1" ]] && ! [[ -e "/dev/ttyUSB2" ]] && sleep 3
-	! [[ -e "/dev/ttyACM0" ]] && ! [[ -e "/dev/ttyACM1" ]] && ! [[ -e "/dev/ttyACM2" ]] && ! [[ -e "/dev/ttyUSB0" ]] && ! [[ -e "/dev/ttyUSB1" ]] && ! [[ -e "/dev/ttyUSB2" ]] && sleep 9
+	([[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]]) && return 0
+	sleep 3
+	([[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]]) && return 0
+	sleep 9
+	([[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]]) && return 0
+	return 1
 }
 
 # ATTENTION Overload with ops!
@@ -453,7 +464,7 @@ _arduino_debug() {
 
 
 
-# ATTENTION By now, everything is already within a fakeHome subshell. AIDE will possess same fakeHome environment, exported variables, ane exported functions. However, "$scriptAbsoluteLocation" was invoked by _launch_env, creating a new session. Login shells may lose, or reimport, unexported functions.
+# ATTENTION By now, everything is already within a fakeHome subshell. AIDE will possess same fakeHome environment, exported variables, and exported functions. However, "$scriptAbsoluteLocation" was invoked by _launch_env, creating a new session. Login shells may lose, or reimport, unexported functions.
 _aide_commands() {
 	
 	_messagePlain_probe "$sessionid"

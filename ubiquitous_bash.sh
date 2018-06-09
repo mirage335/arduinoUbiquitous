@@ -2857,9 +2857,13 @@ _prepareAppHome() {
 
 	mkdir -p "$scriptLocal"/app/.app
 
-	_relink "$scriptLocal"/app/.app "$globalFakeHome"/.app
-
-	_relink "$scriptLocal"/app/.app "$instancedFakeHome"/.app
+	#_relink "$scriptLocal"/app/.app "$globalFakeHome"/.app
+	
+	mkdir -p "$instancedFakeHome"/.app
+	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$scriptLocal"/app/.app/. "$instancedFakeHome"/.app/
+	#_relink "$scriptLocal"/app/.app "$instancedFakeHome"/.app
+	
+	export ub_disable_prepareFakeHome_instance=true
 }
 
 _setShortHome() {
@@ -7268,6 +7272,8 @@ _prepareFakeHome() {
 _prepareFakeHome_instance() {
 	_prepareFakeHome
 	
+	[[ "$ub_disable_prepareFakeHome_instance" == "true" ]] && return
+	
 	mkdir -p "$instancedFakeHome"
 	
 	if [[ "$appGlobalFakeHome" == "" ]]
@@ -8403,6 +8409,8 @@ _prepare_installation() {
 }
 
 _prepareAppHome() {
+	_messagePlain_nominal '_prepareAppHome'
+	
 	mkdir -p "$globalFakeHome"
 	mkdir -p "$instancedFakeHome"
 	
@@ -8411,6 +8419,7 @@ _prepareAppHome() {
 	
 	_set_atomFakeHomeSource
 	
+	mkdir -p "$instancedFakeHome"/.atom
 	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$atomFakeHomeSource"/.atom/. "$instancedFakeHome"/.atom/
 	mkdir -p "$instancedFakeHome"/.config/Atom
 	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$atomFakeHomeSource"/.config/Atom/. "$instancedFakeHome"/.config/Atom/
@@ -8425,6 +8434,8 @@ _prepareAppHome() {
 	#rm "$instancedFakeHome"/"$au_arduinoDir"
 	mkdir -p "$instancedFakeHome"/"$au_arduinoDir"
 	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$scriptLocal"/arduino/"$au_arduinoDir"/. "$instancedFakeHome"/"$au_arduinoDir"/
+	
+	export ub_disable_prepareFakeHome_instance=true
 }
 
 _set_arduino_installation() {
@@ -8440,7 +8451,7 @@ _set_arduino_installation() {
 		_messagePlain_warn 'aU: undetected: setFakeHome, default: java: user.home'
 	fi
 	
-	export au_gdbBin="$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb "$@"
+	export au_gdbBin="$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb
 	_messagePlain_probe 'au_gdbBin= '"$au_gdbBin"
 }
 
@@ -8726,6 +8737,8 @@ _arduino_upload_zero_commands() {
 	local arduinoBin
 	
 	arduinoBin="$1"
+	[[ -d "$arduinBin" ]] && arduinoBin=$(find "$arduinBin" -maxdepth 1 -name '*.bin' | head -n 1)
+	([[ "$arduinBin" == *".ino" ]] || [[ "$arduinBin" == "" ]] || ! [[ -e "$arduinoBin" ]]) && [[ -d "$au_arduinoBuildPath" ]] && arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
 	! [[ -e "$arduinoBin" ]] && arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
 	! [[ -e "$arduinoBin" ]] && _messagePlain_bad 'missing: arduinoBin= '"$arduinoBin" && return 1 
 	
@@ -8738,8 +8751,12 @@ _arduino_upload_zero_commands() {
 	fi
 	
 	sleep 1
-	! [[ -e "/dev/ttyACM0" ]] && ! [[ -e "/dev/ttyACM1" ]] && ! [[ -e "/dev/ttyACM2" ]] && ! [[ -e "/dev/ttyUSB0" ]] && ! [[ -e "/dev/ttyUSB1" ]] && ! [[ -e "/dev/ttyUSB2" ]] && sleep 3
-	! [[ -e "/dev/ttyACM0" ]] && ! [[ -e "/dev/ttyACM1" ]] && ! [[ -e "/dev/ttyACM2" ]] && ! [[ -e "/dev/ttyUSB0" ]] && ! [[ -e "/dev/ttyUSB1" ]] && ! [[ -e "/dev/ttyUSB2" ]] && sleep 9
+	([[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]]) && return 0
+	sleep 3
+	([[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]]) && return 0
+	sleep 9
+	([[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]]) && return 0
+	return 1
 }
 
 # ATTENTION Overload with ops!
@@ -8842,8 +8859,6 @@ _aide_commands() {
 	
 	_gather_params "$@"
 	_messagePlain_probe 'globalArgs= '"${globalArgs[@]}"
-	
-	export -f _arduino_run_actions
 	
 	#export keepFakeHome="false"
 	atom --foreground "$@"
@@ -10004,6 +10019,7 @@ then
 fi
 
 #Traps, if script is not imported into existing shell, or bypass requested.
+# WARNING Exact behavior of this system is critical to some use cases.
 if [[ "$ub_import" != "true" ]] || [[ "$ub_import_param" == "--bypass" ]]
 then
 	trap 'excode=$?; _stop $excode; trap - EXIT; echo $excode' EXIT HUP QUIT PIPE 	# reset
@@ -10069,7 +10085,13 @@ _echo() {
 }
 
 #Stop if script is imported, parameter not specified, and command not given.
-[[ "$ub_import" == "true" ]] && [[ "$ub_import_param" == "" ]] && [[ "$1" != '_'* ]] && _messagePlain_warn 'import: missing: parameter, missing: command' | _user_log-ub && ub_import="" && return 1
+if [[ "$ub_import" == "true" ]] && [[ "$ub_import_param" == "" ]] && [[ "$1" != '_'* ]]
+then
+	_messagePlain_warn 'import: missing: parameter, missing: command' | _user_log-ub
+	ub_import=""
+	return 1 > /dev/null 2>&1
+	exit 1
+fi
 
 #Set "ubOnlyMain" in "ops" overrides as necessary.
 if [[ "$ubOnlyMain" != "true" ]]
@@ -10090,7 +10112,8 @@ then
 				exit "$internalFunctionExitStatus"
 			fi
 			ub_import=""
-			return "$internalFunctionExitStatus"
+			return "$internalFunctionExitStatus" > /dev/null 2>&1
+			exit "$internalFunctionExitStatus"
 		fi
 	fi
 	
@@ -10109,7 +10132,8 @@ then
 			exit "$internalFunctionExitStatus"
 		fi
 		ub_import=""
-		return "$internalFunctionExitStatus"
+		return "$internalFunctionExitStatus" > /dev/null 2>&1
+		exit "$internalFunctionExitStatus"
 		#_stop "$?"
 	fi
 fi
@@ -10122,7 +10146,11 @@ fi
 _failExec || exit 1
 
 #Return if script is under import mode, and bypass is not requested.
-[[ "$ub_import" == "true" ]] && [[ "$ub_import_param" != "--bypass" ]] && return 0
+if [[ "$ub_import" == "true" ]] && [[ "$ub_import_param" != "--bypass" ]]
+then
+	return 0 > /dev/null 2>&1
+	exit 0
+fi
 
 #####Entry
 

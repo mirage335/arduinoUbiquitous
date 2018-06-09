@@ -23,6 +23,13 @@ Nothing that would not be installed on a typical Linux development machine. Just
 Arduino itself is included.
 
 # Internal
+Arduino compile, upload, debug, and similar operations, may be done within the current session.
+* "$scriptAbsoluteLocation" --parent _arduino_compile_commands "$au_arduinoSketch"
+* "$scriptAbsoluteLocation" --parent _arduino_upload_commands "$au_arduinoSketch"
+* "$scriptAbsoluteLocation" --parent _arduino_run_commands "$au_arduinoSketch"
+
+* "$scriptAbsoluteLocation" --parent _arduino_swd_openocd_zero &
+
 List of input parameters is available within the current shell.
 * "${globalArgs[@]}"
 
@@ -45,7 +52,6 @@ Issue "_setupUbiquitous" to any comprehenisve Ubiquitous Bash script to add an a
 Arbitrary commands from the parent script can be run within the curent session and/or shell.
 * "$scriptAbsoluteLocation" --parent _echo true
 * . "$scriptAbsoluteLocation" --parent _echo true
-
 
 WARNING: Since you are obviously operating with a single session, do not call "_stop" anywhere within it, as this will kill the parent process, and clean up the "temporary" directories.
 
