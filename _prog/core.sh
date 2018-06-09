@@ -59,6 +59,9 @@ _set_arduino_installation() {
 		_messagePlain_warn 'aU: undetected: setFakeHome, default: au_arduinoInstallation= '"$au_arduinoInstallation"
 		_messagePlain_warn 'aU: undetected: setFakeHome, default: java: user.home'
 	fi
+	
+	export au_gdbBin="$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb "$@"
+	_messagePlain_probe 'au_gdbBin= '"$au_gdbBin"
 }
 
 # WARNING: Assumes first fileparameter given to arduino is sketch .
@@ -233,11 +236,8 @@ _arduino_executable() {
 	"$arduinoExecutable" "${processedArgs[@]}"
 }
 
-_arduino_gdb() {
-	"$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb "$@"
-}
-
 _arduino_swd_openocd() {
+	_messagePlain_probe "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
 	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
 }
 
@@ -408,11 +408,12 @@ _arduino_debug_zero_commands() {
 	! [[ -e "$arduinoBuild" ]] && arduinoBuild="$shortTmp"/build
 	! [[ -e "$arduinoBuild" ]] && _messagePlain_bad 'missing: arduinoBuild= '"$arduinoBuild" && return 1 
 	
-	_arduino_swd_openocd &
+	_arduino_swd_openocd_zero &
 	
 	_here_gdbinit "$arduinoBin" > "$safeTmp"/.gdbinit
 	
-	ddd --debugger _arduino_gdb -d "$2" -x "$safeTmp"/.gdbinit
+	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$2" -x "$safeTmp"/.gdbinit
+	ddd --debugger "$au_gdbBin" -d "$2" -x "$safeTmp"/.gdbinit
 	
 	pkill openocd # TODO Replace, _killDaemon.
 }
@@ -423,8 +424,7 @@ _arduino_debug_commands() {
 }
 
 _arduino_debug_actions() {
-	_arduino_compile_commands "$@"
-	_arduino_upload_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.bin' | head -n 1)
+	_arduino_run_commands "$@"
 	_arduino_debug_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.elf' | head -n 1) "$shortTmp"/build
 }
 
