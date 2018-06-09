@@ -23,24 +23,26 @@ Nothing that would not be installed on a typical Linux development machine. Just
 Arduino itself is included.
 
 # Internal
-When running Atom, a terminal emulator, or any other app, under the "_launch_env" function, as is done for the App (Atom) IDE, with the "_aide" command, some exported arduinoBash functions and variables will be usable by a subordinate shell.
-
+List of input parameters is available within the current shell.
 * "${globalArgs[@]}"
+
+When running Atom, a terminal emulator, or any other app, under the "_launch_env" function, as is done for the App (Atom) IDE, with the "_aide" command, some exported arduinoBash functions and variables will be usable by a subordinate shell.
 * "$safeTmp", "$shortTmp"
 * "$setFakeHome"
 * "$au_*"
 	au_arduinoInstallation
+	au_arduinoSketch
 	au_arduinoSketchDir
 	au_arduinoBuildPath
 
-* _arduino_run_actions
-	_arduino_compile_commands #"$@"
-	_arduino_upload_commands
-* _arduino_swd_openocd
-	_arduino_swd_openocd_zero
-* _arduino_gdb
 
-WARNING: Since you are obviously operating with a single session, do not call "_stop" anywhere within it, as this will clean up the "temporary" directories.
+However, subshells will not see unexported functions unless they are imported.
+* . "$scriptAbsoluteLocation" --parent _importShortcuts
+
+Issue "_setupUbiquitous" to any comprehenisve Ubiquitous Bash script to add an automatic hook in the current user's bash profile.
+
+
+WARNING: Since you are obviously operating with a single session, do not call "_stop" anywhere within it, as this will kill the parent process, and clean up the "temporary" directories.
 
 # Development
 Fork this repository to create specialized variants of this IDE for other purposes (ie. custom hardware support).

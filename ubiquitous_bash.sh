@@ -8450,6 +8450,7 @@ _prepare_arduino_compile() {
 	
 	[[ "$1" == "" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
 	
+	export au_arduinoSketch=$(_arduino_sketch "$@")
 	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
 	export au_arduinoBuildPath="$au_arduinoSketchDir"/build
 	
@@ -8529,7 +8530,7 @@ _make_clean() {
 }
 
 # WARNING: Assumes first fileparameter given to arduino is sketch .
-_arduino_sketchDir() {
+_arduino_sketch() {
 	local currentArg
 	
 	#for currentArg in "$1"
@@ -8541,15 +8542,30 @@ _arduino_sketchDir() {
 		local compilerInputAbsolute
 		compilerInputAbsolute=$(_getAbsoluteLocation "$currentArg")
 		
-		local compilerInputAbsoluteDirectory
-		compilerInputAbsoluteDirectory=$(_findDir "$compilerInputAbsolute")
-		
-		echo "$compilerInputAbsoluteDirectory"
+		echo "$compilerInputAbsolute"
 		
 		return 0
 	done
 	
 	return 1
+}
+
+# WARNING: Assumes first fileparameter given to arduino is sketch .
+_arduino_sketchDir() {
+	local compilerInputAbsolute
+	if ! compilerInputAbsolute=$(_arduino_sketch "$@")
+	then
+		return 1
+	fi
+	
+	local compilerInputAbsoluteDirectory
+	compilerInputAbsoluteDirectory=$(_findDir "$compilerInputAbsolute")
+	
+	! [[ -e "$compilerInputAbsoluteDirectory" ]] && return 1
+	
+	echo "$compilerInputAbsoluteDirectory"
+	
+	return 0
 }
 
 #Arduino may ignore "--pref" parameters, possibly due to bugs present in some versions. Consequently, it is possible some stored preferences may interfere with normal script operation. As a precaution, these are deleted.
