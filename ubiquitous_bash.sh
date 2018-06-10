@@ -8455,6 +8455,67 @@ _set_arduino_installation() {
 	_messagePlain_probe 'au_gdbBin= '"$au_gdbBin"
 }
 
+_check_arduino_firmware() {
+	! [[ -e "$1" ]] && return 1
+	! [[ -d "$1" ]] && return 1
+	! find "$1" -maxdepth 1 -name '*.bin' | head -n 1 | grep '.bin' > /dev/null 2>&1 && return 1
+	! find "$1" -maxdepth 1 -name '*.elf' | head -n 1 | grep '.elf' > /dev/null 2>&1 && return 1
+	return 0
+}
+
+_set_arduino_firmware_var() {
+	_check_arduino_firmware "$1" && export au_arduinoFirmware="$1" && return 0
+	return 1
+}
+
+_set_arduino_firmware_default() {
+	_set_arduino_firmware_var "$shortTmp"/build && return 0
+	_set_arduino_firmware_var "$au_arduinoBuildPath" && return 0
+	return 1
+}
+
+#Ultimately sets global variables and perferences.
+#au_arduinoFirmware
+#All parameters optional.
+#"$1" == *'.ino' || *'.bin' || *'.elf' || "$au_arduinoSketchDir"
+#"$2" == "$au_arduinoBuildPath"
+_set_arduino_firmware_dir() {
+	[[ "$1" == "" ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_bad 'set: firmware: invalid: default' && return 1
+	
+	[[ "$1" == *'.ino' ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_bad 'set: firmware: invalid: sketch= '"$1" && return 1
+	[[ -d "$1" ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_bad 'set: firmware: invalid: sketchDir= '"$1" && return 1
+	
+	if [[ "$1" == *'.bin' ]] || [[ "$1" == *'.elf' ]]
+	then
+		! [[ -e "$1" ]] && _messagePlain_bad 'set: firmware: invalid: (bin||elf)= '"$1" && return 1
+		export au_arduinoFirmware=$(_getAbsoluteFolder "$1")
+	fi
+	
+	[[ -d "$2" ]] && ! _set_arduino_firmware_var "$2" && _messagePlain_bad 'set: firmware: invalid: build= '"$2" && return 1
+	
+	return 0
+}
+
+#Ultimately sets global variables and perferences.
+#au_arduinoFirmware
+#au_arduinoFirmware_bin
+#au_arduinoFirmware_elf
+#All parameters optional.
+#"$1" == *'.ino' || *'.bin' || *'.elf' || "$au_arduinoSketchDir"
+#"$2" == "$au_arduinoBuildPath"
+_set_arduino_firmware() {
+	! _set_arduino_firmware_dir "$@" && return 1
+	
+	export au_arduinoFirmware_bin=$(find "$au_arduinoFirmware" -maxdepth 1 -name '*.bin' | head -n 1)
+	export au_arduinoFirmware_elf=$(find "$au_arduinoFirmware" -maxdepth 1 -name '*.elf' | head -n 1)
+	
+	_messagePlain_probe 'au_arduinoFirmware= '"$au_arduinoFirmware"
+	_messagePlain_probe 'au_arduinoFirmware_bin= '"$au_arduinoFirmware_bin"
+	_messagePlain_probe 'au_arduinoFirmware_elf= '"$au_arduinoFirmware_elf"
+	
+	return 0
+}
+
 # WARNING: Assumes first fileparameter given to arduino is sketch .
 _prepare_arduino_compile() {
 	_messagePlain_nominal 'aU: set: sketch'
@@ -8488,6 +8549,8 @@ _prepare_arduino() {
 	_prepare_installation "$@"
 	
 	_prepare_arduino_compile "$@"
+	
+	_set_arduino_firmware
 	
 	_ops_arduino_sketch "$@"
 	
@@ -8734,20 +8797,14 @@ _arduino_compile() {
 _arduino_upload_zero_commands() {
 	_messagePlain_nominal 'Upload.'
 	
-	local arduinoBin
-	
-	arduinoBin="$1"
-	[[ -d "$arduinBin" ]] && arduinoBin=$(find "$arduinBin" -maxdepth 1 -name '*.bin' | head -n 1)
-	([[ "$arduinBin" == *".ino" ]] || [[ "$arduinBin" == "" ]] || ! [[ -e "$arduinoBin" ]]) && [[ -d "$au_arduinoBuildPath" ]] && arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
-	! [[ -e "$arduinoBin" ]] && arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
-	! [[ -e "$arduinoBin" ]] && _messagePlain_bad 'missing: arduinoBin= '"$arduinoBin" && return 1 
+	_set_arduino_firmware "$1"
 	
 	#Upload over SWD debugger.
-	_arduino_upload_swd_openocd_zero "$arduinoBin"
+	_arduino_upload_swd_openocd_zero "$au_arduinoFirmware_bin"
 	
 	if [[ $? != 0 ]]	#SWD upload failed.
 	then
-		_arduino_upload_serial_bossac "$arduinoBin"
+		_arduino_upload_serial_bossac "$au_arduinoFirmware_bin"
 	fi
 	
 	sleep 1
@@ -8809,21 +8866,11 @@ CZXWXcRMTo8EmM8i4d
 _arduino_debug_zero_commands() {
 	_messagePlain_nominal 'Debug.'
 	
-	local arduinoBin
-	
-	arduinoBin="$1"
-	! [[ -e "$arduinoBin" ]] && arduinoBin=$(find "$au_arduinoBuildPath" -maxdepth 1 -name '*.bin' | head -n 1)
-	! [[ -e "$arduinoBin" ]] && _messagePlain_bad 'missing: arduinoBin= '"$arduinoBin" && return 1 
-	
-	local arduinoBuild
-	
-	arduinoBuild="$2"
-	! [[ -e "$arduinoBuild" ]] && arduinoBuild="$shortTmp"/build
-	! [[ -e "$arduinoBuild" ]] && _messagePlain_bad 'missing: arduinoBuild= '"$arduinoBuild" && return 1 
+	_set_arduino_firmware "$1"
 	
 	_arduino_swd_openocd_zero &
 	
-	_here_gdbinit "$arduinoBin" > "$safeTmp"/.gdbinit
+	_here_gdbinit "$au_arduinoFirmware_elf" > "$safeTmp"/.gdbinit
 	
 	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$2" -x "$safeTmp"/.gdbinit
 	ddd --debugger "$au_gdbBin" -d "$2" -x "$safeTmp"/.gdbinit
@@ -8845,6 +8892,12 @@ _arduino_debug() {
 	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_debug_actions "$@"
 }
 
+
+
+_gdb() {
+	"$au_gdbBin" -d "$2" -x "$safeTmp"/.gdbinit
+}
+export -f _gdb
 
 
 

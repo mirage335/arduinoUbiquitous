@@ -108,6 +108,9 @@ __asm__("nop\n\t");
 * https://github.com/arduino/Arduino/issues/3746
 * https://github.com/arduino/arduino-builder/pull/9
 
+* https://github.com/31i73/atom-dbg/issues/1
+* https://github.com/31i73/atom-dbg-gdb/blob/master/README.md#supported-options
+
 
 __Copyright__
 This file is part of arduinoUbiquitous.
