@@ -471,6 +471,8 @@ monitor reset halt
 
 monitor reset init
 
+continue
+
 CZXWXcRMTo8EmM8i4d
 }
 
