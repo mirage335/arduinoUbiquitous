@@ -7,3 +7,9 @@
 [submodule "_lib/ArduinoCore-samd"]
 	path = _lib/ArduinoCore-samd
 	url = git@github.com:arduino/ArduinoCore-samd.git
+[submodule "_lib/atom-dbg"]
+	path = _lib/atom-dbg
+	url = git@github.com:31i73/atom-dbg.git
+[submodule "_lib/atom-dbg-gdb"]
+	path = _lib/atom-dbg-gdb
+	url = git@github.com:31i73/atom-dbg-gdb.git

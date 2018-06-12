@@ -71,6 +71,7 @@ Portable operation supported through fakeHome, and Arduino built-in portable fun
 
 # External
 * Tools, under "$HOME"/.arduino15/packages/arduino/hardware/tools , and similar, may not be available from tracked git submodules. Typically, these are obtained as automatic dependencies installed by the ArduinoIDE board manager. As a workaround, run the ArduinoIDE in a temporary intstance, gather the files, collect them from the 'h_<uid>' directory, and install them in an apporpriate location. Run ArduinoIDE with "_arduino_user". Or, directly install them using "_arduino_edit".
+* Atom packages may be copied from git submodules under "_lib". Updating these submodules will not update the packages. After copying modules, "apm install" may need to be run from within "_editFakeHome_atom". This arrangement is a precaution against interference with safety checks within _safeRMR .
 
 # Issues
 * High drive current may not be available.
@@ -87,6 +88,8 @@ d72f11735d3588f4128b016b346f41ef9812b060
 https://github.com/arduino/arduino-builder
 
 * Driver to retrieve firmware information over USBSerial, upload new firmware by device type.
+
+* Clear use of git submodules directly within "_lib/app/atom/home/.atom/packages" .
 
 # Diagnostic
 PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);

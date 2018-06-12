@@ -1,0 +1,53 @@
+{
+  "name": "dbg-gdb",
+  "main": "./lib/main",
+  "version": "1.7.8",
+  "description": "An interactive GDB debugger for Atom",
+  "keywords": [
+    "gdb",
+    "debugger",
+    "C",
+    "C++",
+    "D",
+    "Go",
+    "Objective-C",
+    "Fortran",
+    "Pascal",
+    "Rust",
+    "assembly",
+    "Ada"
+  ],
+  "repository": "https://github.com/31i73/atom-dbg-gdb",
+  "license": "MIT",
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "package-deps": [
+    "dbg",
+    "output-panel"
+  ],
+  "dependencies": {
+    "atom-package-deps": "^4.0.1"
+  },
+  "providedServices": {
+    "dbgProvider": {
+      "description": "Provides a dbg gdb debugger",
+      "versions": {
+        "1.2.0": "provideDbgProvider"
+      }
+    }
+  },
+  "consumedServices": {
+    "dbg": {
+      "versions": {
+        "^1.0.0": "consumeDbg"
+      }
+    },
+    "output-panel": {
+      "versions": {
+        "^1.0.0": "consumeOutputPanel",
+        "^0.1.0": "consumeOutputPanel"
+      }
+    }
+  }
+}

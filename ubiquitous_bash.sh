@@ -2625,11 +2625,13 @@ _checkBaseDirRemote_app_remoteOnly() {
 	[[ "$1" == "/bin/bash" ]] && return 0
 }
 
+# WARNING Strongly recommend not sharing root with guest, but this can be overridden by "ops".
 _checkBaseDirRemote_common_localOnly() {
 	[[ "$1" == "." ]] && return 0
 	[[ "$1" == "./" ]] && return 0
 	[[ "$1" == ".." ]] && return 0
 	[[ "$1" == "../" ]] && return 0
+	
 	[[ "$1" == "/" ]] && return 0
 	
 	return 1
@@ -2749,13 +2751,13 @@ _localDir() {
 		return
 	fi
 	
-	if [[ ! -e "$1" ]] && ! _pathPartOf "$1" "$2"
+	if [[ ! -e "$1" ]] || ! _pathPartOf "$1" "$2"
 	then
 		echo "$1"
 		return
 	fi
 	
-	[[ "$3" != "" ]] && echo -n "$3" && [[ "$3" != "/" ]] && echo "/"
+	[[ "$3" != "" ]] && echo -n "$3" && [[ "$3" != "/" ]] && echo -n "/"
 	realpath -L -s --relative-to="$2" "$1"
 	
 }
@@ -2823,6 +2825,35 @@ _stop_virtLocal() {
 _test_virtLocal_X11() {
 	_getDep xauth
 }
+
+# TODO: Expansion needed.
+_vector_virtUser() {
+	export sharedHostProjectDir=
+	export sharedGuestProjectDir=/home/user/project
+	_virtUser /tmp
+	#echo "${processedArgs[0]}"
+	[[ "${processedArgs[0]}" != '/home/user/project/tmp' ]] && echo 'fail: _vector_virtUser' && _messageFAIL
+	
+	export sharedHostProjectDir=/
+	export sharedGuestProjectDir='Z:'
+	_virtUser /tmp
+	#echo "${processedArgs[0]}"
+	[[ "${processedArgs[0]}" != 'Z:\tmp' ]] && echo 'fail: _vector_virtUser' && _messageFAIL
+	
+	export sharedHostProjectDir=/tmp
+	export sharedGuestProjectDir='/home/user/project/tmp'
+	_virtUser /tmp
+	#echo "${processedArgs[0]}"
+	[[ "${processedArgs[0]}" != '/home/user/project/tmp/.' ]] && echo 'fail: _vector_virtUser' && _messageFAIL
+	
+	
+	return 0
+}
+
+
+
+
+
 
 _test_fakehome() {
 	_getDep mount
@@ -5975,6 +6006,19 @@ _atom_edit() {
 	_atomDev_edit "$@"  > /dev/null 2>&1 &
 }
 
+_editFakeHome_atom_sequence() {
+	_set_atomFakeHomeSource
+	export appGlobalFakeHome="$atomFakeHomeSource"
+	
+	#export keepFakeHome="false"
+	
+	_editFakeHome "$@"
+}
+
+_editFakeHome_atom() {
+	"$scriptAbsoluteLocation" _editFakeHome_atom_sequence "$@"
+}
+
 _atom_config() {
 	_set_atomFakeHomeSource
 	
@@ -6882,25 +6926,26 @@ _installUbiquitous() {
 	
 	cd "$ubcoreDir"
 	
+	cd "$ubcoreUBdir"
 	_messagePlain_nominal 'attempt: git pull'
 	if [[ "$nonet" != "true" ]] && type git > /dev/null 2>&1
 	then
-		cd "$ubcoreUBdir"
 		
 		local ub_gitPullStatus
 		git pull
 		ub_gitPullStatus="$?"
 		! cd "$localFunctionEntryPWD" && return 1
 		
-		[[ "$ub_gitPullStatus" == "0" ]] && _messagePlain_good 'pass: git pull' && return 0
-		cd "$localFunctionEntryPWD"
+		[[ "$ub_gitPullStatus" == "0" ]] && _messagePlain_good 'pass: git pull' cd "$localFunctionEntryPWD" && return 0
 	fi
 	_messagePlain_warn 'fail: git pull'
 	
+	cd "$ubcoreDir"
 	_messagePlain_nominal 'attempt: git clone'
 	[[ "$nonet" != "true" ]] && type git > /dev/null 2>&1 && [[ ! -e ".git" ]] && _gitClone_ubiquitous && _messagePlain_good 'pass: git clone' && return 0
 	_messagePlain_warn 'fail: git clone'
 	
+	cd "$ubcoreDir"
 	_messagePlain_nominal 'attempt: self clone'
 	[[ -e ".git" ]] && _messagePlain_bad 'fail: self clone' && return 1
 	_selfCloneUbiquitous && return 0
@@ -7982,6 +8027,11 @@ _preserveVar() {
 
 #####Installation
 
+
+_vector() {
+	_tryExec "_vector_virtUser"
+}
+
 #Verifies the timeout and sleep commands work properly, with subsecond specifications.
 _timetest() {
 	
@@ -8171,6 +8221,10 @@ _test() {
 	_timetest
 	
 	_test_prog
+	
+	_messageNormal 'Vector...'
+	_vector
+	_messagePASS
 	
 	_stop
 	
