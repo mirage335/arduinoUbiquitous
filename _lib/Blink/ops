@@ -1,4 +1,7 @@
 _prepare_arduino_board() {
+	#	_messagePlain_nominal 'aU: set: board'
+	#_arduino_executable --save-prefs --pref target_platform=samd
+	#_arduino_executable --save-prefs --pref board=arduino_zero_native
 	_set_arduino_board_zero_native
 }
 
@@ -9,3 +12,8 @@ _arduino_upload_commands() {
 _arduino_debug_commands() {
 	_arduino_debug_zero_commands "$@"
 }
+
+#Uncomment to run any arbitrary command. Intended to provide sketch-specific preferences.
+#_arduino_sketch_ops() {
+#	true
+#}

@@ -1,16 +1,10 @@
 #Enable search if "vm.img" and related files are missing.
 export ubVirtImageLocal="false"
 
-#Uncomment to force. Consider configuring through GUI instead.
-#_arduino_prepare_board() {
-#	_messagePlain_nominal 'aU: set: board'
-#	_arduino_executable --save-prefs --pref target_platform=samd
-#	_arduino_executable --save-prefs --pref board=arduino_zero_native
-#
-#	_arduino_set_board_zero_native
-#}
+_task_aide_blink() {
+	_aide "$scriptLib"/Blink/Blink.ino
+}
 
-#Uncomment to run any arbitrary command. Intended to provide sketch-specific preferences.
-#_arduino_sketch_ops() {
-#	true
-#}
+_refresh_anchors_task() {
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_aide_blink
+}

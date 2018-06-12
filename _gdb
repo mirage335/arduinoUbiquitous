@@ -122,6 +122,9 @@ fi
 
 [[ "$ub_import" != "true" ]] && ub_import_param=
 
+ub_import_param="--parent"
+ub_import=true
+
 #Critical prerequsites.
 _getAbsolute_criticalDep() {
 	! type realpath > /dev/null 2>&1 && return 1

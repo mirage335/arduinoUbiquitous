@@ -8857,7 +8857,6 @@ monitor reset halt
 
 monitor reset init
 
-
 CZXWXcRMTo8EmM8i4d
 }
 
@@ -8895,7 +8894,10 @@ _arduino_debug() {
 
 
 _gdb() {
-	"$au_gdbBin" -d "$2" -x "$safeTmp"/.gdbinit
+	#echo "$au_gdbBin" -d "$shortTmp"/build -x "$safeTmp"/.gdbinit "$@" > "$safeTmp"/cmd.log
+	echo test1 > "$safeTmp"/cmd.log
+	"$au_gdbBin" -d "$shortTmp"/build -x "$safeTmp"/.gdbinit "$@"
+	echo test2 >> "$safeTmp"/cmd.log
 }
 export -f _gdb
 
@@ -8940,6 +8942,9 @@ _arduino_blink() {
 	_arduino_run "$scriptLib"/Blink/Blink.ino
 }
 
+_refresh_anchors_task() {
+	true
+}
 
 #duplicate _anchor
 _refresh_anchors() {
@@ -8952,6 +8957,12 @@ _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_aide
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_blink
+	
+	_tryExec "_refresh_anchors_task"
+	
+	#Critical PATH Inclusions
+	# WARNING Hardcoded "ub_import_param" required, do NOT overwrite automatically!
+	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_gdb
 }
 
 
