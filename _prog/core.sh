@@ -471,7 +471,29 @@ monitor reset halt
 
 monitor reset init
 
-continue
+CZXWXcRMTo8EmM8i4d
+}
+
+_here_gdbinit_delegate() {
+cat << CZXWXcRMTo8EmM8i4d
+#####Config
+#search path
+#	/arduino/sketch
+
+#####Startup
+
+file $1
+
+#set substitute-path /arduino/_build/sketch /arduino/sketch
+#set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
+
+#####Remote
+
+#target extended-remote localhost:3333
+
+#monitor reset halt
+
+#monitor reset init
 
 CZXWXcRMTo8EmM8i4d
 }
@@ -510,7 +532,9 @@ _arduino_debug() {
 
 
 _gdb() {
-	#echo "$au_gdbBin" -d "$shortTmp"/build -x "$safeTmp"/.gdbinit "$@" > "$safeTmp"/cmd.log
+	_here_gdbinit_delegate "$au_arduinoFirmware_elf" > "$safeTmp"/.gdbinit
+	
+	echo "$au_gdbBin" -d "$shortTmp"/build -x "$safeTmp"/.gdbinit "$@" > "$safeTmp"/cmd.log
 	echo test1 > "$safeTmp"/cmd.log
 	"$au_gdbBin" -d "$shortTmp"/build -x "$safeTmp"/.gdbinit "$@"
 	echo test2 >> "$safeTmp"/cmd.log

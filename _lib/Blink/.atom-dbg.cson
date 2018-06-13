@@ -1,4 +1,16 @@
 "Arduino Firmware":
-	gdb_executable: "_gdb"
 	debugger: "dbg-gdb"
+	gdb_executable: "_gdb"
+	gdb_commands: [
+	  "target remote :3333"
+	  "monitor reset init"
+		"monitor halt"
+		"load"
+		"monitor reset"
+		"monitor halt"
+	  "stepi"
+	  "stepi"
+		"stepi"
+		"stepi"
+	]
 	
