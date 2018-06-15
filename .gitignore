@@ -65,3 +65,5 @@ _local/templates
 package.tar.gz
 
 _local/h
+
+*.elf

@@ -8534,10 +8534,10 @@ _set_arduino_firmware_default() {
 #"$1" == *'.ino' || *'.bin' || *'.elf' || "$au_arduinoSketchDir"
 #"$2" == "$au_arduinoBuildPath"
 _set_arduino_firmware_dir() {
-	[[ "$1" == "" ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_bad 'set: firmware: invalid: default' && return 1
+	[[ "$1" == "" ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_warn 'set: firmware: incomplete default' && return 1
 	
-	[[ "$1" == *'.ino' ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_bad 'set: firmware: invalid: sketch= '"$1" && return 1
-	[[ -d "$1" ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_bad 'set: firmware: invalid: sketchDir= '"$1" && return 1
+	[[ "$1" == *'.ino' ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_warn 'set: firmware: incomplete sketch= '"$1" && return 1
+	[[ -d "$1" ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_warn 'set: firmware: incomplete sketchDir= '"$1" && return 1
 	
 	if [[ "$1" == *'.bin' ]] || [[ "$1" == *'.elf' ]]
 	then
@@ -8546,6 +8546,8 @@ _set_arduino_firmware_dir() {
 	fi
 	
 	[[ -d "$2" ]] && ! _set_arduino_firmware_var "$2" && _messagePlain_bad 'set: firmware: invalid: build= '"$2" && return 1
+	
+	_messagePlain_good 'set: found: firmware'
 	
 	return 0
 }
@@ -8838,7 +8840,7 @@ _arduino_compile_commands() {
 	mkdir -p "$au_arduinoBuildPath"
 	cp "$shortTmp"/build/*.bin "$au_arduinoBuildPath"/
 	cp "$shortTmp"/build/*.hex "$au_arduinoBuildPath"/
-	cp "$shortTmp"/build/*.elf "$au_arduinoBuildPath"/
+	#cp "$shortTmp"/build/*.elf "$au_arduinoBuildPath"/
 }
 
 _arduino_compile() {
@@ -8890,7 +8892,7 @@ _arduino_run() {
 	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_run_commands "$@"
 }
 
-_here_gdbinit() {
+_here_gdbinit_debug() {
 cat << CZXWXcRMTo8EmM8i4d
 #####Config
 #search path
@@ -8929,11 +8931,7 @@ file $1
 
 #####Remote
 
-#target extended-remote localhost:3333
-
-#monitor reset halt
-
-#monitor reset init
+set \$au_remotePort=$au_remotePort
 
 CZXWXcRMTo8EmM8i4d
 }
@@ -8947,7 +8945,7 @@ _arduino_debug_zero_commands() {
 	
 	_arduino_swd_openocd_zero &
 	
-	_here_gdbinit "$au_arduinoFirmware_elf" > "$safeTmp"/.gdbinit
+	_here_gdbinit_debug "$au_arduinoFirmware_elf" > "$safeTmp"/.gdbinit
 	
 	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$2" -x "$safeTmp"/.gdbinit
 	ddd --debugger "$au_gdbBin" -d "$2" -x "$safeTmp"/.gdbinit
@@ -8971,15 +8969,17 @@ _arduino_debug() {
 
 
 
-_gdb() {
+_interface_debug_aide() {
+	_set_arduino_firmware > /dev/null 2>&1
+	
+	export au_remotePort="3333"
+	
 	_here_gdbinit_delegate "$au_arduinoFirmware_elf" > "$safeTmp"/.gdbinit
 	
-	echo "$au_gdbBin" -d "$shortTmp"/build -x "$safeTmp"/.gdbinit "$@" > "$safeTmp"/cmd.log
-	echo test1 > "$safeTmp"/cmd.log
+	#_messagePlain_probe "$au_gdbBin" -d "$shortTmp"/build -x "$safeTmp"/.gdbinit "$@" > /dev/tty
 	"$au_gdbBin" -d "$shortTmp"/build -x "$safeTmp"/.gdbinit "$@"
-	echo test2 >> "$safeTmp"/cmd.log
 }
-export -f _gdb
+export -f _interface_debug_aide
 
 
 

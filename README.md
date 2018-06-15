@@ -74,6 +74,9 @@ Portable operation supported through fakeHome, and Arduino built-in portable fun
 * Atom packages may be copied from git submodules under "_lib". Updating these submodules will not update the packages. After copying modules, "apm install" may need to be run from within "_editFakeHome_atom". This arrangement is a precaution against interference with safety checks within _safeRMR .
 
 # Issues
+* Setting breakpoints while firmware is running does not work, and may cause problems, necessitating restart of OpenOCD.
+https://github.com/31i73/atom-dbg/issues/40
+
 * High drive current may not be available.
 https://github.com/arduino/ArduinoCore-samd/issues/158
 
