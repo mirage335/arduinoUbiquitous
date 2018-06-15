@@ -4,8 +4,8 @@
 	gdb_commands: [ "eval \"target remote localhost:%d\", $au_remotePort"
 	"monitor reset init"
 	"monitor reset halt"
-  "stepi"
-  "stepi"
+	"stepi"
+	"stepi"
 	"stepi"
 	"stepi"
 	]

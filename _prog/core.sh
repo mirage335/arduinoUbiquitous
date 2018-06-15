@@ -328,7 +328,7 @@ _arduino_swd_openocd() {
 }
 
 _arduino_swd_openocd_zero() {
-	_arduino_swd_openocd -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg "$@"
+	_arduino_swd_openocd -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; tcl_port disabled; gdb_port "$au_remotePort "$@"
 }
 
 #Requires bootloader.
@@ -467,7 +467,9 @@ file "$au_arduinoFirmware_elf"
 
 #####Remote
 
-target extended-remote localhost:3333
+set \$au_remotePort=$au_remotePort
+
+eval "target extended-remote localhost:%d", $au_remotePort
 
 monitor reset halt
 
@@ -501,14 +503,16 @@ CZXWXcRMTo8EmM8i4d
 _arduino_debug_zero_commands() {
 	_messagePlain_nominal 'Debug.'
 	
-	_set_arduino_firmware "$1"
+	_set_arduino_firmware
+	
+	export au_remotePort=$(_findPort)
 	
 	_arduino_swd_openocd_zero &
 	
 	_here_gdbinit_debug > "$safeTmp"/.gdbinit
 	
-	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$2" -x "$safeTmp"/.gdbinit
-	ddd --debugger "$au_gdbBin" -d "$2" -x "$safeTmp"/.gdbinit
+	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit
+	ddd --debugger "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit
 	
 	pkill openocd # TODO Replace, _killDaemon.
 }
@@ -520,7 +524,7 @@ _arduino_debug_commands() {
 
 _arduino_debug_actions() {
 	_arduino_run_commands "$@"
-	_arduino_debug_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.elf' | head -n 1) "$shortTmp"/build
+	_arduino_debug_commands
 }
 
 _arduino_debug() {
@@ -532,12 +536,12 @@ _arduino_debug() {
 _interface_debug_aide() {
 	_set_arduino_firmware > /dev/null 2>&1
 	
-	export au_remotePort="3333"
+	export au_remotePort=$(_findPort)
 	
 	_here_gdbinit_delegate > "$safeTmp"/.gdbinit
 	
-	#_messagePlain_probe "$au_gdbBin" -d "$shortTmp"/build -x "$safeTmp"/.gdbinit "$@" > /dev/tty
-	"$au_gdbBin" -d "$shortTmp"/build -x "$safeTmp"/.gdbinit "$@"
+	#_messagePlain_probe "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@" > /dev/tty
+	"$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
 }
 export -f _interface_debug_aide
 
