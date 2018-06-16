@@ -5950,6 +5950,13 @@ _test_devatom() {
 	#! [[ "$atomDetectedVersion" -ge "27" ]] && echo atom too old && _stop 1
 }
 
+#Needed, because as an IDE, Atom may need to be part of the same home directory as another application.
+_relink_atom() {
+	_relink "$atomFakeHomeSource"/.atom "$globalFakeHome"/.atom
+	mkdir -p "$globalFakeHome"/.config/Atom
+	_relink "$atomFakeHomeSource"/.config/Atom "$globalFakeHome"/.config/Atom
+}
+
 _set_atomFakeHomeSource() {
 	export atomFakeHomeSource="$scriptLib"/app/atom/home
 	
@@ -5969,6 +5976,7 @@ _set_atomFakeHomeSource() {
 
 _prepare_atomDev_fakeHome() {
 	_set_atomFakeHomeSource
+	_relink_atom
 	
 	cp -a "$atomFakeHomeSource"/. "$HOME"
 }
@@ -5991,6 +5999,7 @@ _atom_user() {
 
 _atomDev_edit_sequence() {
 	_set_atomFakeHomeSource
+	_relink_atom
 	export appGlobalFakeHome="$atomFakeHomeSource"
 	
 	export keepFakeHome="false"
@@ -6008,6 +6017,7 @@ _atom_edit() {
 
 _editFakeHome_atom_sequence() {
 	_set_atomFakeHomeSource
+	_relink_atom
 	export appGlobalFakeHome="$atomFakeHomeSource"
 	
 	#export keepFakeHome="false"
@@ -6021,6 +6031,7 @@ _editFakeHome_atom() {
 
 _atom_config() {
 	_set_atomFakeHomeSource
+	_relink_atom
 	
 	export ATOM_HOME="$atomFakeHomeSource"/.atom
 	atom "$@"
@@ -6029,6 +6040,7 @@ _atom_config() {
 _atom_tmp_sequence() {
 	_start
 	_set_atomFakeHomeSource
+	_relink_atom
 	
 	mkdir -p "$safeTmp"/appcfg
 	
@@ -8444,9 +8456,7 @@ _prepare_installation() {
 	
 	_set_atomFakeHomeSource
 	
-	_relink "$atomFakeHomeSource"/.atom "$globalFakeHome"/.atom
-	mkdir -p "$globalFakeHome"/.config/Atom
-	_relink "$atomFakeHomeSource"/.config/Atom "$globalFakeHome"/.config/Atom
+	_relink_atom
 	
 	
 	mkdir -p "$scriptLocal"/arduino/.arduino15

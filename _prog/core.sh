@@ -4,9 +4,7 @@ _prepare_installation() {
 	
 	_set_atomFakeHomeSource
 	
-	_relink "$atomFakeHomeSource"/.atom "$globalFakeHome"/.atom
-	mkdir -p "$globalFakeHome"/.config/Atom
-	_relink "$atomFakeHomeSource"/.config/Atom "$globalFakeHome"/.config/Atom
+	_relink_atom
 	
 	
 	mkdir -p "$scriptLocal"/arduino/.arduino15
@@ -428,7 +426,7 @@ _arduino_compile() {
 _arduino_upload_zero_commands() {
 	_messagePlain_nominal 'Upload.'
 	
-	_set_arduino_firmware "$1"
+	_set_arduino_firmware
 	
 	#Upload over SWD debugger.
 	_arduino_upload_swd_openocd_zero
