@@ -14,6 +14,11 @@ devtask/
 USAGE.*.html
 _buried
 
+id_rsa
+pubring.kbx
+pubring.kbx*
+trustdb.gpg
+
 \#*\#
 *~
 *.bak
@@ -67,3 +72,19 @@ package.tar.gz
 _local/h
 
 *.elf
+
+**/node_modules/pty.js/build/Makefile
+**/node_modules/pty.js/build/config.gypi
+**/node_modules/pty.js/build/pty.target.mk
+
+**/.atom/.apm
+
+**/.config/Atom/QuotaManager
+**/.config/Atom/QuotaManager-journal
+**/.config/Atom/QuotaManager*
+**/.config/Atom/Local Storage/
+**/.config/Atom/databases
+**/.config/Atom/Cookies
+**/.config/Atom/Cookies-journal
+**/.config/Atom/Cookies*
+**/.config/Atom/IndexedDB/

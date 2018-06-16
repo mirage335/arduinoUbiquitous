@@ -1,6 +1,7 @@
 "*":
   "autocomplete-plus":
     confirmCompletion: "tab always, enter when suggestion explicitly selected"
+  "command-toolbar": {}
   core:
     automaticallyUpdate: false
     closeDeletedFileTabs: true
@@ -11,6 +12,9 @@
     ]
     fileSystemWatcher: "poll"
     openEmptyEditorOnStart: false
+    packagesWithKeymapsDisabled: [
+      "command-toolbar"
+    ]
     restorePreviousWindowsOnStart: "no"
     telemetryConsent: "no"
   editor:
