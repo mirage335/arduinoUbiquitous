@@ -19,7 +19,7 @@ module.exports =
         sourcePath = GrammarUtils.Java.getProjectPath context
         if windows
           return ["/c javac -Xlint #{context.filename} && java #{className}"]
-        else ['-c', "javac -sourcepath '#{sourcePath}' -d /tmp '#{context.filepath}' && java -cp /tmp #{classPackages}#{className}"]
+        else ['-c', "javac -J-Dfile.encoding=UTF-8 -sourcepath '#{sourcePath}' -d /tmp '#{context.filepath}' && java -Dfile.encoding=UTF-8 -cp /tmp #{classPackages}#{className}"]
     }
   Kotlin:
     'Selection Based': {
@@ -36,4 +36,4 @@ module.exports =
   Processing:
     'File Based':
       command: 'processing-java'
-      args: ({filepath}) -> ["--sketch='#{path.dirname(filepath)}'", '--run']
+      args: ({filepath}) -> ["--sketch=#{path.dirname(filepath)}", "--run"]

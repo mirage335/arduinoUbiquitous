@@ -132,7 +132,7 @@ _set_arduino_firmware() {
 	return 0
 }
 
-# WARNING: Assumes first fileparameter given to arduino is sketch .
+# WARNING: Assumes first fileparameter given to arduino is sketch or directory therof .
 _prepare_arduino_compile() {
 	_messagePlain_nominal 'aU: set: sketch'
 	
@@ -219,7 +219,7 @@ _make_clean() {
 	fi
 }
 
-# WARNING: Assumes first fileparameter given to arduino is sketch .
+# WARNING: Assumes first fileparameter given to arduino is sketch or directory therof .
 _arduino_sketch() {
 	local currentArg
 	
@@ -230,6 +230,15 @@ _arduino_sketch() {
 		[[ "$currentArg" == *'ubiquitous_bash.sh' ]] && continue
 		
 		local compilerInputAbsolute
+		
+		if [[ -d "$currentArg" ]]
+		then
+			compilerInputAbsolute=$(find "$currentArg" -maxdepth 1 -name '*.ino' | head -n 1 | grep '.ino')
+			compilerInputAbsolute=$(_getAbsoluteLocation "$compilerInputAbsolute")
+			echo "$compilerInputAbsolute"
+			return 0
+		fi
+		
 		compilerInputAbsolute=$(_getAbsoluteLocation "$currentArg")
 		
 		echo "$compilerInputAbsolute"
@@ -240,7 +249,7 @@ _arduino_sketch() {
 	return 1
 }
 
-# WARNING: Assumes first fileparameter given to arduino is sketch .
+# WARNING: Assumes first fileparameter given to arduino is sketch or directory therof .
 _arduino_sketchDir() {
 	local compilerInputAbsolute
 	if ! compilerInputAbsolute=$(_arduino_sketch "$@")
@@ -324,33 +333,39 @@ _arduino_executable() {
 
 _arduino_swd_openocd() {
 	_messagePlain_probe "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
-	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
+	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@" &
+	export au_openocdPID="$!"
 }
 
 _arduino_swd_openocd_zero() {
 	_arduino_swd_openocd -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; tcl_port disabled; gdb_port "$au_remotePort "$@"
 }
 
+_arduino_swd_openocd_device() {
+	_arduino_swd_openocd_zero "$@"
+}
+
 #Requires bootloader.
 _arduino_upload_swd_openocd_zero() {
-	_arduino_swd_openocd_zero -c "telnet_port disabled; program {""$1""} verify reset 0x00002000; shutdown"
+	_arduino_swd_openocd_zero -c "telnet_port disabled; program {""$au_arduinoFirmware_bin""} verify reset 0x00002000; shutdown"
+	wait "$au_openocdPID"
 }
 
 #Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
 _arduino_upload_serial_bossac() {
 	local arduinoSerialPort
 	
-	arduinoSerialPort=/dev/ttyACM0
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM1
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyACM2
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB0
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB1
-	! [[ -e "$arduinoSerialPort" ]] && arduinoSerialPort=/dev/ttyUSB2
-	! [[ -e "$arduinoSerialPort" ]] && return 1
+	arduinoSerialPort=ttyACM0
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM1
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM2
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB0
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB1
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB2
+	! [[ -e /dev/"$arduinoSerialPort" ]] && return 1
 	
-	stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";
+	stty --file="$arduinoSerialPort" 1200;stty stop x --file=/dev/"$arduinoSerialPort";stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";
 	sleep 2
-	"$globalFakeHome"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port=ttyACM0 -U true -i -e -w -v "$1" -R
+	"$globalFakeHome"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port="$arduinoSerialPort" -U true -i -e -w -v "$au_arduinoFirmware_bin" -R
 }
 
 
@@ -395,7 +410,7 @@ _arduino_compile_commands() {
 	mkdir -p "$shortTmp"/build
 	_arduino_executable --save-prefs --pref build.path="$shortTmp"/build
 	
-	_arduino_executable --verify "$@"
+	_arduino_executable --verify "$au_arduinoSketch"
 	
 	mkdir -p "$au_arduinoBuildPath"
 	cp "$shortTmp"/build/*.bin "$au_arduinoBuildPath"/
@@ -416,11 +431,11 @@ _arduino_upload_zero_commands() {
 	_set_arduino_firmware "$1"
 	
 	#Upload over SWD debugger.
-	_arduino_upload_swd_openocd_zero "$au_arduinoFirmware_bin"
+	_arduino_upload_swd_openocd_zero
 	
 	if [[ $? != 0 ]]	#SWD upload failed.
 	then
-		_arduino_upload_serial_bossac "$au_arduinoFirmware_bin"
+		_arduino_upload_serial_bossac
 	fi
 	
 	sleep 1
@@ -434,6 +449,7 @@ _arduino_upload_zero_commands() {
 
 # ATTENTION Overload with ops!
 _arduino_upload_commands() {
+	! _check_arduino_firmware "$au_arduinoFirmware" && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
 	_arduino_upload_zero_commands "$@"
 }
 
@@ -444,7 +460,7 @@ _arduino_upload() {
 
 _arduino_run_commands() {
 	_arduino_compile_commands "$@"
-	_arduino_upload_commands $(find "$shortTmp"/build -maxdepth 1 -name '*.bin' | head -n 1)
+	_arduino_upload_commands "$@"
 }
 
 #Applicable to other Arduino SAMD21 variants.
@@ -504,17 +520,19 @@ _arduino_debug_zero_commands() {
 	_messagePlain_nominal 'Debug.'
 	
 	_set_arduino_firmware
+	! _check_arduino_firmware "$au_arduinoFirmware" && _messagePlain_bad 'fail: missing: firmware' && return 1
 	
 	export au_remotePort=$(_findPort)
 	
-	_arduino_swd_openocd_zero &
+	_arduino_swd_openocd_device
 	
 	_here_gdbinit_debug > "$safeTmp"/.gdbinit
 	
 	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit
 	ddd --debugger "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit
 	
-	pkill openocd # TODO Replace, _killDaemon.
+	#Kill process only if name is openocd.
+	kill $(pgrep openocd | grep "$au_openocdPID")
 }
 
 # ATTENTION Overload with ops!
@@ -534,14 +552,20 @@ _arduino_debug() {
 
 
 _interface_debug_aide() {
-	_set_arduino_firmware > /dev/null 2>&1
+	_set_arduino_firmware > /dev/tty 2>&1
+	! _check_arduino_firmware "$au_arduinoFirmware" && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
 	
 	export au_remotePort=$(_findPort)
 	
-	_here_gdbinit_delegate > "$safeTmp"/.gdbinit
+	_arduino_swd_openocd_device > /dev/tty 2>&1
 	
+	_here_gdbinit_delegate > "$safeTmp"/.gdbinit
 	#_messagePlain_probe "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@" > /dev/tty
 	"$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
+	
+	#Kill process only if name is openocd.
+	#_messagePlain_probe 'au_openocdPID= '$au_openocdPID > /dev/tty 2>&1
+	kill $(pgrep openocd | grep "$au_openocdPID") > /dev/tty 2>&1
 }
 export -f _interface_debug_aide
 

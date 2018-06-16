@@ -237,14 +237,22 @@ module.exports =
 
   Pascal:
     'Selection Based':
-      command: 'fsc'
+      command: 'fpc'
       args: (context) ->
         code = context.getCode()
         tmpFile = GrammarUtils.createTempFileWithCode(code)
         return [tmpFile]
     'File Based':
-      command: 'fsc'
+      command: 'fpc'
       args: ({filepath}) -> [filepath]
+
+  Povray:
+    'File Based': {
+      command
+      args: ({filepath}) ->
+        commands = if windows then 'pvengine /EXIT /RENDER ' else 'povray '
+        return GrammarUtils.formatArgs(commands+filepath)
+    }
 
   Prolog:
     'File Based': {

@@ -1,5 +1,9 @@
 {
 	"test:terminal-commands": "echo \"${file}=firstFile, ${files} allFiles, ${dir} firstDir, ${project} - firstProject\"",
-	"ub:compile": "${project}/compile.sh \nsleep 1\nexit"
+	"ub:compile": "${project}/compile.sh \nsleep 1\nexit",
+	"au:compile": "_arduino_compile --parent ${project} \nsleep 1\nexit",
+	"au:upload": "_arduino_upload --parent ${project} \nsleep 1\nexit",
+	"au:run": "_arduino_run --parent ${project} \nsleep 1\nexit",
+	"au:debug": "_arduino_debug --parent ${project} \nsleep 1\nexit"
 }
 
