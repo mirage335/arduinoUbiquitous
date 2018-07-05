@@ -1,9 +1,14 @@
 w_*/
+
+.s_*
+.s_*/
+s_*/
+
 v_*/
 h_*/
-*.tar
-*.zip
-*.iso
+
+*_history
+
 vm.vdi
 vm.img
 vm*.img
@@ -13,6 +18,12 @@ devtask*
 devtask/
 USAGE.*.html
 _buried
+
+*.tar
+*.zip
+*.iso
+
+package.tar.gz
 
 id_rsa
 pubring.kbx
@@ -65,11 +76,8 @@ nohup.out
 _local/h/.arduino15/staging/
 **/arduino*/portable/staging/
 
-_local/templates
-
-package.tar.gz
-
 _local/h
+_local/templates
 
 *.elf
 
@@ -88,3 +96,4 @@ _local/h
 **/.config/Atom/Cookies-journal
 **/.config/Atom/Cookies*
 **/.config/Atom/IndexedDB/
+

@@ -92,19 +92,32 @@ _messagePlain_probe_expr '$0= '"$0"'\n ''$1= '"$1"'\n ''ub_import= '"$ub_import"
 # WARNING Import from shell can be detected. Import from script cannot. Asserting that script has been imported is possible. Asserting that script has not been imported is not possible. Users may be protected from interactive mistakes. Script developers are NOT protected.
 if [[ "$ub_import_param" == "--profile" ]]
 then
-	([[ "$profileScriptLocation" == "" ]] ||  [[ "$profileScriptFolder" == "" ]]) && _messagePlain_bad 'import: profile: missing: profileScriptLocation, missing: profileScriptFolder' | _user_log-ub && return 1
+	if ([[ "$profileScriptLocation" == "" ]] ||  [[ "$profileScriptFolder" == "" ]]) && _messagePlain_bad 'import: profile: missing: profileScriptLocation, missing: profileScriptFolder' | _user_log-ub
+	then
+		return 1 >/dev/null 2>&1
+		exit 1
+	fi
 elif ([[ "$ub_import_param" == "--parent" ]] || [[ "$ub_import_param" == "--embed" ]] || [[ "$ub_import_param" == "--return" ]] || [[ "$ub_import_param" == "--devenv" ]])
 then
-	([[ "$scriptAbsoluteLocation" == "" ]] || [[ "$scriptAbsoluteFolder" == "" ]] || [[ "$sessionid" == "" ]]) && _messagePlain_bad 'import: parent: missing: scriptAbsoluteLocation, missing: scriptAbsoluteFolder, missing: sessionid' | _user_log-ub && return 1
+	if ([[ "$scriptAbsoluteLocation" == "" ]] || [[ "$scriptAbsoluteFolder" == "" ]] || [[ "$sessionid" == "" ]]) && _messagePlain_bad 'import: parent: missing: scriptAbsoluteLocation, missing: scriptAbsoluteFolder, missing: sessionid' | _user_log-ub
+	then
+		return 1 >/dev/null 2>&1
+		exit 1
+	fi
 elif [[ "$ub_import_param" == "--call" ]] || [[ "$ub_import_param" == "--script" ]] || [[ "$ub_import_param" == "--bypass" ]] || [[ "$ub_import_param" == "--shell" ]] || ([[ "$ub_import" == "true" ]] && [[ "$ub_import_param" == "" ]])
 then
-	([[ "$importScriptLocation" == "" ]] ||  [[ "$importScriptFolder" == "" ]]) && _messagePlain_bad 'import: call: missing: importScriptLocation, missing: importScriptFolder' | _user_log-ub && return 1
+	if ([[ "$importScriptLocation" == "" ]] ||  [[ "$importScriptFolder" == "" ]]) && _messagePlain_bad 'import: call: missing: importScriptLocation, missing: importScriptFolder' | _user_log-ub
+	then
+		return 1 >/dev/null 2>&1
+		exit 1
+	fi
 elif [[ "$ub_import" != "true" ]]	#"--shell", ""
 then
 	_messagePlain_warn 'import: undetected: cannot determine if imported' | _user_log-ub
 	true #no problem
 else	#FAIL, implies [[ "$ub_import" == "true" ]]
-	_messagePlain_bad 'import: fall: fail' | _user_log-ub && return 1
+	_messagePlain_bad 'import: fall: fail' | _user_log-ub
+	return 1 >/dev/null 2>&1
 	exit 1
 fi
 
@@ -188,7 +201,7 @@ _getAbsoluteLocation() {
 			else
 	absoluteLocation=$(realpath -L "$1")
 	fi
-	echo $absoluteLocation
+	echo "$absoluteLocation"
 }
 alias getAbsoluteLocation=_getAbsoluteLocation
 
@@ -536,7 +549,7 @@ _terminate() {
 	
 	local currentPID
 	
-	cat "$safeTmp"/.pid > "$processListFile"
+	cat "$safeTmp"/.pid >> "$processListFile" 2> /dev/null
 	
 	while read -r currentPID
 	do
@@ -553,7 +566,8 @@ _terminateAll() {
 	
 	local currentPID
 	
-	cat ./w_*/.pid > "$processListFile"
+	cat ./w_*/.pid >> "$processListFile" 2> /dev/null
+	cat ./.s_*/.pid >> "$processListFile" 2> /dev/null
 	
 	while read -r currentPID
 	do
@@ -651,6 +665,36 @@ _test_permissions_ubiquitous() {
 #"${globalArgs[@]}"
 _gather_params() {
 	export globalArgs=("${@}")
+}
+
+_instance_internal() {
+	! [[ -e "$1" ]] && return 1
+	! [[ -d "$1" ]] && return 1
+	! [[ -e "$2" ]] && return 1
+	! [[ -d "$2" ]] && return 1
+	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$@"
+}
+
+#echo -n
+_safeEcho() {
+	printf '%s' "$1"
+	shift
+	
+	[[ "$@" == "" ]] && return 0
+	
+	local currentArg
+	for currentArg in "$@"
+	do
+		printf '%s' " "
+		printf '%s' "$currentArg"
+	done
+	return 0
+}
+
+#echo
+_safeEcho_newline() {
+	_safeEcho "$@"
+	printf '\n'
 }
 
 #Universal debugging filesystem.
@@ -1369,7 +1413,6 @@ export sessionid="$sessionid"
 . "$scriptAbsoluteLocation" --embed "\$@"
 CZXWXcRMTo8EmM8i4d
 }
- 
 
 _embed() {
 	export sessionid="$1"
@@ -1468,7 +1511,7 @@ _findPort() {
 		
 	fi
 	
-	echo $currentPort
+	echo "$currentPort"
 	
 	_validatePort "$currentPort"
 }
@@ -2573,7 +2616,7 @@ _removeFilePrefix() {
 	local translatedFileParam
 	translatedFileParam=${1/#file:\/\/}
 	
-	echo "$translatedFileParam"
+	_safeEcho_newline "$translatedFileParam"
 }
 
 #Translates back slash parameters (UNIX paths) to forward slash parameters (MSW paths).
@@ -2581,7 +2624,7 @@ _slashBackToForward() {
 	local translatedFileParam
 	translatedFileParam=${1//\//\\}
 	
-	echo "$translatedFileParam"
+	_safeEcho_newline "$translatedFileParam"
 }
 
 _nixToMSW() {
@@ -2731,7 +2774,7 @@ _searchBaseDir() {
 		
 	done
 	
-	echo "$baseDir"
+	_safeEcho_newline "$baseDir"
 }
 
 #Converts to relative path, if provided a file parameter.
@@ -2741,23 +2784,23 @@ _searchBaseDir() {
 _localDir() {
 	if _checkBaseDirRemote "$1"
 	then
-		echo "$1"
+		_safeEcho_newline "$1"
 		return
 	fi
 	
 	if [[ ! -e "$2" ]]
 	then
-		echo "$1"
+		_safeEcho_newline "$1"
 		return
 	fi
 	
 	if [[ ! -e "$1" ]] || ! _pathPartOf "$1" "$2"
 	then
-		echo "$1"
+		_safeEcho_newline "$1"
 		return
 	fi
 	
-	[[ "$3" != "" ]] && echo -n "$3" && [[ "$3" != "/" ]] && echo -n "/"
+	[[ "$3" != "" ]] && _safeEcho "$3" && [[ "$3" != "/" ]] && _safeEcho "/"
 	realpath -L -s --relative-to="$2" "$1"
 	
 }
@@ -2780,6 +2823,8 @@ _virtUser() {
 	export sharedHostProjectDir="$sharedHostProjectDir"
 	export processedArgs
 	
+	[[ "$virtUserPWD" == "" ]] && export virtUserPWD="$outerPWD"
+	
 	if [[ -e /tmp/.X11-unix ]] && [[ "$DISPLAY" != "" ]] && type xauth > /dev/null 2>&1
 	then
 		export XSOCK=/tmp/.X11-unix
@@ -2790,17 +2835,18 @@ _virtUser() {
 	
 	if [[ "$sharedHostProjectDir" == "" ]]
 	then
-		sharedHostProjectDir=$(_searchBaseDir "$@" "$outerPWD")
+		sharedHostProjectDir=$(_searchBaseDir "$@" "$virtUserPWD")
 		#sharedHostProjectDir="$safeTmp"/shared
 		mkdir -p "$sharedHostProjectDir"
 	fi
 	
-	export localPWD=$(_localDir "$outerPWD" "$sharedHostProjectDir" "$sharedGuestProjectDir")
+	export localPWD=$(_localDir "$virtUserPWD" "$sharedHostProjectDir" "$sharedGuestProjectDir")
+	export virtUserPWD=
 	
 	#If $sharedGuestProjectDir matches MSW drive letter format, enable translation of other non-UNIX file parameter differences.
 	local enableMSWtranslation
 	enableMSWtranslation=false
-	echo "$sharedGuestProjectDir" | grep '^[[:alpha:]]\:\|^[[:alnum:]][[:alnum:]]\:\|^[[:alnum:]][[:alnum:]][[:alnum:]]\:' > /dev/null 2>&1 && enableMSWtranslation=true
+	_safeEcho_newline "$sharedGuestProjectDir" | grep '^[[:alpha:]]\:\|^[[:alnum:]][[:alnum:]]\:\|^[[:alnum:]][[:alnum:]][[:alnum:]]\:' > /dev/null 2>&1 && enableMSWtranslation=true
 	
 	#http://stackoverflow.com/questions/15420790/create-array-in-loop-from-number-of-arguments
 	#local processedArgs
@@ -2831,20 +2877,35 @@ _vector_virtUser() {
 	export sharedHostProjectDir=
 	export sharedGuestProjectDir=/home/user/project
 	_virtUser /tmp
-	#echo "${processedArgs[0]}"
+	#_safeEcho_newline "${processedArgs[0]}"
 	[[ "${processedArgs[0]}" != '/home/user/project/tmp' ]] && echo 'fail: _vector_virtUser' && _messageFAIL
 	
 	export sharedHostProjectDir=/
 	export sharedGuestProjectDir='Z:'
 	_virtUser /tmp
-	#echo "${processedArgs[0]}"
+	#_safeEcho_newline "${processedArgs[0]}"
 	[[ "${processedArgs[0]}" != 'Z:\tmp' ]] && echo 'fail: _vector_virtUser' && _messageFAIL
 	
 	export sharedHostProjectDir=/tmp
 	export sharedGuestProjectDir='/home/user/project/tmp'
 	_virtUser /tmp
-	#echo "${processedArgs[0]}"
+	#_safeEcho_newline "${processedArgs[0]}"
 	[[ "${processedArgs[0]}" != '/home/user/project/tmp/.' ]] && echo 'fail: _vector_virtUser' && _messageFAIL
+	
+	export virtUserPWD='/tmp'
+	export sharedHostProjectDir=/tmp
+	export sharedGuestProjectDir='/home/user/project/tmp'
+	_virtUser /tmp
+	#_safeEcho_newline "${processedArgs[0]}"
+	#_safeEcho_newline "$localPWD"
+	[[ "$localPWD" != '/home/user/project/tmp/.' ]] && echo 'fail: _vector_virtUser' && _messageFAIL
+	
+	export virtUserPWD='/tmp'
+	export sharedHostProjectDir=/tmp
+	export sharedGuestProjectDir='/home/user/project/tmp'
+	_virtUser -e /tmp
+	#_safeEcho_newline "${processedArgs[0]}"
+	[[ "${processedArgs[0]}" != '-e' ]] && echo 'fail: _vector_virtUser' && _messageFAIL
 	
 	
 	return 0
@@ -2855,11 +2916,621 @@ _vector_virtUser() {
 
 
 
+_test_abstractfs() {
+	_getDep md5sum
+}
+
+_abstractfs() {
+	#Nesting prohibited. Not fully tested.
+	# WARNING: May cause infinite recursion symlinks.
+	[[ "$abstractfs" != "" ]] && return 1
+	
+	_reset_abstractfs
+	
+	_prepare_abstract
+	
+	local abstractfs_command="$1"
+	shift
+	
+	export virtUserPWD="$PWD"
+	
+	export abstractfs_puid=$(_uid)
+	
+	_base_abstractfs "$@"
+	_name_abstractfs "$@"
+	[[ "$abstractfs_name" == "" ]] && return 1
+	
+	export abstractfs="$abstractfs_root"/"$abstractfs_name"
+	
+	_relink_abstractfs
+	
+	_set_share_abstractfs
+	_virtUser "$@"
+	
+	cd "$localPWD"
+	#cd "$abstractfs_base"
+	#cd "$abstractfs"
+	
+	local commandExitStatus
+	
+	#_scope_terminal "${processedArgs[@]}"
+	"$abstractfs_command" "${processedArgs[@]}"
+	commandExitStatus=$?
+	
+	_set_share_abstractfs_reset
+	_rmlink_abstractfs
+	
+	return "$commandExitStatus"
+}
+
+_reset_abstractfs() {
+	export abstractfs=
+	export abstractfs_base=
+	export abstractfs_name=
+	export abstractfs_puid=
+	export abstractfs_projectafs=
+}
+
+_prohibit_rmlink_abstractfs() {
+	#mkdir -p "$abstractfs_lock"/"$abstractfs_name"
+	mkdir -p "$abstractfs_lock"/"$abstractfs_name"/"$abstractfs_puid"
+}
+
+_permit_rmlink_abstractfs() {
+	#mkdir -p "$abstractfs_lock"/"$abstractfs_name"
+	rmdir "$abstractfs_lock"/"$abstractfs_name"/"$abstractfs_puid" > /dev/null 2>&1
+}
+
+_wait_rmlink_abstractfs() {
+	! [[ -e "$abstractfs_lock"/"$abstractfs_name"_rmlink ]] && return 0
+	sleep 0.1
+	
+	! [[ -e "$abstractfs_lock"/"$abstractfs_name"_rmlink ]] && return 0
+	sleep 0.3
+	
+	! [[ -e "$abstractfs_lock"/"$abstractfs_name"_rmlink ]] && return 0
+	sleep 1
+	
+	! [[ -e "$abstractfs_lock"/"$abstractfs_name"_rmlink ]] && return 0
+	sleep 3
+	
+	! [[ -e "$abstractfs_lock"/"$abstractfs_name"_rmlink ]] && return 0
+	return 1
+}
+
+_rmlink_abstractfs() {
+	mkdir -p "$abstractfs_lock"
+	_permit_rmlink_abstractfs
+	
+	! _wait_rmlink_abstractfs && return 1
+	
+	echo > "$abstractfs_lock"/"$abstractfs_name"_rmlink
+	
+	rmdir "$abstractfs_lock"/"$abstractfs_name" >/dev/null 2>&1 && _rmlink "$abstractfs"
+	rmdir "$abstractfs_root" >/dev/null 2>&1
+	
+	rm "$abstractfs_lock"/"$abstractfs_name"_rmlink
+}
+
+_relink_abstractfs() {
+	! _wait_rmlink_abstractfs && return 1
+	
+	mkdir -p "$abstractfs_lock"
+	_prohibit_rmlink_abstractfs
+	
+	! _wait_rmlink_abstractfs && return 1
+	
+	_relink "$abstractfs_base" "$abstractfs"
+}
+
+#Precaution. Should not be a requirement in any production use.
+_set_share_abstractfs_reset() {
+	export sharedHostProjectDir="$sharedHostProjectDirDefault"
+	export sharedGuestProjectDir="$sharedGuestProjectDirDefault"
+}
+
+_set_share_abstractfs() {
+	_set_share_abstractfs_reset
+	
+	export sharedHostProjectDir="$abstractfs_base"
+	export sharedGuestProjectDir="$abstractfs"
+	
+	#Blank default. Resolves to lowest directory shared by "$PWD" and "$@" .
+	#export sharedHostProjectDir="$sharedHostProjectDirDefault"
+}
+
+_describe_abstractfs() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	basename "$abstractfs_base"
+	! cd "$abstractfs_base" >/dev/null 2>&1 && cd "$localFunctionEntryPWD" && return 1
+	git rev-parse --abbrev-ref HEAD 2>/dev/null
+	git remote show origin 2>/dev/null
+	
+	cd "$localFunctionEntryPWD"
+}
+
+_base_abstractfs() {
+	export abstractfs_base=
+	[[ "$@" != "" ]] && export abstractfs_base=$(_searchBaseDir "$@")
+	[[ "$abstractfs_base" == "" ]] && export abstractfs_base=$(_searchBaseDir "$@" "$virtUserPWD")
+}
+
+_findProjectAFS_procedure() {
+	[[ "$ub_findProjectAFS_maxheight" -gt "120" ]] && return 1
+	let ub_findProjectAFS_maxheight="$ub_findProjectAFS_maxheight"+1
+	export ub_findProjectAFS_maxheight
+	
+	if [[ -e "./project.afs" ]]
+	then
+		_getAbsoluteLocation "./project.afs"
+		return 0
+	fi
+	
+	[[ "$1" == "/" ]] && return 1
+	
+	! cd .. > /dev/null 2>&1 && return 1
+	
+	_findProjectAFS_procedure
+}
+
+#Recursively searches for directories containing ".git".
+_findProjectAFS() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	cd "$1"
+	
+	_findProjectAFS_procedure
+	
+	cd "$localFunctionEntryPWD"
+}
+
+_projectAFS_here() {
+	cat << CZXWXcRMTo8EmM8i4d
+#!/usr/bin/env bash
+
+export abstractfs_name="$abstractfs_name"
+CZXWXcRMTo8EmM8i4d
+}
+
+_write_projectAFS() {
+	( [[ "$nofs" == "true" ]] || [[ "$afs_nofs" == "true" ]] ) && return
+	_projectAFS_here > "$abstractfs_base"/project.afs
+	chmod u+x "$abstractfs_base"/project.afs
+}
+
+# DANGER: Mandatory strict directory 8.3 compliance for this variable! Long subdirectory/filenames permitted thereafter.
+_default_name_abstractfs() {
+	#If "$abstractfs_name" is not saved to file, a consistent, compressed, naming scheme, is required.
+	if ( [[ "$nofs" == "true" ]] || [[ "$afs_nofs" == "true" ]] )
+	then
+		#echo $(basename "$abstractfs_base") | md5sum | head -c 8
+		_describe_abstractfs | md5sum | head -c 8
+		return
+	fi
+	
+	cat /dev/urandom 2> /dev/null | base64 2> /dev/null | tr -dc 'a-z' 2> /dev/null | head -c "1" 2> /dev/null
+	cat /dev/urandom 2> /dev/null | base64 2> /dev/null | tr -dc 'a-z0-9' 2> /dev/null | head -c "7" 2> /dev/null
+}
+
+_name_abstractfs() {
+	export abstractfs_name=
+	export abstractfs_projectafs=$(_findProjectAFS "$abstractfs_base")
+	[[ "$abstractfs_projectafs" != "" ]] && [[ -e "$abstractfs_projectafs" ]] && . "$abstractfs_projectafs" --noexec
+	
+	if [[ "$abstractfs_name" == "" ]]
+	then
+		export abstractfs_name=$(_default_name_abstractfs)
+		( [[ "$nofs" == "true" ]] || [[ "$afs_nofs" == "true" ]] ) && return
+		_write_projectAFS
+		export abstractfs_name=
+	fi
+	
+	export abstractfs_projectafs=$(_findProjectAFS "$abstractfs_base")
+	[[ "$abstractfs_projectafs" != "" ]] && [[ -e "$abstractfs_projectafs" ]] && . "$abstractfs_projectafs" --noexec
+	
+	( [[ "$nofs" == "true" ]] || [[ "$afs_nofs" == "true" ]] ) && [[ ! -e "$abstractfs_projectafs" ]] && return 1
+	[[ "$abstractfs_name" == "" ]] && return 1
+	
+	return 0
+}
+
+_makeFakeHome_extra_layer0() {
+	_relink "$1"/.bashrc "$2"/.bashrc
+	_relink "$1"/.ubcore "$2"/.ubcore
+	
+	_relink "$1"/.Xauthority "$2"/.Xauthority
+	
+	_relink "$1"/.ssh "$2"/.ssh
+	_relink "$1"/.gitconfig "$2"/.gitconfig
+	
+	mkdir -p "$2"/.config
+}
+
+_makeFakeHome_extra_layer1() {
+	true
+}
+
+#"$1" == sourceHome
+#"$2" == destinationHome
+_makeFakeHome() {
+	[[ "$1" == "" ]] && return 1
+	! [[ -d "$1" ]] && return 1
+	
+	[[ "$2" == "" ]] && return 1
+	[[ "$2" == "/home/""$USER" ]] && return 1
+	! [[ -d "$2" ]] && return 1
+	
+	_relink "$1" "$2"/realHome
+	
+	_relink "$1"/Downloads "$2"/Downloads
+	
+	_relink "$1"/Desktop "$2"/Desktop
+	_relink "$1"/Documents "$2"/Documents
+	_relink "$1"/Music "$2"/Music
+	_relink "$1"/Pictures "$2"/Pictures
+	_relink "$1"/Public "$2"/Public
+	_relink "$1"/Templates "$2"/Templates
+	_relink "$1"/Videos "$2"/Videos
+	
+	_relink "$1"/bin "$2"/bin
+	
+	_relink "$1"/core "$2"/core
+	_relink "$1"/project "$2"/project
+	_relink "$1"/projects "$2"/projects
+	
+	
+	
+	_makeFakeHome_extra_layer0 "$@"
+	_makeFakeHome_extra_layer1 "$@"
+}
+
+_unmakeFakeHome_extra_layer0() {
+	_rmlink "$1"/.bashrc
+	_rmlink "$1"/.ubcore
+	
+	_rmlink "$1"/.Xauthority
+	
+	_rmlink "$1"/.ssh
+	_rmlink "$1"/.gitconfig
+	
+	rmdir "$1"/.config
+}
+
+_unmakeFakeHome_extra_layer1() {
+	true
+}
+
+#"$1" == destinationHome
+_unmakeFakeHome() {
+	[[ "$1" == "" ]] && return 1
+	[[ "$1" == "/home/""$USER" ]] && return 1
+	! [[ -d "$1" ]] && return 1
+	
+	_rmlink "$1"/realHome
+	
+	_rmlink "$1"/Downloads
+	
+	_rmlink "$1"/Desktop
+	_rmlink "$1"/Documents
+	_rmlink "$1"/Music
+	_rmlink "$1"/Pictures
+	_rmlink "$1"/Public
+	_rmlink "$1"/Templates
+	_rmlink "$1"/Videos
+	
+	_rmlink "$1"/bin
+	
+	_rmlink "$1"/core
+	_rmlink "$1"/project
+	_rmlink "$1"/projects
+	
+	
+	
+	_unmakeFakeHome_extra_layer0 "$@"
+	_unmakeFakeHome_extra_layer1 "$@"
+}
+
 _test_fakehome() {
 	_getDep mount
 	_getDep mountpoint
 	
 	_getDep rsync
+}
+
+#Example. Run similar code under "core.sh" before calling "_fakeHome", "_install_fakeHome", or similar, to set a specific type/location for fakeHome environment - global, instanced, or otherwise.
+_arbitrary_fakeHome_app() {
+	export actualFakeHome="$instancedFakeHome"
+	#export actualFakeHome="$shortFakeHome"
+	
+	#export actualFakeHome="$globalFakeHome"
+	#export actualFakeHome=""$arbitraryFakeHome"/arbitrary"
+}
+
+#"$1" == lib source path (eg. "$scriptLib"/app/.app)
+#"$2" == home destination path (eg. ".app")
+# WARNING: Locking mechanism not intended to be relied on.
+# WARNING: Return status success may not reflect successful link/copy.
+_link_fakeHome() {
+	mkdir -p "$1" > /dev/null 2>&1
+	mkdir -p "$actualFakeHome" > /dev/null 2>&1
+	
+	if [[ "$actualFakeHome" == "$globalFakeHome" ]] || [[ "$fakeHomeEditLib" == "true" ]]
+	then
+		rmdir "$actualFakeHome"/"$2" > /dev/null 2>&1
+		_relink "$1" "$actualFakeHome"/"$2"
+		return 0
+	fi
+	
+	#Actual files/directories will not be overwritten by symlinks when "$globalFakeHome" is copied to "$actualFakeHome". Remainder of this function dedicated to creating copies, before and instead of, symlinks.
+	
+	#rmdir "$actualFakeHome"/"$2" > /dev/null 2>&1
+	_rmlink "$actualFakeHome"/"$2"
+	
+	#Waits if copy is in progress, delaying program launch.
+	local lockWaitTimer
+	for (( lockWaitTimer = 0 ; lockWaitTimer <= 90 ; lockWaitTimer++ )); do
+		! [[ -e "$actualFakeHome"/"$2".lck ]] && break
+		sleep 0.3
+	done
+	
+	#Checks if copy has already been made.
+	[[ -e "$actualFakeHome"/"$2" ]] && return 0
+	
+	mkdir -p "$actualFakeHome"/"$2"
+	
+	#Copy file.
+	if ! [[ -d "$1" ]] && [[ -e "$1" ]]
+	then
+		rmdir "$actualFakeHome"/"$2" > /dev/null 2>&1
+		
+		echo > "$actualFakeHome"/"$2".lck
+		cp "$1" "$actualFakeHome"/"$2"
+		rm "$actualFakeHome"/"$2".lck
+		return 0
+	fi
+	
+	#Copy directory.
+	echo > "$actualFakeHome"/"$2".lck
+	_instance_internal "$1"/. "$actualFakeHome"/"$2"/
+	rm "$actualFakeHome"/"$2".lck
+	return 0
+}
+
+#Example. Override with "core.sh". Allows specific application configuration directories to reside outside of globalFakeHome, for organization, testing, and distribution.
+_install_fakeHome_app() {
+	#_link_fakeHome "$scriptLib"/app/.app ".app"
+	
+	true
+}
+
+#actualFakeHome
+_install_fakeHome() {
+	_install_fakeHome_app
+	
+	#Asterisk used where multiple global home folders are needed, following convention "$scriptLocal"/h_* . Used by webClient for _firefox_esr .
+	[[ "$actualFakeHome" == "$globalFakeHome"* ]] && return 0
+	
+	#Any globalFakeHome links created by "_link_fakeHome" are not to overwrite copies made to instancedFakeHome directories. Related errors emitted by "rsync" are normal, and therefore, silenced.
+	_instance_internal "$globalFakeHome"/. "$actualFakeHome"/ > /dev/null 2>&1
+}
+
+#Run before _fakeHome to use a ramdisk as home directory. Wrap within "_wantSudo" and ">/dev/null 2>&1" to use optionally. Especially helpful to limit SSD wear when dealing with moderately large (ie. ~2GB) fakeHome environments which must be instanced.
+_mountRAM_fakeHome() {
+	_mustGetSudo
+	mkdir -p "$actualFakeHome"
+	sudo -n mount -t ramfs ramfs "$actualFakeHome"
+	sudo -n chown "$USER":"$USER" "$actualFakeHome"
+	! mountpoint "$actualFakeHome" > /dev/null 2>&1 && _stop 1
+	return 0
+}
+
+_umountRAM_fakeHome() {
+	mkdir -p "$actualFakeHome"
+	sudo -n umount "$actualFakeHome"
+	mountpoint "$actualFakeHome" > /dev/null 2>&1 && _stop 1
+	return 0
+}
+
+_begin_fakeHome() {
+	#Recursive fakeHome prohibited. Instead, start new script session, with new sessionid, and keepFakeHome=false. Do not workaround without a clear understanding why this may endanger your application.
+	[[ "$setFakeHome" == "true" ]] && return 1
+	#_resetFakeHomeEnv_nokeep
+	
+	[[ "$realHome" == "" ]] && export realHome="$HOME"
+	
+	export HOME="$actualFakeHome"
+	export setFakeHome=true
+	
+	_prepareFakeHome > /dev/null 2>&1
+	
+	_install_fakeHome
+	
+	_makeFakeHome "$realHome" "$actualFakeHome"
+	
+	export fakeHomeEditLib="false"
+	
+	export realScriptAbsoluteLocation="$scriptAbsoluteLocation"
+	export realScriptAbsoluteFolder="$scriptAbsoluteFolder"
+	export realSessionID="$sessionid"
+}
+
+#actualFakeHome
+	#default: "$instancedFakeHome"
+	#"$globalFakeHome" || "$instancedFakeHome" || "$shortFakeHome" || "$arbitraryFakeHome"/arbitrary
+#keepFakeHome
+	#default: true
+	#"true" || "false"
+_fakeHome() {
+	_begin_fakeHome "$@"
+	local fakeHomeExitStatus
+	
+	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" scriptAbsoluteLocation="$scriptAbsoluteLocation" sessionid="$sessionid" scriptAbsoluteFolder="$scriptAbsoluteFolder" realSessionID="$realSessionID" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
+	#dbus-run-session "$@"
+	#"$@"
+	#. "$@"
+	fakeHomeExitStatus=$?
+	
+	#_unmakeFakeHome > /dev/null 2>&1
+	
+	_resetFakeHomeEnv_nokeep
+	
+	return "$fakeHomeExitStatus"
+}
+
+#Do NOT keep parent session under fakeHome environment. Do NOT regain parent session if "~/.ubcore/.ubcorerc" is imported (typically upon shell launch).
+_fakeHome_specific() {
+	_begin_fakeHome "$@"
+	local fakeHomeExitStatus
+	
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
+	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" dbus-run-session "$@"
+	#dbus-run-session "$@"
+	#"$@"
+	#. "$@"
+	fakeHomeExitStatus=$?
+	
+	#_unmakeFakeHome > /dev/null 2>&1
+	
+	_resetFakeHomeEnv_nokeep
+	
+	return "$fakeHomeExitStatus"
+}
+
+#No workarounds, run in current shell.
+# WARNING: Not recommended. No production use. Do not launch GUI applications.
+_fakeHome_embedded() {
+	_begin_fakeHome "$@"
+	local fakeHomeExitStatus
+	
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
+	#dbus-run-session "$@"
+	#"$@"
+	. "$@"
+	fakeHomeExitStatus=$?
+	
+	#_unmakeFakeHome > /dev/null 2>&1
+	
+	_resetFakeHomeEnv_nokeep
+	
+	return "$fakeHomeExitStatus"
+}
+
+_fakeHome_() {
+	_fakeHome_embedded "$@"
+}
+
+
+
+
+
+_userFakeHome_procedure() {
+	export actualFakeHome="$instancedFakeHome"
+	export fakeHomeEditLib="false"
+	_fakeHome "$@"
+}
+
+_userFakeHome_sequence() {
+	_start
+	
+	_userFakeHome_procedure "$@"
+	
+	_stop $?
+}
+
+_userFakeHome() {
+	"$scriptAbsoluteLocation" _userFakeHome_sequence "$@"
+}
+
+_editFakeHome_procedure() {
+	export actualFakeHome="$globalFakeHome"
+	export fakeHomeEditLib="false"
+	_fakeHome "$@"
+}
+
+_editFakeHome_sequence() {
+	_start
+	
+	_editFakeHome_procedure "$@"
+	
+	_stop $?
+}
+
+_editFakeHome() {
+	"$scriptAbsoluteLocation" _editFakeHome_sequence "$@"
+}
+
+_userShortHome_procedure() {
+	export actualFakeHome="$shortFakeHome"
+	export fakeHomeEditLib="false"
+	_fakeHome "$@"
+}
+
+_userShortHome_sequence() {
+	_start
+	
+	_userShortHome_procedure "$@"
+	
+	_stop $?
+}
+
+_userShortHome() {
+	"$scriptAbsoluteLocation" _userShortHome_sequence "$@"
+}
+
+_editShortHome_procedure() {
+	export actualFakeHome="$shortFakeHome"
+	export fakeHomeEditLib="true"
+	_fakeHome "$@"
+}
+
+_editShortHome_sequence() {
+	_start
+	
+	_editShortHome_procedure "$@"
+	
+	_stop $?
+}
+
+# WARNING: Only allows persistent modifications to directories which have been linked by "_link_fakeHome" or similar.
+_editShortHome() {
+	"$scriptAbsoluteLocation" _editShortHome_sequence "$@"
+}
+
+_shortHome() {
+	_userShortHome "$@"
+}
+
+_memFakeHome_procedure() {
+	export actualFakeHome="$instancedFakeHome"
+	export fakeHomeEditLib="false"
+	
+	_mountRAM_fakeHome
+	
+	local fakeHomeExitStatus
+	
+	_fakeHome "$@"
+	fakeHomeExitStatus=$?
+	
+	_umountRAM_fakeHome
+	
+	return "$fakeHomeExitStatus"
+}
+
+_memFakeHome_sequence() {
+	_start
+	
+	_memFakeHome_procedure "$@"
+	
+	_stop $?
+}
+
+_memFakeHome() {
+	"$scriptAbsoluteLocation" _memFakeHome_sequence "$@"
 }
 
 _resetFakeHomeEnv_extra() {
@@ -2872,6 +3543,8 @@ _resetFakeHomeEnv_nokeep() {
 	
 	export HOME="$realHome"
 	
+	#export realHome=""
+	
 	_resetFakeHomeEnv_extra
 }
 
@@ -2880,257 +3553,7 @@ _resetFakeHomeEnv() {
 	[[ "$keepFakeHome" != "false" ]] && return 0
 	
 	_resetFakeHomeEnv_nokeep
-}
-
-_prepareAppHome() {
-	mkdir -p "$globalFakeHome"
-	mkdir -p "$instancedFakeHome"
-
-	mkdir -p "$scriptLocal"/app/.app
-
-	#_relink "$scriptLocal"/app/.app "$globalFakeHome"/.app
-	
-	mkdir -p "$instancedFakeHome"/.app
-	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$scriptLocal"/app/.app/. "$instancedFakeHome"/.app/
-	#_relink "$scriptLocal"/app/.app "$instancedFakeHome"/.app
-	
-	export ub_disable_prepareFakeHome_instance=true
-}
-
-_setShortHome() {
-	export instancedFakeHome="$shortTmp"/h
-}
-
-_setFakeHomeEnv_extra() {
-	true
-}
-
-_setFakeHomeEnv() {
-	[[ "$setFakeHome" == "true" ]] && return 0
-	export setFakeHome="true"
-	
-	export realHome="$HOME"
-	
-	export fakeHome=$(_findDir "$1")
-	[[ "$appGlobalFakeHome" != "" ]] && [[ "$1" != "$instancedFakeHome" ]] && export fakeHome=$(_findDir "$appGlobalFakeHome")
-	
-	export HOME="$fakeHome"
-	
-	_setFakeHomeEnv_extra
-}
-
-_makeFakeHome_extra_layer0() {
-	_relink "$realHome"/.bashrc "$HOME"/.bashrc
-	_relink "$realHome"/.ubcore "$HOME"/.ubcore
-	
-	_relink "$realHome"/.Xauthority "$HOME"/.Xauthority
-	
-	_relink "$realHome"/.ssh "$HOME"/.ssh
-	_relink "$realHome"/.gitconfig "$HOME"/.gitconfig
-	
-	mkdir -p "$HOME"/.config
-}
-
-_makeFakeHome_extra_layer1() {
-	true
-}
-
-_makeFakeHome() {
-	[[ "$HOME" == "" ]] && return 0
-	[[ "$HOME" == "/home/""$USER" ]] && return 0
-	
-	_relink "$realHome" "$HOME"/realHome
-	
-	_relink "$realHome"/Downloads "$HOME"/Downloads
-	
-	_relink "$realHome"/Desktop "$HOME"/Desktop
-	_relink "$realHome"/Documents "$HOME"/Documents
-	_relink "$realHome"/Music "$HOME"/Music
-	_relink "$realHome"/Pictures "$HOME"/Pictures
-	_relink "$realHome"/Public "$HOME"/Public
-	_relink "$realHome"/Templates "$HOME"/Templates
-	_relink "$realHome"/Videos "$HOME"/Videos
-	
-	_relink "$realHome"/bin "$HOME"/bin
-	
-	_relink "$realHome"/core "$HOME"/core
-	_relink "$realHome"/project "$HOME"/project
-	_relink "$realHome"/projects "$HOME"/projects
-	
-	
-	
-	_makeFakeHome_extra_layer0
-	_makeFakeHome_extra_layer1
-}
-
-_unmakeFakeHome_extra_layer0() {
-	_rmlink "$HOME"/.bashrc
-	_rmlink "$HOME"/.ubcore
-	
-	_rmlink "$HOME"/.Xauthority
-	
-	_rmlink "$HOME"/.ssh
-	_rmlink "$HOME"/.gitconfig
-	
-	rmdir "$HOME"/.config
-}
-
-_unmakeFakeHome_extra_layer1() {
-	true
-}
-
-_unmakeFakeHome() {
-	[[ "$HOME" == "" ]] && return 0
-	[[ "$HOME" == "/home/""$USER" ]] && return 0
-	
-	_rmlink "$HOME"/realHome
-	
-	_rmlink "$HOME"/Downloads
-	
-	_rmlink "$HOME"/Desktop
-	_rmlink "$HOME"/Documents
-	_rmlink "$HOME"/Music
-	_rmlink "$HOME"/Pictures
-	_rmlink "$HOME"/Public
-	_rmlink "$HOME"/Templates
-	_rmlink "$HOME"/Videos
-	
-	_rmlink "$HOME"/bin
-	
-	_rmlink "$HOME"/core
-	_rmlink "$HOME"/project
-	_rmlink "$HOME"/projects
-	
-	
-	
-	_unmakeFakeHome_extra_layer0
-	_unmakeFakeHome_extra_layer1
-}
-
-_createFakeHome_sequence() {
-	_start
-	
-	_resetFakeHomeEnv_nokeep
-	_prepareFakeHome
-	
-	_setFakeHomeEnv "$globalFakeHome"
-	_makeFakeHome
-	
-	_resetFakeHomeEnv_nokeep
-	_stop
-}
-
-_createFakeHome() {
-	"$scriptAbsoluteLocation" _createFakeHome_sequence "$@"
-}
-
-_editFakeHome_sequence() {
-	_start
-	
-	_resetFakeHomeEnv_nokeep
-	_prepareFakeHome
-	
-	_setFakeHomeEnv "$globalFakeHome"
-	_makeFakeHome > /dev/null 2>&1
-	
-	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" dbus-run-session "$@"
-	#"$@"
-	
-	#_unmakeFakeHome > /dev/null 2>&1
-	
-	_resetFakeHomeEnv_nokeep
-	_stop
-}
-
-_editFakeHome() {
-	"$scriptAbsoluteLocation" _editFakeHome_sequence "$@"
-}
-
-_mountRAM_fakeHome_instance_sequence() {
-	_mustGetSudo
-	mkdir -p "$instancedFakeHome"
-	sudo -n mount -t ramfs ramfs "$instancedFakeHome"
-	sudo -n chown "$USER":"$USER" "$instancedFakeHome"
-	! mountpoint "$instancedFakeHome" > /dev/null 2>&1 && _stop 1
-	return 0
-}
-
-_mountUserFakeHome_instance() {
-	! _mountRAM_fakeHome_instance_sequence && _stop 1
-	return 0
-}
-
-_umountRAM_fakeHome_instance_sequence() {
-	mkdir -p "$instancedFakeHome"
-	sudo -n umount "$instancedFakeHome"
-	mountpoint "$instancedFakeHome" > /dev/null 2>&1 && _stop 1
-	return 0
-}
-
-_umountUserFakeHome_instance() {
-	! _umountRAM_fakeHome_instance_sequence && _stop 1
-	return 0
-}
-
-#userFakeHome_enableMemMount="true"
-_userFakeHome_sequence() {
-	_start
-	
-	[[ "$instancedFakeHome" == "" ]] && _stop 1
-	
-	[[ "$userFakeHome_enableMemMount" == "true" ]] && ! _mountUserFakeHome_instance && _stop 1
-	
-	_resetFakeHomeEnv_nokeep
-	_prepareFakeHome
-	_prepareFakeHome_instance
-	
-	_setFakeHomeEnv "$instancedFakeHome"
-	_makeFakeHome > /dev/null 2>&1
-	
-	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" userFakeHome="true" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" dbus-run-session "$@"
-	#"$@"
-	
-	[[ "$userFakeHome_enableMemMount" == "true" ]] && ! _umountUserFakeHome_instance && _stop 1
-	
-	_resetFakeHomeEnv_nokeep
-	_rm_instance_fakeHome
-	
-	_stop
-}
-
-_userFakeHome() {
-	"$scriptAbsoluteLocation" _userFakeHome_sequence "$@"
-}
-
-_memFakeHome() {
-	export userFakeHome_enableMemMount="true"
-	"$scriptAbsoluteLocation" _userFakeHome_sequence "$@"
-}
-
-#For internal use.
-_selfFakeHome() {
-	"$scriptAbsoluteLocation" _userFakeHome "$scriptAbsoluteLocation" "$@"
-}
-
-_userShortHome() {
-	_setShortHome
-	
-	_prepareAppHome
-	
-	_userFakeHome_sequence "$@"
-}
-
-_editShortHome() {
-	_setShortHome
-	
-	_prepareAppHome
-	
-	_editFakeHome_sequence "$@"
-}
-
-_shortHome() {
-	_userShortHome "$@"
-}
+} 
 
 _test_image() {
 	_mustGetSudo
@@ -3678,7 +4101,7 @@ _createHTG_MSW() {
 	
 	_preCommand_MSW >> "$hostToGuestFiles"/application.bat
 	
-	echo "${processedArgs[@]}" >> "$hostToGuestFiles"/application.bat
+	_safeEcho_newline "${processedArgs[@]}" >> "$hostToGuestFiles"/application.bat
 	 
 	echo ""  >> "$hostToGuestFiles"/application.bat
 	
@@ -3734,7 +4157,7 @@ _createHTG_UNIX() {
 	
 	echo '#!/usr/bin/env bash' >> "$hostToGuestFiles"/cmd.sh
 	echo "export localPWD=""$localPWD" >> "$hostToGuestFiles"/cmd.sh
-	echo "/media/bootdisc/ubiquitous_bash.sh _dropBootdisc ${processedArgs[@]}" >> "$hostToGuestFiles"/cmd.sh
+	_safeEcho_newline "/media/bootdisc/ubiquitous_bash.sh _dropBootdisc ${processedArgs[@]}" >> "$hostToGuestFiles"/cmd.sh
 }
 
 _commandBootdisc() {
@@ -4030,6 +4453,14 @@ _mountChRoot() {
 	sudo -n cp "$scriptAbsoluteLocation" "$absolute1"/usr/local/bin/ubiquitous_bash.sh
 	sudo -n chmod 0755 "$absolute1"/usr/local/bin/ubiquitous_bash.sh
 	sudo -n chown root:root "$absolute1"/usr/local/bin/ubiquitous_bash.sh
+	
+	if [[ -e "$scriptAbsoluteFolder"/lean.sh ]]
+	then
+		sudo -n cp "$scriptAbsoluteFolder"/lean.sh "$absolute1"/usr/local/bin/lean.sh
+		sudo -n chmod 0755 "$absolute1"/usr/local/bin/lean.sh
+		sudo -n chown root:root "$absolute1"/usr/local/bin/lean.sh
+	fi
+	
 	sudo -n cp "$scriptBin"/gosu-armel "$absolute1"/usr/local/share/ubcore/bin/gosu-armel
 	sudo -n cp "$scriptBin"/gosu-amd64 "$absolute1"/usr/local/share/ubcore/bin/gosu-amd64
 	sudo -n cp "$scriptBin"/gosu-i386 "$absolute1"/usr/local/share/ubcore/bin/gosu-i386
@@ -5727,7 +6158,7 @@ _dosbox_sequence() {
 	
 	#Alternatively, "-c" could be used with dosbox, but this seems not to work well with multiple parameters.
 	#Note "DOS" will not like paths not conforming to 8.3 .
-	echo "${processedArgs[@]}" >> "$instancedVirtDir"/dosbox.conf
+	_safeEcho_newline "${processedArgs[@]}" >> "$instancedVirtDir"/dosbox.conf
 	
 	dosbox -conf "$instancedVirtDir"/dosbox.conf
 	
@@ -5835,7 +6266,9 @@ _wine() {
 #####Shortcuts
 
 _visualPrompt() {
-export PS1='\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]-|\[\033[01;31m\]${?}:${debian_chroot:+($debian_chroot)}\[\033[01;33m\]\u\[\033[01;32m\]@\h\[\033[01;36m\]\[\033[01;34m\])-\[\033[01;36m\]----------\[\033[01;34m\]-(\[\033[01;35m\]$(date +%H:%M:%S\ %b\ %d,\ %y)\[\033[01;34m\])-\[\033[01;36m\]--- - - - |\[\033[00m\]\n\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]-|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]+\[\033[01;34m\]-|\#) \[\033[36m\]>\[\033[00m\] '
+#+%H:%M:%S\ %Y-%m-%d\ Q%q
+#+%H:%M:%S\ %b\ %d,\ %y
+export PS1='\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]-|\[\033[01;31m\]${?}:${debian_chroot:+($debian_chroot)}\[\033[01;33m\]\u\[\033[01;32m\]@\h\[\033[01;36m\]\[\033[01;34m\])-\[\033[01;36m\]------------------------\[\033[01;34m\]-(\[\033[01;35m\]$(date +%H:%M:%S\ .%d)\[\033[01;34m\])-\[\033[01;36m\]- -|\[\033[00m\]\n\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]-|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]+\[\033[01;34m\]-|\#) \[\033[36m\]>\[\033[00m\] '
 } 
 
 #https://stackoverflow.com/questions/15432156/display-filename-before-matching-line-grep
@@ -5879,62 +6312,106 @@ _set_emacsFakeHomeSource() {
 	fi
 }
 
-_prepare_emacsDev_fakeHome() {
-	_set_emacsFakeHomeSource
-	
-	cp -a "$emacsFakeHomeSource"/. "$HOME"
+_install_fakeHome_emacs() {
+	_link_fakeHome "$emacsFakeHomeSource"/.emacs .emacs
+	_link_fakeHome "$emacsFakeHomeSource"/.emacs.d .emacs.d
 }
 
-_emacsDev_sequence() {
-	_prepare_emacsDev_fakeHome
+_emacs_edit_procedure() {
+	_set_emacsFakeHomeSource
+	
+	export actualFakeHome="$instancedFakeHome"
+	#export actualFakeHome="$globalFakeHome"
+	export fakeHomeEditLib="true"
+	export keepFakeHome="false"
+	
+	_install_fakeHome_emacs
 	
 	#echo -n "$@" >> "$HOME"/.emacs
 	
-	emacs "$@"
+	_fakeHome emacs "$@"
 }
 
-_emacsDev() {
-	_selfFakeHome _emacsDev_sequence "$@"
+_emacs_edit_sequence() {
+	_start
+	
+	_emacs_edit_procedure "$@"
+	
+	_stop $?
+}
+
+_emacs_edit() {
+	"$scriptAbsoluteLocation" _emacs_edit_sequence "$@"
+}
+
+_emacs_user_procedure() {
+	_set_emacsFakeHomeSource
+	
+	export actualFakeHome="$instancedFakeHome"
+	#export actualFakeHome="$globalFakeHome"
+	export fakeHomeEditLib="false"
+	export keepFakeHome="false"
+	
+	_install_fakeHome_emacs
+	
+	#echo -n "$@" >> "$HOME"/.emacs
+	
+	_fakeHome emacs "$@"
+}
+
+_emacs_user_sequence() {
+	_start
+	
+	_emacs_user_procedure "$@"
+	
+	_stop $?
+}
+
+_emacs_user() {
+	"$scriptAbsoluteLocation" _emacs_user_sequence "$@"
 }
 
 _emacs() {
-	_emacsDev "$@"
+	_emacs_user "$@"
 }
 
-_emacsDev_edit_sequence() {
+_bashdb_procedure() {
 	_set_emacsFakeHomeSource
-	export appGlobalFakeHome="$emacsFakeHomeSource"
 	
-	_editFakeHome emacs "$@"
-}
-
-_emacsDev_edit() {
-	"$scriptAbsoluteLocation" _emacsDev_edit_sequence "$@"
-}
-
-_bashdb_sequence() {
-	_prepare_emacsDev_fakeHome
+	export actualFakeHome="$instancedFakeHome"
+	export fakeHomeEditLib="false"
+	export keepFakeHome="false"
 	
-	#echo -n '(bashdb "bash --debugger' >> "$HOME"/.emacs
-	echo -n '(bashdb-large "bash --debugger' >> "$HOME"/.emacs
+	_install_fakeHome_emacs
+	
+	#echo -n '(bashdb "bash --debugger' >> "$actualFakeHome"/.emacs
+	echo -n '(bashdb-large "bash --debugger' >> "$actualFakeHome"/.emacs
 	
 	local currentArg
 	
 	for currentArg in "$@"
 	do
-		echo -n ' ' >> "$HOME"/.emacs
-		echo -n '\"' >> "$HOME"/.emacs
-		echo -n "$currentArg" >> "$HOME"/.emacs
-		echo -n '\"' >> "$HOME"/.emacs
+		echo -n ' ' >> "$actualFakeHome"/.emacs
+		echo -n '\"' >> "$actualFakeHome"/.emacs
+		echo -n "$currentArg" >> "$actualFakeHome"/.emacs
+		echo -n '\"' >> "$actualFakeHome"/.emacs
 	done
 	
-	echo '")' >> "$HOME"/.emacs
+	echo '")' >> "$actualFakeHome"/.emacs
 	
-	emacs
+	_fakeHome emacs
+}
+
+_bashdb_sequence() {
+	_start
+	
+	_bashdb_procedure "$@"
+	
+	_stop $?
 }
 
 _bashdb() {
-	_selfFakeHome _bashdb_sequence "$@"
+	"$scriptAbsoluteLocation" _bashdb_sequence "$@"
 }
 
 _ubdb() {
@@ -5950,11 +6427,10 @@ _test_devatom() {
 	#! [[ "$atomDetectedVersion" -ge "27" ]] && echo atom too old && _stop 1
 }
 
-#Needed, because as an IDE, Atom may need to be part of the same home directory as another application.
-_relink_atom() {
-	_relink "$atomFakeHomeSource"/.atom "$globalFakeHome"/.atom
-	mkdir -p "$globalFakeHome"/.config/Atom
-	_relink "$atomFakeHomeSource"/.config/Atom "$globalFakeHome"/.config/Atom
+_install_fakeHome_atom() {	
+	_link_fakeHome "$atomFakeHomeSource"/.atom .atom
+	
+	_link_fakeHome "$atomFakeHomeSource"/.config/Atom .config/Atom
 }
 
 _set_atomFakeHomeSource() {
@@ -5974,82 +6450,81 @@ _set_atomFakeHomeSource() {
 	fi
 }
 
-_prepare_atomDev_fakeHome() {
+_atom_user_procedure() {
 	_set_atomFakeHomeSource
-	_relink_atom
 	
-	cp -a "$atomFakeHomeSource"/. "$HOME"
+	export actualFakeHome="$instancedFakeHome"
+	#export actualFakeHome="$globalFakeHome"
+	export fakeHomeEditLib="false"
+	export keepFakeHome="true"
+	
+	_install_fakeHome_atom
+	
+	_fakeHome atom --foreground "$@"
 }
 
-_atomDev_sequence() {
-	_prepare_atomDev_fakeHome
+_atom_user_sequence() {
+	_start
 	
-	export keepFakeHome="false"
+	"$scriptAbsoluteLocation" _atom_user_procedure "$@"
 	
-	atom --foreground "$@"
-}
-
-_atomDev() {
-	_selfFakeHome _atomDev_sequence "$@"
+	_stop $?
 }
 
 _atom_user() {
-	_atomDev "$@"  > /dev/null 2>&1 &
+	_atom_user_sequence "$@"  > /dev/null 2>&1 &
 }
 
-_atomDev_edit_sequence() {
+_atom_edit_procedure() {
 	_set_atomFakeHomeSource
-	_relink_atom
-	export appGlobalFakeHome="$atomFakeHomeSource"
 	
-	export keepFakeHome="false"
+	export actualFakeHome="$instancedFakeHome"
+	#export actualFakeHome="$globalFakeHome"
+	export fakeHomeEditLib="true"
+	export keepFakeHome="true"
 	
-	_editFakeHome atom --foreground "$@"
+	_install_fakeHome_atom
+	
+	_fakeHome atom --foreground "$@"
 }
 
-_atomDev_edit() {
-	"$scriptAbsoluteLocation" _atomDev_edit_sequence "$@"
+_atom_edit_sequence() {
+	_start
+	
+	_atom_edit_procedure "$@"
+	
+	_stop $?
 }
 
 _atom_edit() {
-	_atomDev_edit "$@"  > /dev/null 2>&1 &
-}
-
-_editFakeHome_atom_sequence() {
-	_set_atomFakeHomeSource
-	_relink_atom
-	export appGlobalFakeHome="$atomFakeHomeSource"
-	
-	#export keepFakeHome="false"
-	
-	_editFakeHome "$@"
-}
-
-_editFakeHome_atom() {
-	"$scriptAbsoluteLocation" _editFakeHome_atom_sequence "$@"
+	"$scriptAbsoluteLocation" _atom_edit_sequence "$@"  > /dev/null 2>&1 &
 }
 
 _atom_config() {
 	_set_atomFakeHomeSource
-	_relink_atom
 	
 	export ATOM_HOME="$atomFakeHomeSource"/.atom
 	atom "$@"
 }
 
+_atom_tmp_procedure() {
+	_set_atomFakeHomeSource
+	
+	mkdir -p "$safeTmp"/atom
+	
+	rsync -q -ax --exclude "/.cache" "$atomFakeHomeSource"/.atom/ "$safeTmp"/atom/
+	
+	export ATOM_HOME="$safeTmp"/atom
+	atom --foreground "$@"
+	unset ATOM_HOME
+}
+
 _atom_tmp_sequence() {
 	_start
-	_set_atomFakeHomeSource
-	_relink_atom
 	
-	mkdir -p "$safeTmp"/appcfg
+	_atom_tmp_procedure "$@"
 	
-	rsync -q -ax --exclude "/.cache" "$atomFakeHomeSource"/.atom/ "$safeTmp"/appcfg/
-	
-	export ATOM_HOME="$safeTmp"/appcfg
-	atom --foreground "$@"
-	
-	_stop
+	_stop $?
 }
 
 _atom_tmp() {
@@ -6062,6 +6537,208 @@ _atom() {
 
 _ubide() {
 	_atom . ./ubiquitous_bash.sh "$@"
+}
+
+#Example, override with "core.sh" .
+_scope_compile() {
+	true
+}
+
+#Example, override with "core.sh" .
+_scope_attach() {
+	_messagePlain_nominal '_scope_attach'
+	
+	_scope_here > "$ub_scope"/.devenv
+	chmod u+x "$ub_scope"/.devenv
+	_scope_readme_here > "$ub_scope"/README
+	
+	_scope_command_write _scope_compile
+	#_scope_command_external_here _scope_compile
+}
+
+_prepare_scope() {
+	#mkdir -p "$safeTmp"/scope
+	mkdir -p "$scopeTmp"
+	#true
+}
+
+_relink_scope() {
+	#_relink "$safeTmp"/scope "$ub_scope"
+	_relink "$scopeTmp" "$ub_scope"
+	#_relink "$safeTmp" "$ub_scope"
+	
+	_relink "$safeTmp" "$ub_scope"/safeTmp
+	_relink "$shortTmp" "$ub_scope"/shortTmp
+	
+	# DANGER: Creates infinitely recursive symlinks.
+	#[[ -e "$abstractfs_projectafs" ]] && _relink "$abstractfs_projectafs" "$ub_scope"/project.afs
+	#[[ -d "$abstractfs" ]] && _relink "$abstractfs" "$ub_scope"/afs
+}
+
+_ops_scope() {
+	_messagePlain_nominal '_ops_scope'
+	
+	#Find/run ops file in project dir.
+	! [[ -e "$ub_specimen"/ops ]] && _messagePlain_warn 'aU: undef: sketch ops'
+	[[ -e "$ub_specimen"/ops ]] && _messagePlain_good 'aU: found: sketch ops' && . "$ub_specimen"/ops
+}
+
+#"$1" == ub_specimen
+#"$ub_scope_name" (default "scope")
+# WARNING Multiple instances of same scope on a single specimen strictly forbidden. Launch multiple applications within a scope, not multiple scopes.
+_start_scope() {
+	_messagePlain_nominal '_start_scope'
+	
+	export ub_specimen=$(_getAbsoluteLocation "$1")
+	export specimen="$ub_specimen"
+	[[ ! -d "$ub_specimen" ]] && _messagePlain_bad 'missing: specimen= '"$ub_specimen" && _stop 1
+	[[ ! -e "$ub_specimen" ]] && _messagePlain_bad 'missing: specimen= '"$ub_specimen" && _stop 1
+	
+	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='scope'
+	
+	export ub_scope="$ub_specimen"/.s_"$ub_scope_name"
+	export scope="$ub_scope"
+	[[ -e "$ub_scope" ]] && _messagePlain_bad 'fail: safety: multiple scopes && single specimen' && _stop 1
+	[[ -L "$ub_scope" ]] && _messagePlain_bad 'fail: safety: multiple scopes && single specimen' && _stop 1
+	
+	#export ub_scope_tmp="$ub_scope"/s_"$sessionid"
+	
+	_prepare_scope "$@"
+	_relink_scope "$@"
+	[[ ! -d "$ub_scope" ]] && _messagePlain_bad 'fail: link scope= '"$ub_scope" && _stop 1
+	#[[ ! -d "$ub_scope_tmp" ]] && _messagePlain_bad 'fail: create ub_scope_tmp= '"$ub_scope_tmp" && _stop 1
+	[[ ! -d "$ub_scope"/safeTmp ]] && _messagePlain_bad 'fail: link' && _stop 1
+	[[ ! -d "$ub_scope"/shortTmp ]] && _messagePlain_bad 'fail: link' && _stop 1
+	
+	[[ ! -e "$ub_scope"/.pid ]] && echo $$ > "$ub_scope"/.pid
+	
+	_messagePlain_good 'pass: prepare, relink'
+	
+	return 0
+}
+
+_scope_terminal() {
+	export PS1='\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]-|\[\033[01;31m\]${?}:${debian_chroot:+($debian_chroot)}\[\033[01;33m\]\u\[\033[01;32m\]@\h\[\033[01;36m\]\[\033[01;34m\])-\[\033[01;36m\]------------------------\[\033[01;34m\]-(\[\033[01;35m\]$(date +%H:%M:%S\ .%d)\[\033[01;34m\])-\[\033[01;36m\]- -|\[\033[00m\]\n\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]-|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]+\[\033[01;34m\]-|\#) \[\033[36m\]'"$ub_scope_name"'>\[\033[00m\] '
+	export PATH="$PATH":"$ub_scope"
+	echo
+	/bin/bash --norc
+	echo
+}
+
+#Defaults, bash terminal, wait for kill signal, wait for line break, etc. Override with "core.sh" . May run file manager, terminal, etc.
+# WARNING: Scope should only be terminated by process or user managing this interaction (eg. by closing file manager). Manager must be aware of any inter-scope dependencies.
+_scope_interact() {
+	_messagePlain_nominal '_scope_interact'
+	#read > /dev/null 2>&1
+	
+	_scope_terminal
+}
+
+
+_scope_sequence() {
+	_messagePlain_nominal 'init: scope: '"$ub_scope_name"
+	_messagePlain_probe 'HOME= '"$HOME"
+	
+	_start
+	_start_scope "$@"
+	_ops_scope
+	
+	_scope_attach "$@"
+	
+	#User interaction.
+	_scope_interact
+	
+	_stop
+}
+
+_scope() {
+	export ub_scope_name='scope'
+	"$scriptAbsoluteLocation" _scope_sequence "$@"
+}
+
+_scope_readme_here() {
+	cat << CZXWXcRMTo8EmM8i4d
+Ubiquitous Bash scope.
+CZXWXcRMTo8EmM8i4d
+}
+
+#Example, override with "core.sh" .
+_scope_var_here_prog() {
+	cat << CZXWXcRMTo8EmM8i4d
+CZXWXcRMTo8EmM8i4d
+}
+
+_scope_var_here() {
+	cat << CZXWXcRMTo8EmM8i4d
+export ub_specimen="$ub_specimen"
+export specimen="$specimen"
+export ub_scope_name="$ub_scope_name"
+export ub_scope="$ub_scope"
+export scope="$scope"
+
+CZXWXcRMTo8EmM8i4d
+	
+	_scope_var_here_prog "$@"
+}
+
+_scope_here() {
+	cat << CZXWXcRMTo8EmM8i4d
+#!/usr/bin/env bash
+
+CZXWXcRMTo8EmM8i4d
+
+	_scope_var_here
+
+	cat << CZXWXcRMTo8EmM8i4d
+
+export scriptAbsoluteLocation="$scriptAbsoluteLocation"
+export scriptAbsoluteFolder="$scriptAbsoluteFolder"
+export sessionid="$sessionid"
+. "$scriptAbsoluteLocation" --devenv "\$@"
+CZXWXcRMTo8EmM8i4d
+}
+
+_scope_command_here() {
+	cat << CZXWXcRMTo8EmM8i4d
+#!/usr/bin/env bash
+
+CZXWXcRMTo8EmM8i4d
+
+	_scope_var_here
+
+	cat << CZXWXcRMTo8EmM8i4d
+
+export scriptAbsoluteLocation="$scriptAbsoluteLocation"
+export scriptAbsoluteFolder="$scriptAbsoluteFolder"
+export sessionid="$sessionid"
+. "$scriptAbsoluteLocation" --devenv "$1" "\$@"
+CZXWXcRMTo8EmM8i4d
+}
+
+_scope_command_external_here() {
+	cat << CZXWXcRMTo8EmM8i4d
+#!/usr/bin/env bash
+
+CZXWXcRMTo8EmM8i4d
+
+	_scope_var_here
+
+	cat << CZXWXcRMTo8EmM8i4d
+
+export importScriptLocation="$scriptAbsoluteLocation"
+export importScriptFolder="$scriptAbsoluteFolder"
+. "$scriptAbsoluteLocation" --script "$1" "\$@"
+CZXWXcRMTo8EmM8i4d
+}
+
+_scope_command_write() {
+	_scope_command_here "$@" > "$ub_scope"/"$1"
+	chmod u+x "$ub_scope"/"$1"
+}
+
+_scope_command_external_write() {
+	_scope_command_external_here "$@" > "$ub_scope"/"$1"
+	chmod u+x "$ub_scope"/"$1"
 }
 
 _testGit() {
@@ -6127,7 +6804,7 @@ _gitImport() {
 	cd "$scriptFolder"
 }
 
-_findGit_sequence() {
+_findGit_procedure() {
 	cd "$1"
 	shift
 	
@@ -6137,7 +6814,7 @@ _findGit_sequence() {
 		return 0
 	fi
 	
-	find -L . -mindepth 1 -maxdepth 1 -type d -exec "$scriptAbsoluteLocation" _findGit_sequence {} "$@" \;
+	find -L . -mindepth 1 -maxdepth 1 -type d -exec "$scriptAbsoluteLocation" _findGit_procedure {} "$@" \;
 }
 
 #Recursively searches for directories containing ".git".
@@ -6148,7 +6825,7 @@ _findGit() {
 		return 0
 	fi
 	
-	find -L . -mindepth 1 -maxdepth 1 -type d -exec "$scriptAbsoluteLocation" _findGit_sequence {} "$@" \;
+	find -L . -mindepth 1 -maxdepth 1 -type d -exec "$scriptAbsoluteLocation" _findGit_procedure {} "$@" \;
 }
 
 _gitPull() {
@@ -6910,12 +7587,12 @@ _resetOps() {
 _importShortcuts() {
 	_tryExec "_resetFakeHomeEnv"
 	
-	if ! [[ "$PATH" == *":""$HOME""/bin"* ]] && ! [[ "$PATH" == "$HOME""/bin"* ]] && [[ -e "$HOME"/bin ]]
+	if ! [[ "$PATH" == *":""$HOME""/bin"* ]] && ! [[ "$PATH" == "$HOME""/bin"* ]] && [[ -e "$HOME"/bin ]] && [[ -d "$HOME"/bin ]]
 	then
 		export PATH="$PATH":"$HOME"/bin
 	fi
 	
-	_visualPrompt
+	_tryExec "_visualPrompt"
 }
 
 _gitPull_ubiquitous() {
@@ -6928,7 +7605,7 @@ _gitClone_ubiquitous() {
 
 _selfCloneUbiquitous() {
 	"$scriptBin"/.ubrgbin.sh _ubrgbin_cpA "$scriptBin" "$ubcoreUBdir"/ > /dev/null 2>&1
-	cp -a "$scriptAbsoluteFolder"/lean.sh "$ubcoreUBdir"/lean.sh
+	cp -a "$scriptAbsoluteFolder"/lean.sh "$ubcoreUBdir"/lean.sh > /dev/null 2>&1
 	cp -a "$scriptAbsoluteLocation" "$ubcoreUBdir"/ubiquitous_bash.sh
 }
 
@@ -7052,6 +7729,8 @@ _resetUbiquitous() {
 _refresh_anchors_ubiquitous() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_ubide
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_ubdb
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_true
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_false
 }
 
 _anchor() {
@@ -7070,8 +7749,10 @@ _anchor() {
 #####Basic Variable Management
 
 #####Global variables.
-#Fixed unique identifier for ubiquitious bash created global resources, such as bootdisc images to be automaticaly mounted by guests. Should NOT be changed.
-export ubiquitiousBashID="uk4uPhB663kVcygT0q"
+#Fixed unique identifier for ubiquitious bash created global resources, such as bootdisc images to be automaticaly mounted by guests. Should NEVER be changed.
+export ubiquitiousBashIDnano=uk4u
+export ubiquitiousBashIDshort="$ubiquitiousBashIDnano"PhB6
+export ubiquitiousBashID="$ubiquitiousBashIDshort"63kVcygT0q
 
 ##Parameters
 #"--shell", ""
@@ -7104,7 +7785,8 @@ then
 	export sessionid=$(_uid)
 	_messagePlain_probe_expr 'default: scriptAbsoluteLocation= '"$scriptAbsoluteLocation"'\n ''default: scriptAbsoluteFolder= '"$scriptAbsoluteFolder"'\n ''default: sessionid= '"$sessionid" | _user_log-ub
 else	#FAIL, implies [[ "$ub_import" == "true" ]]
-	_messagePlain_bad 'import: fall: fail' | _user_log-ub && return 1
+	_messagePlain_bad 'import: fall: fail' | _user_log-ub
+	return 1 >/dev/null 2>&1
 	exit 1
 fi
 [[ "$importScriptLocation" != "" ]] && export importScriptLocation=
@@ -7123,8 +7805,11 @@ intInitPWD="$PWD"
 
 #Temporary directories.
 export safeTmp="$scriptAbsoluteFolder"/w_"$sessionid"
+export scopeTmp="$scriptAbsoluteFolder"/s_"$sessionid"
 export logTmp="$safeTmp"/log
-export shortTmp=/tmp/w_"$sessionid"	#Solely for misbehaved applications called upon.
+#Solely for misbehaved applications called upon.
+export shortTmp=/tmp/w_"$sessionid"
+
 export scriptBin="$scriptAbsoluteFolder"/_bin
 export scriptBundle="$scriptAbsoluteFolder"/_bundle
 export scriptLib="$scriptAbsoluteFolder"/_lib
@@ -7153,18 +7838,31 @@ export scriptTokens="$scriptLocal"/.tokens
 
 #Reboot Detection Token Storage
 # WARNING WIP. Not tested on all platforms. Requires a directory to be tmp/ram fs mounted. Worst case result is to preserve tokens across reboots.
-export bootTmp="$scriptLocal"			#Fail-Safe
-[[ -d /tmp ]] && export bootTmp=/tmp		#Typical BSD
-[[ -d /dev/shm ]] && export bootTmp=/dev/shm	#Typical Linux
+#Fail-Safe
+export bootTmp="$scriptLocal"
+#Typical BSD
+[[ -d /tmp ]] && export bootTmp='/tmp'
+#Typical Linux
+[[ -d /dev/shm ]] && export bootTmp='/dev/shm'
 
 #Specialized temporary directories.
+
+# WARNING: Only one user per (virtual) machine. Requires _prepare_abstract . Not default.
+# DANGER: Mandatory strict directory 8.3 compliance for this variable! Long subdirectory/filenames permitted thereafter.
+# DANGER: Permitting multi-user access to this directory may cause unexpected behavior, including inconsitent file ownership.
+#Consistent absolute path abstraction.
+export abstractfs_root=/tmp/"$ubiquitiousBashIDnano"
+( [[ "$bootTmp" == '/dev/shm' ]] || [[ "$bootTmp" == '/tmp' ]] ) && export abstractfs_root="$bootTmp"/"$ubiquitiousBashIDnano"
+export abstractfs_lock=/"$bootTmp"/"$ubiquitiousBashID"/afslock
+
 # Unusually, safeTmpSSH must not be interpreted by client, and therefore is single quoted.
 # TODO Test safeTmpSSH variants including spaces in path.
 export safeTmpSSH='~/.sshtmp/.s_'"$sessionid"
 
 #Process control.
 export pidFile="$safeTmp"/.pid
-export uPID="cwrxuk6wqzbzV6p8kPS8J4APYGX"	#Invalid do-not-match default.
+#Invalid do-not-match default.
+export uPID="cwrxuk6wqzbzV6p8kPS8J4APYGX"
 
 export daemonPidFile="$scriptLocal"/.bgpid
 
@@ -7185,7 +7883,8 @@ export AUTOSSH_GATETIME=15
 
 #Monolithic shared files.
 export lock_pathlock="$scriptLocal"/l_path
-export lock_quicktmp="$scriptLocal"/l_qt	#Used to make locking operations atomic as possible.
+#Used to make locking operations atomic as possible.
+export lock_quicktmp="$scriptLocal"/l_qt
 export lock_emergency="$scriptLocal"/l_em
 export lock_open="$scriptLocal"/l_o
 export lock_opening="$scriptLocal"/l_opening
@@ -7287,8 +7986,19 @@ export instancedDownloadsDir="$instancedVirtHome"/Downloads
 export chrootDir="$globalVirtFS"
 export vboxRaw="$scriptLocal"/vmvdiraw.vmdk
 
+#Only globalFakeHome is persistent. All other default home directories are removed in some way by "_stop".
 export globalFakeHome="$scriptLocal"/h
 export instancedFakeHome="$scriptAbsoluteFolder"/h_"$sessionid"
+export shortFakeHome="$shortTmp"/h
+
+#Do not use directly as home directory. Append subdirectories.
+export arbitraryFakeHome="$shortTmp"/a
+
+#Default, override.
+# WARNING: Do not disable.
+export actualFakeHome="$instancedFakeHome"
+export fakeHomeEditLib="false"
+export keepFakeHome="true"
 
 #Automatically assigns appropriate memory quantities to nested virtual machines.
 _vars_vmMemoryAllocationDefault() {
@@ -7312,7 +8022,12 @@ export hostToGuestDir="$instancedVirtDir"/htg
 export hostToGuestFiles="$hostToGuestDir"/files
 export hostToGuestISO="$instancedVirtDir"/htg/htg.iso 
 
-export au_arduinoDir=arduino-1.8.5
+export au_arduinoLocal="$scriptLocal"/arduino
+
+export au_arduinoVersion=arduino-1.8.5
+export au_arduinoDir="$au_arduinoLocal"/"$au_arduinoVersion"
+
+export au_gdbBin="$au_arduinoLocal"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb
 
 export au_openocdStatic="$scriptLib"/openocd-static
 export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
@@ -7322,39 +8037,20 @@ export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
 
 
 _prepareFakeHome() {
-	mkdir -p "$globalFakeHome"
-	[[ "$appGlobalFakeHome" != "" ]] && mkdir -p "$appGlobalFakeHome"
-}
-
-_prepareFakeHome_instance() {
-	_prepareFakeHome
-	
-	[[ "$ub_disable_prepareFakeHome_instance" == "true" ]] && return
-	
-	mkdir -p "$instancedFakeHome"
-	
-	if [[ "$appGlobalFakeHome" == "" ]]
-	then
-		#cp -a "$globalFakeHome"/. "$instancedFakeHome"
-		rsync -q -ax --exclude "/.cache" "$globalFakeHome"/ "$instancedFakeHome"/
-		return
-	fi
-	
-	if [[ "$appGlobalFakeHome" != "" ]]
-	then
-		#cp -a "$appGlobalFakeHome"/. "$instancedFakeHome"
-		rsync -q -ax --exclude "/.cache" "$appGlobalFakeHome"/ "$instancedFakeHome"/
-		return
-	fi
+	mkdir -p "$actualFakeHome"
 }
 
 _rm_instance_fakeHome() {
-	rmdir "$instancedFakeHome" > /dev/null 2>&1
+	! [[ -e "$instancedFakeHome" ]] && return 0
+	
+	[[ -e "$instancedFakeHome" ]] && rmdir "$instancedFakeHome" > /dev/null 2>&1
+	
+	[[ -e "$instancedFakeHome" ]] && _unmakeFakeHome "$instancedFakeHome" > /dev/null 2>&1
 	
 	# DANGER Allows folders containing ".git" to be removed in all further shells inheriting this environment!
 	export safeToDeleteGit="true"
-	
-	[[ -e "$instancedFakeHome" ]] & _safeRMR "$instancedFakeHome"
+	[[ -e "$instancedFakeHome" ]] && _safeRMR "$instancedFakeHome"
+	export safeToDeleteGit="false"
 }
 
 ##### VBoxVars
@@ -7604,6 +8300,17 @@ _extra() {
 	true
 }
 
+_prepare_abstract() {
+	! mkdir -p "$abstractfs_root" && exit 1
+	chmod 0700 "$abstractfs_root" > /dev/null 2>&1
+	! chmod 700 "$abstractfs_root" && exit 1
+	! chown "$USER":"$USER" "$abstractfs_root" && exit 1
+	
+	! mkdir -p "$abstractfs_lock" && exit 1
+	chmod 0700 "$abstractfs_lock" > /dev/null 2>&1
+	! chmod 700 "$abstractfs_lock" && exit 1
+	! chown "$USER":"$USER" "$abstractfs_lock" && exit 1
+}
 
 _prepare() {
 	
@@ -7616,6 +8323,8 @@ _prepare() {
 	! mkdir -p "$scriptLocal" && exit 1
 	
 	! mkdir -p "$bootTmp" && exit 1
+	
+	#_prepare_abstract
 	
 	_extra
 	_prepare_prog
@@ -7662,6 +8371,7 @@ _stop() {
 	
 	_preserveLog
 	
+	#Kill process responsible for initiating session. Not expected to be used normally, but an important fallback.
 	local ub_stop_pid
 	if [[ -e "$safeTmp"/.pid ]]
 	then
@@ -7674,8 +8384,12 @@ _stop() {
 	fi
 	
 	rm -f "$pidFile" > /dev/null 2>&1	#Redundant, as this usually resides in "$safeTmp".
+	rm -f "$ub_scope" > /dev/null 2>&1	#Symlink, or nonexistent.
+	[[ -e "$scopeTmp" ]] && _safeRMR "$scopeTmp"			#Only created if needed by scope.
 	_safeRMR "$shortTmp"
 	_safeRMR "$safeTmp"
+	
+	_tryExec _rm_instance_fakeHome
 	
 	#Optionally always try to remove any systemd shutdown hook.
 	#_tryExec _unhook_systemd_shutdown
@@ -8097,6 +8811,18 @@ _test() {
 	
 	_tryExec "_test_permissions_ubiquitous"
 	
+	echo -n -e '\E[1;32;46m Argument length...	\E[0m'
+	
+	local testArgLength
+	
+	! testArgLength=$(getconf ARG_MAX) && _messageFAIL && _stop 1
+	[[ "$testArgLength" -lt 131071 ]] && _messageFAIL && _stop 1
+	
+	_messagePASS
+	
+	echo -n -e '\E[1;32;46m Timing...		\E[0m'
+	_timetest
+	
 	_messageNormal "Dependency checking..."
 	
 	## Check dependencies
@@ -8135,6 +8861,8 @@ _test() {
 	_getDep trap
 	_getDep return
 	_getDep set
+	
+	_getDep printf
 	
 	_getDep dd
 	
@@ -8186,6 +8914,7 @@ _test() {
 	
 	_tryExec "_test_mkboot"
 	
+	_tryExec "_test_abstractfs"
 	_tryExec "_test_fakehome"
 	_tryExec "_testChRoot"
 	_tryExec "_testQEMU"
@@ -8229,17 +8958,13 @@ _test() {
 	
 	_messagePASS
 	
-	echo -n -e '\E[1;32;46m Timing...		\E[0m'
-	_timetest
-	
-	_test_prog
-	
 	_messageNormal 'Vector...'
 	_vector
 	_messagePASS
 	
-	_stop
+	_test_prog
 	
+	_stop
 }
 
 _testBuilt_prog() {
@@ -8407,8 +9132,8 @@ _package() {
 
 _check_prog() {
 	#! _typeDep java && return 1
-	! _typeDep ddd && return 1
-	! _typeDep atom && return 1
+	#! _typeDep ddd && return 1
+	#! _typeDep atom && return 1
 	
 	[[ -e "$au_openocdStaticUB" ]] && ! "$au_openocdStaticUB" _test_prog "$@" && return 1
 	
@@ -8417,8 +9142,8 @@ _check_prog() {
 
 _test_prog() {
 	#_getDep java
-	_getDep ddd
-	_getDep atom
+	#_getDep ddd
+	#_getDep atom
 	
 	[[ -e "$au_openocdStaticUB" ]] && ! "$au_openocdStaticUB" _test_prog "$@" && _stop 1
 	
@@ -8450,201 +9175,233 @@ _package_prog() {
 	cp -a "$globalFakeHome"/Arduino/. "$safeTmp"/package/arduino/portable/sketchbook
 }
 
-_prepare_installation() {
-	mkdir -p "$globalFakeHome"
-	
-	
-	_set_atomFakeHomeSource
-	
-	_relink_atom
-	
-	
-	mkdir -p "$scriptLocal"/arduino/.arduino15
-	mkdir -p "$scriptLocal"/arduino/Arduino
-	
-	mkdir -p "$scriptLocal"/arduino/"$au_arduinoDir"
-	
-	_relink "$scriptLocal"/arduino/.arduino15 "$globalFakeHome"/.arduino15
-	_relink "$scriptLocal"/arduino/Arduino "$globalFakeHome"/Arduino
-	_relink "$scriptLocal"/arduino/"$au_arduinoDir" "$globalFakeHome"/"$au_arduinoDir"
-	
-	_relink ../.arduino15 "$globalFakeHome"/"$au_arduinoDir"/portable
-	_relink ../Arduino "$globalFakeHome"/"$au_arduinoDir"/portable/sketchbook
+
+
+
+
+_set_arduino_userShortHome() {
+	export actualFakeHome="$shortFakeHome"
+	export fakeHomeEditLib="false"
+	export keepFakeHome="true"
 }
 
-_prepareAppHome() {
-	_messagePlain_nominal '_prepareAppHome'
-	
-	mkdir -p "$globalFakeHome"
-	mkdir -p "$instancedFakeHome"
-	
-	_prepare_installation
-	
-	
-	_set_atomFakeHomeSource
-	
-	mkdir -p "$instancedFakeHome"/.atom
-	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$atomFakeHomeSource"/.atom/. "$instancedFakeHome"/.atom/
-	mkdir -p "$instancedFakeHome"/.config/Atom
-	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$atomFakeHomeSource"/.config/Atom/. "$instancedFakeHome"/.config/Atom/
-	
-	
-	#rm "$instancedFakeHome"/.arduino15
-	mkdir -p "$instancedFakeHome"/.arduino15
-	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$scriptLocal"/arduino/.arduino15/. "$instancedFakeHome"/.arduino15/
-	#rm "$instancedFakeHome"/Arduino
-	mkdir -p "$instancedFakeHome"/Arduino
-	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$scriptLocal"/arduino/Arduino/. "$instancedFakeHome"/Arduino/
-	#rm "$instancedFakeHome"/"$au_arduinoDir"
-	mkdir -p "$instancedFakeHome"/"$au_arduinoDir"
-	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$scriptLocal"/arduino/"$au_arduinoDir"/. "$instancedFakeHome"/"$au_arduinoDir"/
-	
-	export ub_disable_prepareFakeHome_instance=true
+_set_arduino_editShortHome() {
+	export actualFakeHome="$shortFakeHome"
+	export fakeHomeEditLib="true"
+	export keepFakeHome="true"
 }
 
-_set_arduino_installation() {
-	if [[ "$setFakeHome" == "true" ]]
-	then
-		export au_arduinoInstallation="$HOME"/"$au_arduinoDir"
-		export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
-		_messagePlain_good 'aU: detected: setFakeHome, set: au_arduinoInstallation= '"$au_arduinoInstallation"
-		_messagePlain_good 'aU: detected: setFakeHome, set: java: user.home'
-	else
-		export au_arduinoInstallation="$globalFakeHome"/"$au_arduinoDir"
-		_messagePlain_warn 'aU: undetected: setFakeHome, default: au_arduinoInstallation= '"$au_arduinoInstallation"
-		_messagePlain_warn 'aU: undetected: setFakeHome, default: java: user.home'
-	fi
-	
-	export au_gdbBin="$HOME"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb
-	_messagePlain_probe 'au_gdbBin= '"$au_gdbBin"
+# WARNING: No production use expected.
+_set_arduino_userFakeHome() {
+	export actualFakeHome="$instancedFakeHome"
+	export fakeHomeEditLib="false"
+	export keepFakeHome="true"
 }
 
-_check_arduino_firmware() {
-	! [[ -e "$1" ]] && return 1
-	! [[ -d "$1" ]] && return 1
-	! find "$1" -maxdepth 1 -name '*.bin' | head -n 1 | grep '.bin' > /dev/null 2>&1 && return 1
-	! find "$1" -maxdepth 1 -name '*.elf' | head -n 1 | grep '.elf' > /dev/null 2>&1 && return 1
-	return 0
+# WARNING: No production use expected.
+_set_arduino_editFakeHome() {
+	export actualFakeHome="$globalFakeHome"
+	export fakeHomeEditLib="false"
+	export keepFakeHome="true"
 }
 
-_set_arduino_firmware_var() {
-	_check_arduino_firmware "$1" && export au_arduinoFirmware="$1" && return 0
-	return 1
+_prepare_arduino_installation() {
+	mkdir -p "$au_arduinoLocal"/.arduino15
+	mkdir -p "$au_arduinoLocal"/Arduino
+	
+	mkdir -p "$au_arduinoDir"
+	
+	mkdir -p "$au_arduinoDir"/portable
+	mkdir -p "$au_arduinoDir"/portable/sketchbook
+	
+	_relink ../.arduino15 "$au_arduinoDir"/portable
+	_relink ../Arduino "$au_arduinoDir"/portable/sketchbook
 }
 
-_set_arduino_firmware_default() {
-	_set_arduino_firmware_var "$shortTmp"/build && return 0
-	_set_arduino_firmware_var "$au_arduinoBuildPath" && return 0
-	return 1
+_install_fakeHome_arduino() {
+	_prepare_arduino_installation
+	
+	_link_fakeHome "$au_arduinoDir" "$au_arduinoVersion"
+	
+	_link_fakeHome "$au_arduinoLocal"/.arduino15 .arduino15
+	_link_fakeHome "$au_arduinoLocal"/Arduino Arduino
 }
 
-#Ultimately sets global variables and perferences.
-#au_arduinoFirmware
-#All parameters optional.
-#"$1" == *'.ino' || *'.bin' || *'.elf' || "$au_arduinoSketchDir"
-#"$2" == "$au_arduinoBuildPath"
-_set_arduino_firmware_dir() {
-	[[ "$1" == "" ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_warn 'set: firmware: incomplete default' && return 1
+_install_fakeHome_app() {
+	_install_fakeHome_arduino
+}
+
+_reset_arduino_sketchDir() {
+	export au_arduinoSketch=
+	export au_arduinoSketchDir=
+}
+
+_validate_arduino_sketchDir() {
+	local au_basename_test
 	
-	[[ "$1" == *'.ino' ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_warn 'set: firmware: incomplete sketch= '"$1" && return 1
-	[[ -d "$1" ]] && ! _set_arduino_firmware_default "$1" && _messagePlain_warn 'set: firmware: incomplete sketchDir= '"$1" && return 1
+	! [[ -e "$au_arduinoSketch" ]] && return 1
+	! [[ -e "$au_arduinoSketchDir" ]] && return 1
+	! [[ -d "$au_arduinoSketchDir" ]] && return 1
 	
-	if [[ "$1" == *'.bin' ]] || [[ "$1" == *'.elf' ]]
-	then
-		! [[ -e "$1" ]] && _messagePlain_bad 'set: firmware: invalid: (bin||elf)= '"$1" && return 1
-		export au_arduinoFirmware=$(_getAbsoluteFolder "$1")
-	fi
+	au_basename_test=$(basename "$au_arduinoSketchDir")
+	! [[ -e "$au_arduinoSketchDir"/"$au_basename_test".ino ]] && return 1
 	
-	[[ -d "$2" ]] && ! _set_arduino_firmware_var "$2" && _messagePlain_bad 'set: firmware: invalid: build= '"$2" && return 1
-	
-	_messagePlain_good 'set: found: firmware'
+	[[ "$au_arduinoSketch" != "$au_arduinoSketchDir"/"$au_basename_test".ino ]] && return 1
 	
 	return 0
 }
 
-#Ultimately sets global variables and perferences.
+# WARNING: Scope directory as first parameter is only supported method. All other methods are for convenience only, may be disabled, and must not be relied on.
+_set_arduino_sketchDir() {
+	local au_basename_test
+	
+	if [[ -d "$1" ]] && [[ -e "$1" ]]
+	then
+		_reset_arduino_sketchDir
+		au_basename_test=
+		export au_arduinoSketchDir=$(_getAbsoluteLocation "$1")
+		au_basename_test=$(basename "$au_arduinoSketchDir")
+		export au_arduinoSketch="$au_arduinoSketchDir"/"$au_basename_test".ino
+		
+		_validate_arduino_sketchDir && return 0
+		
+		#Fallback. Fatal error, tool.
+		_messagePlain_bad 'missing: au_arduinoSketch'
+		return 1
+	fi
+	
+	if [[ "$1" == *".ino" ]]
+	then
+		_reset_arduino_sketchDir
+		au_basename_test=
+		export au_arduinoSketch=$(_getAbsoluteLocation "$1")
+		export au_arduinoSketchDir=$(_getAbsoluteFolder "$1")
+		_validate_arduino_sketchDir && return 0
+		
+		#Fallback. Fatal error, tool.
+		_messagePlain_bad 'mismatch: au_arduinoSketch, au_arduinoSketchDir'
+		return 1
+	fi
+	
+	_reset_arduino_sketchDir
+	au_basename_test=
+	export au_arduinoSketchDir=$(_getAbsoluteLocation "$PWD")
+	au_basename_test=$(basename "$au_arduinoSketchDir")
+	export au_arduinoSketch="$au_arduinoSketchDir"/"$au_basename_test".ino
+	_validate_arduino_sketchDir && return 0
+	
+	#Fallback. Fatal error, tool.
+	_messagePlain_bad 'missing: ./"$au_arduinoSketch"'
+	return 1
+}
+
+_set_arduino_compile() {
+	export au_arduinoBuildOut="$au_arduinoSketchDir"/_build
+}
+
+_set_arduino_var() {
+	_set_arduino_sketchDir "$@"
+	_set_arduino_compile
+	_messagePlain_probe 'au_arduinoSketch= '"$au_arduinoSketch"
+	_messagePlain_probe 'au_arduinoSketchDir= '"$au_arduinoSketchDir"
+}
+
+#Example, override with "core.sh" .
+_scope_var_here_prog() {
+	cat << CZXWXcRMTo8EmM8i4d
+
+#Global Variables and Defaults
+export au_arduinoLocal="$scriptLocal"/arduino
+
+export au_arduinoVersion=arduino-1.8.5
+export au_arduinoDir="$au_arduinoLocal"/"$au_arduinoVersion"
+
+export au_gdbBin="$au_arduinoLocal"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb
+
+export au_openocdStatic="$scriptLib"/openocd-static
+export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
+export au_openocdStaticBin="$au_openocdStatic"/build/bin/openocd
+export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
+
+
+#Sketch
+export au_arduinoSketch="$au_arduinoSketch"
+export au_arduinoSketchDir="$au_arduinoSketchDir"
+export au_arduinoBuildOut="$au_arduinoBuildOut"
+
+
+
+
+
 #au_arduinoFirmware
 #au_arduinoFirmware_bin
 #au_arduinoFirmware_elf
-#All parameters optional.
-#"$1" == *'.ino' || *'.bin' || *'.elf' || "$au_arduinoSketchDir"
-#"$2" == "$au_arduinoBuildPath"
-_set_arduino_firmware() {
-	! _set_arduino_firmware_dir "$@" && return 1
-	
-	export au_arduinoFirmware_bin=$(find "$au_arduinoFirmware" -maxdepth 1 -name '*.bin' | head -n 1)
-	export au_arduinoFirmware_elf=$(find "$au_arduinoFirmware" -maxdepth 1 -name '*.elf' | head -n 1)
-	
-	_messagePlain_probe 'au_arduinoFirmware= '"$au_arduinoFirmware"
-	_messagePlain_probe 'au_arduinoFirmware_bin= '"$au_arduinoFirmware_bin"
-	_messagePlain_probe 'au_arduinoFirmware_elf= '"$au_arduinoFirmware_elf"
-	
-	return 0
-}
 
-# WARNING: Assumes first fileparameter given to arduino is sketch or directory therof .
-_prepare_arduino_compile() {
-	_messagePlain_nominal 'aU: set: sketch'
-	
-	[[ "$1" == "" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
-	
-	export au_arduinoSketch=$(_arduino_sketch "$@")
-	export au_arduinoSketchDir=$(_arduino_sketchDir "$@")
-	export au_arduinoBuildPath="$au_arduinoSketchDir"/build
-	
-	! [[ -e "$au_arduinoSketchDir" ]] && _messagePlain_warn 'aU: undef: sketch' && return 1
-	_messagePlain_good 'aU: found: sketch= '"$au_arduinoSketchDir"
-	
-	#Looks for an ops file in same directory as sketch.
-	! [[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_warn 'aU: undef: sketch ops'
-	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
-	
-	return 0
-}
+#au_arduinoFirmware
 
-#Ultimately sets several global variables and preferences.
+
+#setFakeHome
+
 #au_arduinoInstallation
-#au_arduinoSketchDir
-#au_arduinoBuildPath (save binaries, do NOT build here!)
-_prepare_arduino() {
-	_gather_params "$@"
-	_messagePlain_probe 'globalArgs= '"${globalArgs[@]}"
+
+CZXWXcRMTo8EmM8i4d
+}
+
+#Example, override with "core.sh" .
+_scope_attach() {
+	_messagePlain_nominal '_scope_attach: init'
 	
-	_set_arduino_installation "$@"
+	export afs_nofs=true
 	
-	_prepare_installation "$@"
+	_set_arduino_var "$@"
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
+	_prepare_arduino_installation
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
 	
-	_prepare_arduino_compile "$@"
+	_messagePlain_nominal '_scope_attach: deploy'
 	
-	_set_arduino_firmware
+	_scope_here > "$ub_scope"/.devenv
+	_scope_readme_here > "$ub_scope"/README
 	
-	_ops_arduino_sketch "$@"
+	_scope_command_write _arduinoide
 	
-	_prepare_arduino_board "$@"
+	_scope_command_write _compile
+	_scope_command_write _upload
+	_scope_command_write _run
 	
-	_messagePlain_nominal 'aU: set: sketchbook.path'
-	if [[ "$setFakeHome" == "true" ]]
+	_scope_command_write _gdb
+	
+	_scope_command_write _ddd
+	_scope_command_write _interface_debug_atom
+	_scope_command_write _atom
+	_scope_command_write _interface_debug_eclipse
+	_scope_command_write _eclipse
+}
+
+_arduino_scope() {
+	export ub_scope_name='arduino'
+	"$scriptAbsoluteLocation" _scope_sequence "$@"
+}
+
+#virtualized
+_v_arduino() {
+	_userQemu "$scriptAbsoluteLocation" _arduino_scope "$@"
+}
+
+#default
+_arduino() {
+	if ! _check_prog
 	then
-		_messagePlain_good 'aU: detected: setFakeHome, set: sketchbook.path: home, rm: portable '
-		_arduino_executable --save-prefs --pref sketchbook.path="$HOME"/Arduino
-		rm "$HOME"/"$au_arduinoDir"/portable/sketchbook
-		rm "$HOME"/"$au_arduinoDir"/portable
-	else
-		 _messagePlain_warn 'aU: undetected: setFakeHome, set: sketchbook.path: portable'
-		 _arduino_executable --save-prefs --pref sketchbook.path="$au_arduinoInstallation"/portable/sketchbook && return 0
+		_messageNormal 'Launch: _v'${FUNCNAME[0]}
+		_v${FUNCNAME[0]} "$@"
+		return
 	fi
-}
+	_arduino_scope "$@" && return 0
 
-# ATTENTION Overload with ops!
-_prepare_arduino_board() {
-	_set_arduino_board_zero_native
-}
-
-_set_arduino_board_zero_native() {
-	_messagePlain_nominal 'aU: set: board'
-	_arduino_executable --save-prefs --pref programmer=arduino:sam_ice
-	_arduino_executable --save-prefs --pref target_platform=samd
-	_arduino_executable --save-prefs --pref board=arduino_zero_native
+	#_messageNormal 'Launch: _v'${FUNCNAME[0]}
+	#_v${FUNCNAME[0]} "$@"
 }
 
 #Intended to be used as an ops override.
@@ -8652,79 +9409,39 @@ _ops_arduino_sketch() {
 	true
 }
 
-# DANGER Not recommended!
-_make_clean() {
-	[[ "$1" == "" ]] && return 1
-	! [[ -e "$1" ]] && return 1
-	
-	local arduinoBuildPathRM
-	local arduinoSketchDirRM
-	
-	if arduinoSketchDirRM=$(_arduino_sketchDir "$@")
+#Redundant under scope.
+_import_ops_sketch() {
+	if [[ -e "$au_arduinoSketchDir"/ops ]]
 	then
-		arduinoBuildPathRM="$arduinoSketchDirRM"/_build
-		_messagePlain_warn 'rm -rf '"$arduinoBuildPathRM"
-		# DANGER Do NOT change this carelessly!
-		[[ -e "$arduinoBuildPathRM" ]] && _safeBackup "$arduinoBuildPathRM" && rm -rf "$arduinoBuildPathRM"
-	fi
-}
-
-# WARNING: Assumes first fileparameter given to arduino is sketch or directory therof .
-_arduino_sketch() {
-	local currentArg
-	
-	#for currentArg in "$1"
-	for currentArg in "$@"
-	do
-		! [[ -e "$currentArg" ]] && continue
-		[[ "$currentArg" == *'ubiquitous_bash.sh' ]] && continue
-		
-		local compilerInputAbsolute
-		
-		if [[ -d "$currentArg" ]]
-		then
-			compilerInputAbsolute=$(find "$currentArg" -maxdepth 1 -name '*.ino' | head -n 1 | grep '.ino')
-			compilerInputAbsolute=$(_getAbsoluteLocation "$compilerInputAbsolute")
-			echo "$compilerInputAbsolute"
-			return 0
-		fi
-		
-		compilerInputAbsolute=$(_getAbsoluteLocation "$currentArg")
-		
-		echo "$compilerInputAbsolute"
-		
-		return 0
-	done
-	
-	return 1
-}
-
-# WARNING: Assumes first fileparameter given to arduino is sketch or directory therof .
-_arduino_sketchDir() {
-	local compilerInputAbsolute
-	if ! compilerInputAbsolute=$(_arduino_sketch "$@")
-	then
+		_messagePlain_nominal 'aU: found: sketch ops'
+		. "$au_arduinoSketchDir"/ops
 		return 1
 	fi
 	
-	local compilerInputAbsoluteDirectory
-	compilerInputAbsoluteDirectory=$(_findDir "$compilerInputAbsolute")
-	
-	! [[ -e "$compilerInputAbsoluteDirectory" ]] && return 1
-	
-	echo "$compilerInputAbsoluteDirectory"
-	
+	_messagePlain_warn 'aU: missing: sketch ops'
 	return 0
 }
 
+_arduino_executable() {
+	! [[ -e "$arduinoExecutable" ]] && export arduinoExecutable="$HOME"/"$au_arduinoVersion"/arduino
+	! [[ -e "$arduinoExecutable" ]] && export arduinoExecutable="$au_arduinoDir"/arduino
+	
+	export sharedHostProjectDir=/
+	export sharedGuestProjectDir=/
+	_virtUser "$@"
+	
+	_messagePlain_probe "$arduinoExecutable" "$@"
+	_messagePlain_probe "$arduinoExecutable" "${processedArgs[@]}"
+	"$arduinoExecutable" "${processedArgs[@]}"
+}
+
 #Arduino may ignore "--pref" parameters, possibly due to bugs present in some versions. Consequently, it is possible some stored preferences may interfere with normal script operation. As a precaution, these are deleted.
-_arduino_deconfigure_commands() {
+_arduino_deconfigure_procedure() {
 	local arduinoPreferences
 	
-	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome, preferences: portable' && arduinoPreferences="$au_arduinoInstallation"/portable/preferences.txt
-	[[ "$setFakeHome" == "true" ]] && _messagePlain_good 'aU: detected: setFakeHome, set: preferences: home' && arduinoPreferences="$HOME"/.arduino15/preferences.txt
+	arduinoPreferences="$1"
 	
-	! [[ -e "$arduinoPreferences" ]] && arduinoPreferences="$HOME"/.arduino15/preferences.txt
+	! [[ -e "$arduinoPreferences" ]] && _messagePlain_bad 'aU: missing: preferences' && return 1
 	
 	mv "$arduinoPreferences" "$safeTmp"/preferences.txt
 	
@@ -8741,324 +9458,129 @@ _arduino_deconfigure_commands() {
 	mv "$safeTmp"/intermediate "$safeTmp"/preferences.txt
 	
 	mv "$safeTmp"/preferences.txt "$arduinoPreferences"
+	
+	[[ -e "$safeTmp"/preferences.txt ]] && _messagePlain_bad 'aU: fail: mv preferences' && return 1
+	
+	grep '^sketchbook\.path' "$arduinoPreferences" >/dev/null 2>&1 && _messagePlain_bad 'aU: fail: deconfigure: sketchbook.path' && return 1
+	grep '^last\.' "$arduinoPreferences" >/dev/null 2>&1 && _messagePlain_bad 'aU: fail: deconfigure: last' && return 1
+	grep '^recent\.' "$arduinoPreferences" >/dev/null 2>&1 && _messagePlain_bad 'aU: fail: deconfigure: recent' && return 1
+	grep '^build\.path' "$arduinoPreferences" >/dev/null 2>&1 && _messagePlain_bad 'aU: fail: deconfigure: build.path' && return 1
+	
+	return 0
 }
 
+#Example. No direct production use.
 _arduino_deconfigure_sequence() {
 	_start
 	
-	_arduino_deconfigure_commands "$@"
+	_arduino_deconfigure_procedure "$HOME"/.arduino15/preferences.txt
+	_arduino_deconfigure_procedure "$au_arduinoLocal"/.arduino15/preferences.txt
+	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
 	_stop
 }
 
+#End-user. No direct production use.
 _arduino_deconfigure() {
 	"$scriptAbsoluteLocation" _arduino_deconfigure_sequence "$@"
 }
 
-_launch_env() {
+#config, assumes portable directories have been setup
+# WARNING: No production use.
+_arduino_config() {
 	_start
 	
-	_messageNormal "aU: Configure."
-	_prepare_arduino "$@"
+	_set_arduino_var "$@"
+	_set_arduino_editShortHome
+	#_set_arduino_userShortHome
+	_prepare_arduino_installation
+	export arduinoExecutable="$au_arduinoDir"/arduino
+	#export arduinoExecutable=
 	
-	[[ -e "$au_arduinoSketchDir"/ops ]] && _messagePlain_nominal 'aU: found: sketch ops' && . "$au_arduinoSketchDir"/ops
-	_messageNormal "aU: Launch."
-	"$@"
+	#_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
+	_arduino_executable "$@"
 	
-	_messageNormal "aU: Deconfigure."
-	_arduino_deconfigure_commands "$@"
-}
-
-_arduino_executable() {
-	local arduinoExecutable
-	arduinoExecutable="$au_arduinoInstallation"/arduino
+	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
-	export sharedHostProjectDir=/
-	export sharedGuestProjectDir=/
-	_virtUser "$@"
-	
-	_messagePlain_probe "$arduinoExecutable" "${processedArgs[@]}"
-	"$arduinoExecutable" "${processedArgs[@]}"
+	_stop
 }
 
-_arduino_swd_openocd() {
-	_messagePlain_probe "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
-	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@" &
-	export au_openocdPID="$!"
-}
-
-_arduino_swd_openocd_zero() {
-	_arduino_swd_openocd -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; tcl_port disabled; gdb_port "$au_remotePort "$@"
-}
-
-_arduino_swd_openocd_device() {
-	_arduino_swd_openocd_zero "$@"
-}
-
-#Requires bootloader.
-_arduino_upload_swd_openocd_zero() {
-	_arduino_swd_openocd_zero -c "telnet_port disabled; program {""$au_arduinoFirmware_bin""} verify reset 0x00002000; shutdown"
-	wait "$au_openocdPID"
-}
-
-#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
-_arduino_upload_serial_bossac() {
-	local arduinoSerialPort
-	
-	arduinoSerialPort=ttyACM0
-	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM1
-	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM2
-	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB0
-	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB1
-	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB2
-	! [[ -e /dev/"$arduinoSerialPort" ]] && return 1
-	
-	stty --file="$arduinoSerialPort" 1200;stty stop x --file=/dev/"$arduinoSerialPort";stty --file="$arduinoSerialPort" 1200;stty stop x --file="$arduinoSerialPort";
-	sleep 2
-	"$globalFakeHome"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port="$arduinoSerialPort" -U true -i -e -w -v "$au_arduinoFirmware_bin" -R
-}
-
-
-#edit
+#edit, fakeHome
 _arduino_edit() {
-	_editFakeHome "$scriptAbsoluteLocation" _launch_env _arduino_executable "$@"
+	_start
+	
+	_set_arduino_var "$@"
+	_set_arduino_editShortHome
+	#_set_arduino_userShortHome
+	_prepare_arduino_installation
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
+	#_arduino_executable "$@"
+	
+	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
+	
+	_stop
 }
 
-#user
-_arduino_user() {
-	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_executable "$@"
+_arduinoide() {
+	_arduino_edit "$@"
 }
 
-#config, assumes portable directories have been setup
-_arduino_config() {
-	"$scriptAbsoluteLocation" _launch_env _arduino_executable "$@"
-}
 
-#virtualized
-_v_arduino() {
-	_userQemu "$scriptAbsoluteLocation" _arduino_user "$@"
-}
-
-#default
-_arduino() {
-	if ! _check_prog
-	then
-		_messageNormal 'Launch: _v'${FUNCNAME[0]}
-		_v${FUNCNAME[0]} "$@"
-		return
-	fi
-	_arduino_user "$@" && return 0
-
-	#_messageNormal 'Launch: _v'${FUNCNAME[0]}
-	#_v${FUNCNAME[0]} "$@"
-}
-
-# ATTENTION Overload with ops! (well no, actually probably not any reason to do so here)
-_arduino_compile_commands() {
+# ATTENTION: Overload with ops! (well no, actually probably not any reason to do so here)
+_arduino_compile_procedure() {
 	_messagePlain_nominal 'Compile.'
 	
-	mkdir -p "$shortTmp"/build
-	_arduino_executable --save-prefs --pref build.path="$shortTmp"/build
+	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
+	_set_arduino_userShortHome
 	
-	_arduino_executable --verify "$au_arduinoSketch"
+	mkdir -p "$shortTmp"/_build
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable --save-prefs --pref build.path="$shortTmp"/_build
 	
-	mkdir -p "$au_arduinoBuildPath"
-	cp "$shortTmp"/build/*.bin "$au_arduinoBuildPath"/
-	cp "$shortTmp"/build/*.hex "$au_arduinoBuildPath"/
-	#cp "$shortTmp"/build/*.elf "$au_arduinoBuildPath"/
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable --verify "$au_arduinoSketch"
+	
+	mkdir -p "$au_arduinoSketchDir"/_build
+	cp "$shortTmp"/_build/*.bin "$au_arduinoSketchDir"/_build/
+	cp "$shortTmp"/_build/*.hex "$au_arduinoSketchDir"/_build/
+	cp "$shortTmp"/_build/*.elf "$au_arduinoSketchDir"/_build/
+}
+
+_arduino_compile_sequence() {
+	_start
+	
+	_set_arduino_var "$@"
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
+	_prepare_arduino_installation
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	
+	#_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
+	#_arduino_executable "$@"
+	_arduino_compile_procedure "$@"
+	
+	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
+	
+	_stop
 }
 
 _arduino_compile() {
-	#_make_clean "$@" # DANGER Not recommended!
-	
-	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_compile_commands "$@"
+	_arduino_compile_sequence "$@"
 }
 
-
-_arduino_upload_zero_commands() {
-	_messagePlain_nominal 'Upload.'
-	
-	_set_arduino_firmware "$1"
-	
-	#Upload over SWD debugger.
-	_arduino_upload_swd_openocd_zero
-	
-	if [[ $? != 0 ]]	#SWD upload failed.
-	then
-		_arduino_upload_serial_bossac
-	fi
-	
-	sleep 1
-	([[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]]) && return 0
-	sleep 3
-	([[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]]) && return 0
-	sleep 9
-	([[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]]) && return 0
-	return 1
-}
-
-# ATTENTION Overload with ops!
-_arduino_upload_commands() {
-	! _check_arduino_firmware "$au_arduinoFirmware" && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
-	_arduino_upload_zero_commands "$@"
-}
-
-#Applicable to other Arduino SAMD21 variants.
-_arduino_upload() {
-	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_upload_commands "$@"
-}
-
-_arduino_run_commands() {
-	_arduino_compile_commands "$@"
-	_arduino_upload_commands "$@"
-}
-
-#Applicable to other Arduino SAMD21 variants.
-_arduino_run() {
-	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_run_commands "$@"
-}
-
-_here_gdbinit_debug() {
-cat << CZXWXcRMTo8EmM8i4d
-#####Config
-#search path
-#	/arduino/sketch
-
-#####Startup
-
-file "$au_arduinoFirmware_elf"
-
-#set substitute-path /arduino/_build/sketch /arduino/sketch
-#set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
-
-#####Remote
-
-set \$au_remotePort=$au_remotePort
-
-eval "target extended-remote localhost:%d", $au_remotePort
-
-monitor reset halt
-
-monitor reset init
-
-CZXWXcRMTo8EmM8i4d
-}
-
-_here_gdbinit_delegate() {
-cat << CZXWXcRMTo8EmM8i4d
-#####Config
-#search path
-#	/arduino/sketch
-
-#####Startup
-
-file "$au_arduinoFirmware_elf"
-
-#set substitute-path /arduino/_build/sketch /arduino/sketch
-#set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
-
-#####Remote
-
-set \$au_remotePort=$au_remotePort
-
-CZXWXcRMTo8EmM8i4d
-}
-
-
-#Applicable to other Arduino SAMD21 variants.
-_arduino_debug_zero_commands() {
-	_messagePlain_nominal 'Debug.'
-	
-	_set_arduino_firmware
-	! _check_arduino_firmware "$au_arduinoFirmware" && _messagePlain_bad 'fail: missing: firmware' && return 1
-	
-	export au_remotePort=$(_findPort)
-	
-	_arduino_swd_openocd_device
-	
-	_here_gdbinit_debug > "$safeTmp"/.gdbinit
-	
-	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit
-	ddd --debugger "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit
-	
-	#Kill process only if name is openocd.
-	kill $(pgrep openocd | grep "$au_openocdPID")
-}
-
-# ATTENTION Overload with ops!
-_arduino_debug_commands() {
-	_arduino_debug_zero_commands "$@"
-}
-
-_arduino_debug_actions() {
-	_arduino_run_commands "$@"
-	_arduino_debug_commands
-}
-
-_arduino_debug() {
-	_userShortHome "$scriptAbsoluteLocation" _launch_env _arduino_debug_actions "$@"
+_compile() {
+	_arduino_compile_procedure "$@"
 }
 
 
 
-_interface_debug_aide() {
-	_set_arduino_firmware > /dev/tty 2>&1
-	! _check_arduino_firmware "$au_arduinoFirmware" && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
-	
-	export au_remotePort=$(_findPort)
-	
-	_arduino_swd_openocd_device > /dev/tty 2>&1
-	
-	_here_gdbinit_delegate > "$safeTmp"/.gdbinit
-	#_messagePlain_probe "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@" > /dev/tty
-	"$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
-	
-	#Kill process only if name is openocd.
-	#_messagePlain_probe 'au_openocdPID= '$au_openocdPID > /dev/tty 2>&1
-	kill $(pgrep openocd | grep "$au_openocdPID") > /dev/tty 2>&1
-}
-export -f _interface_debug_aide
 
 
 
 
 
-# ATTENTION By now, everything is already within a fakeHome subshell. AIDE will possess same fakeHome environment, exported variables, and exported functions. However, "$scriptAbsoluteLocation" was invoked by _launch_env, creating a new session. Login shells may lose, or reimport, unexported functions.
-_aide_commands() {
-	
-	_messagePlain_probe "$sessionid"
-	. "$scriptAbsoluteLocation" --parent _echo true
-	_messagePlain_probe "$sessionid"
-	
-	_gather_params "$@"
-	_messagePlain_probe 'globalArgs= '"${globalArgs[@]}"
-	
-	#export keepFakeHome="false"
-	atom --foreground "$@"
-}
-
-#"AppIDE", not "AtomIDE", or "ArduinoIDE".
-_aide() {
-	_userShortHome "$scriptAbsoluteLocation" _launch_env _aide_commands "$@"
-}
-
-
-_arduino_bootloader_m0() {
-	"$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/.arduino15/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLib"/ArduinoCore-samd/variants/arduino_mzero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLib""/ArduinoCore-samd/bootloaders/mzero/Bootloader_D21_M0_150515.hex}} verify reset; shutdown"
-}
-
-_arduino_bootloader_zero() {
-	"$globalFakeHome"/"$au_arduinoDir"/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/bin/openocd -d2 -s "$globalFakeHome"/"$au_arduinoDir"/portable/packages/arduino/tools/openocd/0.9.0-arduino6-static/share/openocd/scripts/ -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {{""$scriptLib""/ArduinoCore-samd/bootloaders/zero/samd21_sam_ba.bin}} verify reset; shutdown"
-}
-
-_arduino_bootloader() {
-	_arduino_bootloader_zero "$@"
-}
-
-
-_arduino_blink() {
-	_arduino_run "$scriptLib"/Blink/Blink.ino
-}
 
 _refresh_anchors_task() {
 	true
@@ -9067,12 +9589,14 @@ _refresh_anchors_task() {
 #duplicate _anchor
 _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide
+	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_compile
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_upload
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_run
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_debug
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_aide
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_blink
 	
@@ -9084,7 +9608,6 @@ _refresh_anchors() {
 }
 
 
-#####^ Core
 
 #####Program
 
@@ -9218,6 +9741,7 @@ _init_deps() {
 	export enUb_DosBox=""
 	export enUb_msw=""
 	export enUb_fakehome=""
+	export enUb_abstractfs=""
 	export enUb_buildBash=""
 	export enUb_buildBashUbiquitous=""
 	
@@ -9303,36 +9827,43 @@ _deps_virt() {
 }
 
 _deps_chroot() {
+	_deps_notLean
 	_deps_virt
 	export enUb_ChRoot="true"
 }
 
 _deps_qemu() {
+	_deps_notLean
 	_deps_virt
 	export enUb_QEMU="true"
 }
 
 _deps_vbox() {
+	_deps_notLean
 	_deps_virt
 	export enUb_vbox="true"
 }
 
 _deps_docker() {
+	_deps_notLean
 	_deps_virt
 	export enUb_docker="true"
 }
 
 _deps_wine() {
 	_deps_notLean
+	_deps_virt
 	export enUb_wine="true"
 }
 
 _deps_dosbox() {
 	_deps_notLean
+	_deps_virt
 	export enUb_DosBox="true"
 }
 
 _deps_msw() {
+	_deps_notLean
 	_deps_virt
 	_deps_qemu
 	_deps_vbox
@@ -9342,7 +9873,14 @@ _deps_msw() {
 
 _deps_fakehome() {
 	_deps_notLean
+	_deps_virt
 	export enUb_fakehome="true"
+}
+
+_deps_abstractfs() {
+	_deps_notLean
+	_deps_virt
+	export enUb_abstractfs="true"
 }
 
 _deps_command() {
@@ -9496,6 +10034,7 @@ _compile_bash_deps() {
 		_deps_dosbox
 		_deps_msw
 		_deps_fakehome
+		_deps_abstractfs
 		
 		_deps_git
 		_deps_bup
@@ -9537,6 +10076,7 @@ _compile_bash_deps() {
 		_deps_dosbox
 		_deps_msw
 		_deps_fakehome
+		_deps_abstractfs
 		
 		_deps_git
 		_deps_bup
@@ -9604,6 +10144,8 @@ _compile_bash_essential_utilities() {
 	includeScriptList+=( "generic/filesystem/permissions"/checkpermissions.sh )
 	includeScriptList+=( "generic"/findInfrastructure.sh )
 	includeScriptList+=( "generic"/gather.sh )
+	
+	includeScriptList+=( "generic/filesystem"/internal.sh )
 	
 	includeScriptList+=( "generic"/messaging.sh )
 	
@@ -9686,7 +10228,13 @@ _compile_bash_utilities_virtualization() {
 	[[ "$enUb_virt" == "true" ]] && includeScriptList+=( "virtualization"/osTranslation.sh )
 	[[ "$enUb_virt" == "true" ]] && includeScriptList+=( "virtualization"/localPathTranslation.sh )
 	
+	[[ "$enUb_abstractfs" == "true" ]] && includeScriptList+=( "virtualization/abstractfs"/abstractfs.sh )
+	[[ "$enUb_abstractfs" == "true" ]] && includeScriptList+=( "virtualization/abstractfs"/abstractfsvars.sh )
+	
+	[[ "$enUb_fakehome" == "true" ]] && includeScriptList+=( "virtualization/fakehome"/fakehomemake.sh )
 	[[ "$enUb_fakehome" == "true" ]] && includeScriptList+=( "virtualization/fakehome"/fakehome.sh )
+	[[ "$enUb_fakehome" == "true" ]] && includeScriptList+=( "virtualization/fakehome"/fakehomeuser.sh )
+	includeScriptList+=( "virtualization/fakehome"/fakehomereset.sh )
 	
 	[[ "$enUb_image" == "true" ]] && includeScriptList+=( "virtualization/image"/mountimage.sh )
 	[[ "$enUb_image" == "true" ]] && includeScriptList+=( "virtualization/image"/createImage.sh )
@@ -9738,8 +10286,11 @@ _compile_bash_shortcuts() {
 	
 	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev"/devsearch.sh )
 	
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devemacs.sh )
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devatom.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devemacs.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devatom.sh )
+	
+	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/scope"/devscope.sh )
+	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/scope"/devscope_here.sh )
 	
 	[[ "$enUb_git" == "true" ]] && includeScriptList+=( "shortcuts/git"/git.sh )
 	[[ "$enUb_git" == "true" ]] && includeScriptList+=( "shortcuts/git"/gitBare.sh )

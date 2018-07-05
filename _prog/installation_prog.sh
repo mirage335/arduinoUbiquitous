@@ -1,7 +1,7 @@
 _check_prog() {
 	#! _typeDep java && return 1
-	! _typeDep ddd && return 1
-	! _typeDep atom && return 1
+	#! _typeDep ddd && return 1
+	#! _typeDep atom && return 1
 	
 	[[ -e "$au_openocdStaticUB" ]] && ! "$au_openocdStaticUB" _test_prog "$@" && return 1
 	
@@ -10,8 +10,8 @@ _check_prog() {
 
 _test_prog() {
 	#_getDep java
-	_getDep ddd
-	_getDep atom
+	#_getDep ddd
+	#_getDep atom
 	
 	[[ -e "$au_openocdStaticUB" ]] && ! "$au_openocdStaticUB" _test_prog "$@" && _stop 1
 	
