@@ -1,7 +1,3 @@
-
-
-
-
 _set_arduino_userShortHome() {
 	export actualFakeHome="$shortFakeHome"
 	export fakeHomeEditLib="false"
@@ -39,6 +35,10 @@ _prepare_arduino_installation() {
 	
 	_relink ../.arduino15 "$au_arduinoDir"/portable
 	_relink ../Arduino "$au_arduinoDir"/portable/sketchbook
+	
+	#Default not to create "project.afs" file, unless "$afs_nofs" explicitly set to "false".
+	[[ "$afs_nofs" != "false" ]] && export afs_nofs=true
+	[[ -e "$au_arduinoSketchDir" ]] && _abstractfs true "$au_arduinoSketchDir"
 }
 
 _install_fakeHome_arduino() {
@@ -244,25 +244,22 @@ _import_ops_sketch() {
 }
 
 _arduino_executable() {
-	local localFunctionEntryPWD
-	localFunctionEntryPWD="$PWD"
-	
 	! [[ -e "$arduinoExecutable" ]] && export arduinoExecutable="$HOME"/"$au_arduinoVersion"/arduino
 	! [[ -e "$arduinoExecutable" ]] && export arduinoExecutable="$au_arduinoDir"/arduino
-	
-	#Default not to use "project.afs" file, unless "$afs_nofs" explicitly set to "false".
-	[[ "$afs_nofs" != "false" ]] && export afs_nofs=true
 	
 	export sharedHostProjectDir=/
 	export sharedGuestProjectDir=/
 	_virtUser "$@"
 	
-	cd
-	_messagePlain_probe _abstractfs "$arduinoExecutable" "$@"
-	_messagePlain_probe _abstractfs "$arduinoExecutable" "${processedArgs[@]}"
-	_abstractfs "$arduinoExecutable" "${processedArgs[@]}"
+	#Do not create "project.afs". Create elsewhere if desired.
+	export afs_nofs=true
 	
-	cd "$localFunctionEntryPWD"
+	#_messagePlain_probe _abstractfs "$arduinoExecutable" "$@"
+	#_messagePlain_probe _abstractfs "$arduinoExecutable" "${processedArgs[@]}"
+	_abstractfs "$arduinoExecutable" "${processedArgs[@]}"
+	_messagePlain_probe 'localPWD= '"$localPWD"
+	_messagePlain_probe 'abstractfs_base= '"$abstractfs_base"
+	_messagePlain_probe _abstractfs "$arduinoExecutable" "${processedArgs[@]}"
 }
 
 #Arduino may ignore "--pref" parameters, possibly due to bugs present in some versions. Consequently, it is possible some stored preferences may interfere with normal script operation. As a precaution, these are deleted.
@@ -361,7 +358,13 @@ _arduinoide() {
 
 # ATTENTION: Overload with ops! (well no, actually probably not any reason to do so here)
 _arduino_compile_procedure() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
 	_messagePlain_nominal 'Compile.'
+	
+	#Current directory is generally irrelevant to arduino, and if different from sketchDir, may cause problems.
+	cd "$au_arduinoSketchDir"
 	
 	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
 	_set_arduino_userShortHome
@@ -375,6 +378,8 @@ _arduino_compile_procedure() {
 	cp "$shortTmp"/_build/*.bin "$au_arduinoSketchDir"/_build/
 	cp "$shortTmp"/_build/*.hex "$au_arduinoSketchDir"/_build/
 	cp "$shortTmp"/_build/*.elf "$au_arduinoSketchDir"/_build/
+	
+	cd "$localFunctionEntryPWD"
 }
 
 _arduino_compile_sequence() {
