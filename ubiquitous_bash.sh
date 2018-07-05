@@ -9351,8 +9351,6 @@ CZXWXcRMTo8EmM8i4d
 _scope_attach() {
 	_messagePlain_nominal '_scope_attach: init'
 	
-	export afs_nofs=true
-	
 	_set_arduino_var "$@"
 	#_set_arduino_editShortHome
 	_set_arduino_userShortHome
@@ -9423,16 +9421,25 @@ _import_ops_sketch() {
 }
 
 _arduino_executable() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
 	! [[ -e "$arduinoExecutable" ]] && export arduinoExecutable="$HOME"/"$au_arduinoVersion"/arduino
 	! [[ -e "$arduinoExecutable" ]] && export arduinoExecutable="$au_arduinoDir"/arduino
+	
+	#Default not to use "project.afs" file, unless "$afs_nofs" explicitly set to "false".
+	[[ "$afs_nofs" != "false" ]] && export afs_nofs=true
 	
 	export sharedHostProjectDir=/
 	export sharedGuestProjectDir=/
 	_virtUser "$@"
 	
-	_messagePlain_probe "$arduinoExecutable" "$@"
-	_messagePlain_probe "$arduinoExecutable" "${processedArgs[@]}"
-	"$arduinoExecutable" "${processedArgs[@]}"
+	cd
+	_messagePlain_probe _abstractfs "$arduinoExecutable" "$@"
+	_messagePlain_probe _abstractfs "$arduinoExecutable" "${processedArgs[@]}"
+	_abstractfs "$arduinoExecutable" "${processedArgs[@]}"
+	
+	cd "$localFunctionEntryPWD"
 }
 
 #Arduino may ignore "--pref" parameters, possibly due to bugs present in some versions. Consequently, it is possible some stored preferences may interfere with normal script operation. As a precaution, these are deleted.
