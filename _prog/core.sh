@@ -57,6 +57,7 @@ _install_fakeHome_app() {
 _reset_arduino_sketchDir() {
 	export au_arduinoSketch=
 	export au_arduinoSketchDir=
+	export au_basename=
 }
 
 _validate_arduino_sketchDir() {
@@ -68,23 +69,22 @@ _validate_arduino_sketchDir() {
 	
 	au_basename_test=$(basename "$au_arduinoSketchDir")
 	! [[ -e "$au_arduinoSketchDir"/"$au_basename_test".ino ]] && return 1
+	! [[ -e "$au_arduinoSketchDir"/"$au_basename".ino ]] && return 1
 	
 	[[ "$au_arduinoSketch" != "$au_arduinoSketchDir"/"$au_basename_test".ino ]] && return 1
+	[[ "$au_arduinoSketch" != "$au_arduinoSketchDir"/"$au_basename".ino ]] && return 1
 	
 	return 0
 }
 
 # WARNING: Scope directory as first parameter is only supported method. All other methods are for convenience only, may be disabled, and must not be relied on.
 _set_arduino_sketchDir() {
-	local au_basename_test
-	
 	if [[ -d "$1" ]] && [[ -e "$1" ]]
 	then
 		_reset_arduino_sketchDir
-		au_basename_test=
 		export au_arduinoSketchDir=$(_getAbsoluteLocation "$1")
-		au_basename_test=$(basename "$au_arduinoSketchDir")
-		export au_arduinoSketch="$au_arduinoSketchDir"/"$au_basename_test".ino
+		export au_basename=$(basename "$au_arduinoSketchDir")
+		export au_arduinoSketch="$au_arduinoSketchDir"/"$au_basename".ino
 		
 		_validate_arduino_sketchDir && return 0
 		
@@ -93,12 +93,12 @@ _set_arduino_sketchDir() {
 		return 1
 	fi
 	
-	if [[ "$1" == *".ino" ]]
+	if [[ "$1" == *".ino" ]] && [[ -e "$1" ]]
 	then
 		_reset_arduino_sketchDir
-		au_basename_test=
 		export au_arduinoSketch=$(_getAbsoluteLocation "$1")
 		export au_arduinoSketchDir=$(_getAbsoluteFolder "$1")
+		export au_basename=$(basename "$au_arduinoSketchDir")
 		_validate_arduino_sketchDir && return 0
 		
 		#Fallback. Fatal error, tool.
@@ -107,10 +107,9 @@ _set_arduino_sketchDir() {
 	fi
 	
 	_reset_arduino_sketchDir
-	au_basename_test=
 	export au_arduinoSketchDir=$(_getAbsoluteLocation "$PWD")
-	au_basename_test=$(basename "$au_arduinoSketchDir")
-	export au_arduinoSketch="$au_arduinoSketchDir"/"$au_basename_test".ino
+	au_basename=$(basename "$au_arduinoSketchDir")
+	export au_arduinoSketch="$au_arduinoSketchDir"/"$au_basename".ino
 	_validate_arduino_sketchDir && return 0
 	
 	#Fallback. Fatal error, tool.
@@ -118,18 +117,41 @@ _set_arduino_sketchDir() {
 	return 1
 }
 
-_set_arduino_compile() {
-	export au_arduinoBuildOut="$au_arduinoSketchDir"/_build
+_check_arduino_debug() {
+	_checkPort_local "$au_remotePort" && return 1
+	return 0
 }
 
 _set_arduino_var() {
-	_set_arduino_sketchDir "$@"
-	_set_arduino_compile
+	if ! _set_arduino_sketchDir "$@"
+	then
+		return 1
+	fi
+	
+	export au_arduinoBuildOut="$au_arduinoSketchDir"/_build
+	
+	_checkPort_local "$au_remotePort" && export au_remotePort=$(_findPort)
+	[[ "$au_remotePort" == "" ]] && export au_remotePort=$(_findPort)
+	! _check_arduino_debug && return 1
+	
+	#Consistent name for ELF binary file, to be used by any debuggers which are infeasible to update with heurestically determined filename strings.
+	#export au_arduinoFirmware_sym="$au_arduinoBuildOut"/"$au_basename".ino.elf
+	export au_arduinoFirmware_sym="$shortTmp"/_build/"$au_basename".ino.elf
+	
+	
 	_messagePlain_probe 'au_arduinoSketch= '"$au_arduinoSketch"
 	_messagePlain_probe 'au_arduinoSketchDir= '"$au_arduinoSketchDir"
+	
+	_messagePlain_probe 'au_arduinoFirmware_bin= '"$au_arduinoFirmware_bin"
+	_messagePlain_probe 'au_arduinoFirmware_elf= '"$au_arduinoFirmware_elf"
+	
+	_messagePlain_probe 'au_remotePort= '"$au_remotePort"
+	
+	_messagePlain_probe 'au_arduinoFirmware_sym= '"$au_arduinoFirmware_sym"
+	
+	return 0
 }
 
-#Example, override with "core.sh" .
 _scope_var_here_prog() {
 	cat << CZXWXcRMTo8EmM8i4d
 
@@ -152,29 +174,24 @@ export au_arduinoSketch="$au_arduinoSketch"
 export au_arduinoSketchDir="$au_arduinoSketchDir"
 export au_arduinoBuildOut="$au_arduinoBuildOut"
 
-
-
-
-
-#au_arduinoFirmware
-#au_arduinoFirmware_bin
-#au_arduinoFirmware_elf
-
-#au_arduinoFirmware
-
-
-#setFakeHome
-
-#au_arduinoInstallation
+#Debug
+export au_remotePort="$au_remotePort"
+export au_arduinoFirmware_sym="$au_arduinoFirmware_sym"
 
 CZXWXcRMTo8EmM8i4d
 }
 
-#Example, override with "core.sh" .
 _scope_attach() {
 	_messagePlain_nominal '_scope_attach: init'
 	
-	_set_arduino_var "$@"
+	if ! _set_arduino_var "$@"
+	then
+		_messagePlain_bad 'fail: _set_arduino_var'
+		_stop 1
+	fi
+	
+	[[ "$au_arduinoSketchDir" != "$ub_specimen" ]] && _messagePlain_bad 'fail: mismatch: au_arduinoSketchDir, ub_specimen' && _stop 1
+	
 	#_set_arduino_editShortHome
 	_set_arduino_userShortHome
 	_prepare_arduino_installation
@@ -187,6 +204,8 @@ _scope_attach() {
 	_scope_readme_here > "$ub_scope"/README
 	
 	_scope_command_write _arduinoide
+	
+	_scope_command_write _bootloader
 	
 	_scope_command_write _compile
 	_scope_command_write _upload
@@ -230,7 +249,7 @@ _ops_arduino_sketch() {
 	true
 }
 
-#Redundant under scope.
+#Redundant within scope. Required by any subshell operations (eg. _compile).
 _import_ops_sketch() {
 	if [[ -e "$au_arduinoSketchDir"/ops ]]
 	then
@@ -254,12 +273,19 @@ _arduino_executable() {
 	#Do not create "project.afs". Create elsewhere if desired.
 	export afs_nofs=true
 	
-	#_messagePlain_probe _abstractfs "$arduinoExecutable" "$@"
-	#_messagePlain_probe _abstractfs "$arduinoExecutable" "${processedArgs[@]}"
-	_abstractfs "$arduinoExecutable" "${processedArgs[@]}"
 	_messagePlain_probe 'localPWD= '"$localPWD"
 	_messagePlain_probe 'abstractfs_base= '"$abstractfs_base"
+	#_messagePlain_probe _abstractfs "$arduinoExecutable" "$@"
 	_messagePlain_probe _abstractfs "$arduinoExecutable" "${processedArgs[@]}"
+	_abstractfs "$arduinoExecutable" "${processedArgs[@]}"
+}
+
+# ATTENTION: Overload with ops!
+_arduino_method() {
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
+	#_arduino_executable "$@"
 }
 
 #Arduino may ignore "--pref" parameters, possibly due to bugs present in some versions. Consequently, it is possible some stored preferences may interfere with normal script operation. As a precaution, these are deleted.
@@ -268,6 +294,7 @@ _arduino_deconfigure_procedure() {
 	
 	arduinoPreferences="$1"
 	
+	#! [[ -e "$arduinoPreferences" ]] && arduinoPreferences="$HOME"/.arduino15/preferences.txt
 	! [[ -e "$arduinoPreferences" ]] && _messagePlain_bad 'aU: missing: preferences' && return 1
 	
 	mv "$arduinoPreferences" "$safeTmp"/preferences.txt
@@ -296,6 +323,15 @@ _arduino_deconfigure_procedure() {
 	return 0
 }
 
+_arduino_deconfigure_method_procedure() {
+	_arduino_deconfigure_procedure "$HOME"/.arduino15/preferences.txt
+}
+
+# ATTENTION: Overload with ops!
+_arduino_deconfigure_method() {
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_deconfigure_method_procedure "$@"
+}
+
 #Example. No direct production use.
 _arduino_deconfigure_sequence() {
 	_start
@@ -317,16 +353,22 @@ _arduino_deconfigure() {
 _arduino_config() {
 	_start
 	
-	_set_arduino_var "$@"
+	if ! _set_arduino_var "$@"
+	then
+		true
+		#_stop 1
+	fi
+	
 	_set_arduino_editShortHome
 	#_set_arduino_userShortHome
 	_prepare_arduino_installation
+	
 	export arduinoExecutable="$au_arduinoDir"/arduino
 	#export arduinoExecutable=
-	
 	#_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
 	_arduino_executable "$@"
 	
+	#_arduino_deconfigure_method
 	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
 	_stop
@@ -336,17 +378,23 @@ _arduino_config() {
 _arduino_edit() {
 	_start
 	
-	_set_arduino_var "$@"
+	if ! _set_arduino_var "$@"
+	then
+		true
+		#_stop 1
+	fi
+	
 	_set_arduino_editShortHome
 	#_set_arduino_userShortHome
 	_prepare_arduino_installation
+	
 	#export arduinoExecutable="$au_arduinoDir"/arduino
 	export arduinoExecutable=
-	
 	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
 	#_arduino_executable "$@"
 	
-	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
+	_arduino_deconfigure_method
+	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
 	_stop
 }
@@ -355,6 +403,21 @@ _arduinoide() {
 	_arduino_edit "$@"
 }
 
+_set_arduino_board_zero_native() {
+	_messagePlain_nominal 'aU: set: board'
+	_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_platform=samd --pref board=arduino_zero_native
+}
+
+# ATTENTION: Overload with ops!
+_prepare_arduino_board() {
+	#_messagePlain_nominal 'aU: set: board'
+	#_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_platform=samd --pref board=arduino_zero_native
+	_set_arduino_board_zero_native
+}
+
+_set_arduino_compile() {
+	true
+}
 
 # ATTENTION: Overload with ops! (well no, actually probably not any reason to do so here)
 _arduino_compile_procedure() {
@@ -370,14 +433,16 @@ _arduino_compile_procedure() {
 	_set_arduino_userShortHome
 	
 	mkdir -p "$shortTmp"/_build
-	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable --save-prefs --pref build.path="$shortTmp"/_build
+	_arduino_method --save-prefs --pref build.path="$shortTmp"/_build
 	
-	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable --verify "$au_arduinoSketch"
+	_prepare_arduino_board "$@"
 	
-	mkdir -p "$au_arduinoSketchDir"/_build
-	cp "$shortTmp"/_build/*.bin "$au_arduinoSketchDir"/_build/
-	cp "$shortTmp"/_build/*.hex "$au_arduinoSketchDir"/_build/
-	cp "$shortTmp"/_build/*.elf "$au_arduinoSketchDir"/_build/
+	_arduino_method --verify "$au_arduinoSketch"
+	
+	mkdir -p "$au_arduinoBuildOut"
+	cp "$shortTmp"/_build/*.bin "$au_arduinoBuildOut"/
+	cp "$shortTmp"/_build/*.hex "$au_arduinoBuildOut"/
+	cp "$shortTmp"/_build/*.elf "$au_arduinoBuildOut"/
 	
 	cd "$localFunctionEntryPWD"
 }
@@ -385,18 +450,23 @@ _arduino_compile_procedure() {
 _arduino_compile_sequence() {
 	_start
 	
-	_set_arduino_var "$@"
+	if ! _set_arduino_var "$@"
+	then
+		#true
+		_stop 1
+	fi
+	
 	#_set_arduino_editShortHome
 	_set_arduino_userShortHome
 	_prepare_arduino_installation
 	#export arduinoExecutable="$au_arduinoDir"/arduino
 	export arduinoExecutable=
 	
-	#_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
+	#_arduino_method "$@"
 	#_arduino_executable "$@"
 	_arduino_compile_procedure "$@"
 	
-	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
+	_arduino_deconfigure_method
 	
 	_stop
 }
@@ -406,8 +476,188 @@ _arduino_compile() {
 }
 
 _compile() {
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
 	_arduino_compile_procedure "$@"
 }
+
+# WARNING: No production use. Obsolete hardware, upstream bugs in development tools. Recommend programming as zero.
+_arduino_bootloader_m0() {
+	export au_remotePort_orig="$au_remotePort"
+	export au_remotePort=disabled
+	_arduino_swd_openocd_zero -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {""$scriptLib""/ArduinoCore-samd/bootloaders/mzero/Bootloader_D21_M0_150515.hex} verify reset; shutdown"
+	wait "$au_openocdPID"
+	export au_remotePort="$au_remotePort_orig"
+}
+
+_arduino_bootloader_zero() {
+	export au_remotePort_orig="$au_remotePort"
+	export au_remotePort=disabled
+	_arduino_swd_openocd_zero -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {""$scriptLib""/ArduinoCore-samd/bootloaders/zero/samd21_sam_ba.bin} verify reset; shutdown"
+	wait "$au_openocdPID"
+	export au_remotePort="$au_remotePort_orig"
+}
+
+# ATTENTION: Overload with ops!
+_arduino_bootloader() {
+	_arduino_bootloader_zero "$@"
+	_messagePlain_probe "done: _arduino_bootloader"
+}
+
+_bootloader() {
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	_arduino_bootloader "$@"
+}
+
+_check_arduino_firmware() {
+	! [[ -e "$au_arduinoFirmware_bin" ]] && return 1
+	! [[ -e "$au_arduinoFirmware_elf" ]] && return 1
+	! [[ -e "$au_arduinoFirmware" ]] && return 1
+	! [[ -d "$au_arduinoFirmware" ]] && return 1
+	return 0
+}
+
+_set_arduino_firmware() {
+	export au_arduinoFirmware_bin=$(find "$shortTmp"/_build -maxdepth 1 -name '*.bin' 2> /dev/null | head -n 1)
+	! [[ -e "$au_arduinoFirmware_bin" ]] && export au_arduinoFirmware_bin=$(find "$au_arduinoBuildOut" -maxdepth 1 -name '*.bin' 2> /dev/null | head -n 1)
+	
+	export au_arduinoFirmware_elf=$(find "$shortTmp"/_build -maxdepth 1 -name '*.elf' 2> /dev/null | head -n 1)
+	! [[ -e "$au_arduinoFirmware_elf" ]] && export au_arduinoFirmware_elf=$(find "$au_arduinoBuildOut" -maxdepth 1 -name '*.elf' 2> /dev/null | head -n 1)
+	
+	if [[ -e "$au_arduinoFirmware_elf" ]]
+	then
+		export au_arduinoFirmware=$(_getAbsoluteFolder "$au_arduinoFirmware_elf")
+	fi
+	
+	if [[ -e "$au_arduinoFirmware_bin" ]]
+	then
+		export au_arduinoFirmware=$(_getAbsoluteFolder "$au_arduinoFirmware_bin")
+	fi
+	
+	! _check_arduino_firmware && return 1
+}
+
+_arduino_upload_procedure_zero() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	_messagePlain_nominal 'Upload.'
+	
+	_set_arduino_firmware
+	
+	! [[ -e "$au_arduinoFirmware_bin" ]] && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
+	
+	local swdUploadStatus
+	
+	#Upload over SWD debugger.
+	export au_remotePort_orig="$au_remotePort"
+	export au_remotePort=disabled
+	_arduino_upload_swd_openocd_zero
+	swdUploadStatus=$?
+	export au_remotePort="$au_remotePort_orig"
+	
+	if [[ "$swdUploadStatus" != 0 ]]	#SWD upload failed.
+	then
+		_arduino_serial_bossac_device
+	fi
+	
+	sleep 1
+	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
+	sleep 3
+	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
+	sleep 9
+	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
+	return 1
+	
+	cd "$localFunctionEntryPWD"
+}
+
+# ATTENTION Overload with ops!
+_arduino_upload_procedure() {
+	_arduino_upload_procedure_zero "$@"
+}
+
+_arduino_upload_sequence() {
+	_start
+	
+	if ! _set_arduino_var "$@"
+	then
+		#true
+		_stop 1
+	fi
+	
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
+	_prepare_arduino_installation
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	
+	#_arduino_method "$@"
+	#_arduino_executable "$@"
+	_arduino_upload_procedure "$@"
+	
+	_arduino_deconfigure_method
+	
+	_stop
+}
+
+_arduino_upload() {
+	_arduino_upload_sequence "$@"
+}
+
+_upload() {
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	_arduino_upload_procedure "$@"
+}
+
+# ATTENTION Overload with ops!
+_arduino_run_procedure() {
+	_arduino_compile_procedure "$@"
+	_arduino_upload_procedure "$@"
+}
+
+_arduino_run_sequence() {
+	_start
+	
+	if ! _set_arduino_var "$@"
+	then
+		#true
+		_stop 1
+	fi
+	
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
+	_prepare_arduino_installation
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	
+	#_arduino_method "$@"
+	#_arduino_executable "$@"
+	_arduino_run_procedure "$@"
+	
+	_arduino_deconfigure_method
+	
+	_stop
+}
+
+_arduino_run() {
+	_arduino_run_sequence "$@"
+}
+
+_run() {
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	_arduino_run_procedure "$@"
+}
+
+
+
 
 
 
@@ -439,7 +689,7 @@ _refresh_anchors() {
 	
 	#Critical PATH Inclusions
 	# WARNING Hardcoded "ub_import_param" required, do NOT overwrite automatically!
-	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_gdb
+	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_interface_debug_atom
 }
 
 

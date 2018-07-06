@@ -4,16 +4,20 @@ See license.txt for arduinoUbiquitous license conditions.
 
 Custom electronics and microcontroler firmware (notably 3D for printing) may need specific libraries versions, modifications, or procedures, to use Arduino.
 
-Keeping copies of build dependencies, and tracking dependencies, within a single repository directory, is the purpose of the arduinoUbiquitous tool.
+Keeping copies of build dependencies, tracking dependencies, and supporting automation, within a single repository directory, is the purpose of the arduinoUbiquitous tool.
 
-With specific versions of the full ArduinoIDE tracked and self-contained, and Atom based IDE is also included, adding debugging support to microcontroller projects using arduino.
+Specific versions of the full ArduinoIDE are tracked and self-contained. DDD, and Atom, GUI frontend, is also included, adding debugging support to microcontroller projects using arduino.
 
 # Usage
-Launch ArduinoIDE with "./_arduino" . Compile with "./_arduino_compile" . Upload with "./ubiquitous_bash.sh _arduino_upload" or similar.
+From terminal, launch "_arduino" with existing sketch directory as a parameter.
 
-Persistent changes to the ArduinoIDE can be made through "./ubiquitous_bash.sh _arduino_edit" .
+_arduino ./_lib/Blink
 
-Arbitrary shellcode may be added to "ops" file in same directory as sketch. Especially intended to set sketch-specific preferences (ie. board type). Example at "_lib/Blink". Run "./_arduino_blink" to compile and upload an LED blink example configured for Arduino M0 by default.
+A "./.s_arduino" directory will appear with hardcoded shortcut scripts to compile, upload, and debug, as well as launch graphical IDE.
+
+Starting without an existing sketch is NOT OFFICIALLY SUPPORTED. For an example and template, see "_lib/Blink".
+
+Arbitrary shellcode may be added to "ops" file in same directory as sketch. Especially intended to set sketch-specific preferences (ie. board type). Example "ops" provided with "_lib/Blink". Run "./_arduino_blink" to compile and upload an LED blink example (configured for Arduino M0 with Arduino Zero bootloader by default).
 
 See "_prog/core.sh" for details.
 
