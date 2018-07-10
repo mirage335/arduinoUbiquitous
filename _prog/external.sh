@@ -40,6 +40,9 @@ _arduino_ddd_sequence() {
 		_stop 1
 	fi
 	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
 	#_set_arduino_editShortHome
 	_set_arduino_userShortHome
 	_prepare_arduino_installation
@@ -57,7 +60,7 @@ _arduino_ddd_sequence() {
 }
 
 _arduino_ddd() {
-	_arduino_ddd_sequence "$@"
+	"$scriptAbsoluteLocation" _arduino_ddd_sequence "$@"
 }
 
 _ide_ddd() {
@@ -111,6 +114,9 @@ _arduino_atom_sequence() {
 		_stop 1
 	fi
 	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
 	#_set_arduino_editShortHome
 	_set_arduino_userShortHome
 	_prepare_arduino_installation
@@ -128,7 +134,7 @@ _arduino_atom_sequence() {
 }
 
 _arduino_atom() {
-	_arduino_atom_sequence "$@"
+	"$scriptAbsoluteLocation" _arduino_atom_sequence "$@"
 }
 
 _ide_atom() {
@@ -148,4 +154,9 @@ _debug() {
 	_ops_arduino_sketch
 	
 	_debug_ddd "$@"
+}
+
+_arduino_debug() {
+	_arduino_run "$@"
+	_arduino_ddd "$@"
 }

@@ -2,16 +2,16 @@ Copyright (C) 2018 mirage335
 See the end of the file for license conditions.
 See license.txt for arduinoUbiquitous license conditions.
 
-Custom electronics and microcontroler firmware (notably 3D for printing) may need specific libraries versions, modifications, or procedures, to use Arduino.
+Standalone Arduino development environment. Ensures portability comparable to "makefile" or "cmake" projects, even if external debuggers must be configured.
 
-Keeping copies of build dependencies, tracking dependencies, and supporting automation, within a single repository directory, is the purpose of the arduinoUbiquitous tool.
+Contains all dependencies, including binaries and libraries, to a single directory, using only relative paths. Integrates interfaces to extrnal tools (eg. gdb, ddd, Atom, Eclipse). Employs applicaton virtualization as necessary.
 
-Specific versions of the full ArduinoIDE are tracked and self-contained. DDD, and Atom, GUI frontend, is also included, adding debugging support to microcontroller projects using arduino.
+Arduino has become a common component of larger industrial systems, most notably 3D printer controllers.
 
 # Usage
 From terminal, launch "_arduino" with existing sketch directory as a parameter.
 
-_arduino ./_lib/Blink
+./_arduino ./_lib/Blink
 
 A "./.s_arduino" directory will appear with hardcoded shortcut scripts to compile, upload, and debug, as well as launch graphical IDE.
 
@@ -21,6 +21,14 @@ Arbitrary shellcode may be added to "ops" file in same directory as sketch. Espe
 
 See "_prog/core.sh" for details.
 
+# Automation
+Anchor script shortcuts neighboring "ubiquitous_bash.sh" are intended for end-users, or other scripts, to launch specific actions.
+
+./_arduino_debug ./_lib/Blink
+./_arduino_blink
+
+Interface shortcuts, named "_interface*", bridge applications used internally (eg. gdb debugger interface to atom text editor), and are not intended for end-users.
+
 # Dependencies
 Nothing that would not be installed on a typical Linux development machine. Just run "./ubiquitous_bash.sh _setup" or "./ubiquitous_bash.sh _test" to install/check.
 
@@ -28,24 +36,16 @@ Arduino itself is included.
 
 # Internal
 Arduino compile, upload, debug, and similar operations, may be done within the current session.
-* "$scriptAbsoluteLocation" --parent _arduino_compile_commands "$au_arduinoSketch"
-* "$scriptAbsoluteLocation" --parent _arduino_upload_commands "$au_arduinoSketch"
-* "$scriptAbsoluteLocation" --parent _arduino_run_commands "$au_arduinoSketch"
+* _compile
+* _upload
+* _run
 
-* "$scriptAbsoluteLocation" --parent _arduino_swd_openocd_zero &
-
-List of input parameters is available within the current shell.
-* "${globalArgs[@]}"
-
-When running Atom, a terminal emulator, or any other app, under the "_launch_env" function, as is done for the App (Atom) IDE, with the "_aide" command, some exported arduinoBash functions and variables will be usable by a subordinate shell.
+When running Eclipse, Atom, a terminal emulator, or any other app, under the "_scope" function, some exported arduinoBash functions and variables will be usable by a subordinate shell.
 * "$safeTmp", "$shortTmp"
 * "$setFakeHome"
 * "$au_*"
-	au_arduinoInstallation
 	au_arduinoSketch
 	au_arduinoSketchDir
-	au_arduinoBuildPath
-
 
 However, subshells will not see unexported functions unless they are imported.
 * . "$scriptAbsoluteLocation" --parent
@@ -57,7 +57,7 @@ Arbitrary commands from the parent script can be run within the curent session a
 * "$scriptAbsoluteLocation" --parent _echo true
 * . "$scriptAbsoluteLocation" --parent _echo true
 
-WARNING: Since you are obviously operating with a single session, do not call "_stop" anywhere within it, as this will kill the parent process, and clean up the "temporary" directories.
+WARNING: Since you are obviously operating with a single session, do not call "_stop" anywhere within it, as this will kill the parent process, and clean up the "temporary" directories. This also applies to any command run within the scope environment, as the scope name/location is shared.
 
 # Development
 Fork this repository to create specialized variants of this IDE for other purposes (ie. custom hardware support).
@@ -120,6 +120,11 @@ __asm__("nop\n\t");
 
 * https://github.com/31i73/atom-dbg/issues/1
 * https://github.com/31i73/atom-dbg-gdb/blob/master/README.md#supported-options
+
+* https://forum.arduino.cc/index.php?topic=375270.0
+
+* https://mcuoneclipse.com/2015/03/22/openocdcmsis-dap-debugging-with-eclipse-and-without-an-ide/
+* https://thingtype.com/blog/gdb-debugging-in-eclipse/
 
 
 __Copyright__

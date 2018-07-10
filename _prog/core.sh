@@ -1,3 +1,14 @@
+_set_share_abstractfs() {
+	_set_share_abstractfs_reset
+	
+	#export sharedHostProjectDir="$abstractfs_base"
+	export sharedHostProjectDir=$(_getAbsoluteFolder "$abstractfs_base")
+	export sharedGuestProjectDir="$abstractfs"
+	
+	#Blank default. Resolves to lowest directory shared by "$PWD" and "$@" .
+	#export sharedHostProjectDir="$sharedHostProjectDirDefault"
+}
+
 _set_arduino_userShortHome() {
 	export actualFakeHome="$shortFakeHome"
 	export fakeHomeEditLib="false"
@@ -203,6 +214,11 @@ _scope_attach() {
 	_scope_here > "$ub_scope"/.devenv
 	_scope_readme_here > "$ub_scope"/README
 	
+	_scope_command_write _scope_konsole_procedure
+	_scope_command_write _scope_dolphin_procedure
+	_scope_command_write _scope_eclipse_procedure
+	_scope_command_write _scope_atom_procedure
+	
 	_scope_command_write _arduinoide
 	
 	_scope_command_write _bootloader
@@ -211,18 +227,16 @@ _scope_attach() {
 	_scope_command_write _upload
 	_scope_command_write _run
 	
-	_scope_command_write _gdb
+	_scope_command_write _debug_gdb
+	_scope_command_write _debug_ddd
 	
-	_scope_command_write _ddd
 	_scope_command_write _interface_debug_atom
-	_scope_command_write _atom
 	_scope_command_write _interface_debug_eclipse
-	_scope_command_write _eclipse
 }
 
 _arduino_scope() {
 	export ub_scope_name='arduino'
-	"$scriptAbsoluteLocation" _scope_sequence "$@"
+	_scope "$@"
 }
 
 #virtualized
@@ -359,6 +373,9 @@ _arduino_config() {
 		#_stop 1
 	fi
 	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
 	_set_arduino_editShortHome
 	#_set_arduino_userShortHome
 	_prepare_arduino_installation
@@ -368,6 +385,7 @@ _arduino_config() {
 	#_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
 	_arduino_executable "$@"
 	
+	_set_arduino_editShortHome
 	#_arduino_deconfigure_method
 	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
@@ -384,6 +402,9 @@ _arduino_edit() {
 		#_stop 1
 	fi
 	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
 	_set_arduino_editShortHome
 	#_set_arduino_userShortHome
 	_prepare_arduino_installation
@@ -393,6 +414,7 @@ _arduino_edit() {
 	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
 	#_arduino_executable "$@"
 	
+	_set_arduino_editShortHome
 	_arduino_deconfigure_method
 	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
@@ -400,7 +422,7 @@ _arduino_edit() {
 }
 
 _arduinoide() {
-	_arduino_edit "$@"
+	"$scriptAbsoluteLocation" _arduino_edit "$@"
 }
 
 _set_arduino_board_zero_native() {
@@ -435,8 +457,10 @@ _arduino_compile_procedure() {
 	mkdir -p "$shortTmp"/_build
 	_arduino_method --save-prefs --pref build.path="$shortTmp"/_build
 	
+	_set_arduino_userShortHome
 	_prepare_arduino_board "$@"
 	
+	_set_arduino_userShortHome
 	_arduino_method --verify "$au_arduinoSketch"
 	
 	mkdir -p "$au_arduinoBuildOut"
@@ -456,6 +480,9 @@ _arduino_compile_sequence() {
 		_stop 1
 	fi
 	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
 	#_set_arduino_editShortHome
 	_set_arduino_userShortHome
 	_prepare_arduino_installation
@@ -472,7 +499,7 @@ _arduino_compile_sequence() {
 }
 
 _arduino_compile() {
-	_arduino_compile_sequence "$@"
+	"$scriptAbsoluteLocation" _arduino_compile_sequence "$@"
 }
 
 _compile() {
@@ -480,6 +507,7 @@ _compile() {
 	_ops_arduino_sketch
 	
 	_arduino_compile_procedure "$@"
+	_messagePlain_good 'Done.'
 }
 
 # WARNING: No production use. Obsolete hardware, upstream bugs in development tools. Recommend programming as zero.
@@ -510,6 +538,7 @@ _bootloader() {
 	_ops_arduino_sketch
 	
 	_arduino_bootloader "$@"
+	_messagePlain_good 'Done.'
 }
 
 _check_arduino_firmware() {
@@ -589,6 +618,9 @@ _arduino_upload_sequence() {
 		_stop 1
 	fi
 	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
 	#_set_arduino_editShortHome
 	_set_arduino_userShortHome
 	_prepare_arduino_installation
@@ -605,7 +637,7 @@ _arduino_upload_sequence() {
 }
 
 _arduino_upload() {
-	_arduino_upload_sequence "$@"
+	"$scriptAbsoluteLocation" _arduino_upload_sequence "$@"
 }
 
 _upload() {
@@ -613,6 +645,7 @@ _upload() {
 	_ops_arduino_sketch
 	
 	_arduino_upload_procedure "$@"
+	_messagePlain_good 'Done.'
 }
 
 # ATTENTION Overload with ops!
@@ -630,6 +663,9 @@ _arduino_run_sequence() {
 		_stop 1
 	fi
 	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
 	#_set_arduino_editShortHome
 	_set_arduino_userShortHome
 	_prepare_arduino_installation
@@ -646,7 +682,7 @@ _arduino_run_sequence() {
 }
 
 _arduino_run() {
-	_arduino_run_sequence "$@"
+	"$scriptAbsoluteLocation" _arduino_run_sequence "$@"
 }
 
 _run() {
@@ -654,6 +690,7 @@ _run() {
 	_ops_arduino_sketch
 	
 	_arduino_run_procedure "$@"
+	_messagePlain_good 'Done.'
 }
 
 
@@ -665,7 +702,9 @@ _run() {
 
 
 
-
+_arduino_blink() {
+	_arduino_run "$scriptLib"/Blink
+}
 
 _refresh_anchors_task() {
 	true
@@ -673,6 +712,10 @@ _refresh_anchors_task() {
 
 #duplicate _anchor
 _refresh_anchors() {
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_konsole
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_eclipse
+	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide
