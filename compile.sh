@@ -2939,8 +2939,10 @@ _compile_bash_installation_prog() {
 _compile_bash_program_prog() {	
 	export includeScriptList
 	
-	includeScriptList+=( interface.sh )
-	includeScriptList+=( external.sh )
+	includeScriptList+=( core_interface.sh )
+	includeScriptList+=( core_external.sh )
+	
+	includeScriptList+=( core_scope.sh )
 }
 
 _compile_bash_config_prog() {	

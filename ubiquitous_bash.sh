@@ -3440,8 +3440,13 @@ _fakeHome() {
 	_begin_fakeHome "$@"
 	local fakeHomeExitStatus
 	
-	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" scriptAbsoluteLocation="$scriptAbsoluteLocation" sessionid="$sessionid" scriptAbsoluteFolder="$scriptAbsoluteFolder" realSessionID="$realSessionID" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
-	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
+	if ! _safeEcho_newline "$_JAVA_OPTIONS" | grep "$HOME" > /dev/null 2>&1
+	then
+		export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
+	fi
+	
+	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" sessionid="$sessionid" scriptAbsoluteFolder="$scriptAbsoluteFolder" realSessionID="$realSessionID" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
 	#dbus-run-session "$@"
 	#"$@"
 	#. "$@"
@@ -3459,8 +3464,13 @@ _fakeHome_specific() {
 	_begin_fakeHome "$@"
 	local fakeHomeExitStatus
 	
-	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
-	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" dbus-run-session "$@"
+	if ! _safeEcho_newline "$_JAVA_OPTIONS" | grep "$HOME" > /dev/null 2>&1
+	then
+		export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
+	fi
+	
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
+	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}dbus-run-session "$@"
 	#dbus-run-session "$@"
 	#"$@"
 	#. "$@"
@@ -3479,8 +3489,13 @@ _fakeHome_embedded() {
 	_begin_fakeHome "$@"
 	local fakeHomeExitStatus
 	
-	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
-	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
+	if ! _safeEcho_newline "$_JAVA_OPTIONS" | grep "$HOME" > /dev/null 2>&1
+	then
+		export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
+	fi
+	
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
 	#dbus-run-session "$@"
 	#"$@"
 	. "$@"
@@ -6775,6 +6790,8 @@ _scope_attach() {
 	chmod u+x "$ub_scope"/.devenv
 	_scope_readme_here > "$ub_scope"/README
 	
+	_scope_command_write _scope_terminal_procedure
+	
 	_scope_command_write _scope_konsole_procedure
 	_scope_command_write _scope_dolphin_procedure
 	_scope_command_write _scope_eclipse_procedure
@@ -6885,7 +6902,13 @@ _scope_sequence() {
 	_stop
 }
 
+# ATTENTION: Overload with "core.sh" or similar!
+_scope_prog() {
+	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='scope'
+}
+
 _scope() {
+	_scope_prog
 	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='scope'
 	"$scriptAbsoluteLocation" _scope_sequence "$@"
 }
@@ -6984,6 +7007,7 @@ _scopePrompt() {
 }
 
 _scope_terminal_procedure() {
+	_tryExec '_scopePrompt'
 	#_tryExec '_visualPrompt'
 	
 	export PATH="$PATH":"$ub_scope"
@@ -6997,7 +7021,7 @@ _scope_terminal() {
 	shiftParam1="$1"
 	shift
 	
-	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='scope'
+	_scope_prog "$@"
 	_scope "$shiftParam1" "_scope_terminal_procedure" "$@"
 }
 
@@ -7010,7 +7034,7 @@ _scope_eclipse() {
 	shiftParam1="$1"
 	shift
 	
-	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='scope'
+	_scope_prog "$@"
 	_scope "$shiftParam1" "_scope_eclipse_procedure" "$@"
 }
 
@@ -7024,7 +7048,7 @@ _scope_atom() {
 	shiftParam1="$1"
 	shift
 	
-	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='scope'
+	_scope_prog "$@"
 	_scope "$shiftParam1" "_scope_atom_procedure" "$@"
 }
 
@@ -7038,7 +7062,7 @@ _scope_konsole() {
 	shiftParam1="$1"
 	shift
 	
-	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='scope'
+	_scope_prog "$@"
 	_scope "$shiftParam1" "_scope_konsole_procedure" -p tabtitle="$ub_scope_name" "$@"
 }
 
@@ -7051,7 +7075,7 @@ _scope_dolphin() {
 	shiftParam1="$1"
 	shift
 	
-	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='scope'
+	_scope_prog "$@"
 	_scope "$shiftParam1" "_scope_dolphin_procedure" "$@"
 }
 
@@ -9709,10 +9733,15 @@ _scope_attach() {
 	_scope_here > "$ub_scope"/.devenv
 	_scope_readme_here > "$ub_scope"/README
 	
+	_scope_command_write _scope_terminal_procedure
+	
 	_scope_command_write _scope_konsole_procedure
 	_scope_command_write _scope_dolphin_procedure
 	_scope_command_write _scope_eclipse_procedure
 	_scope_command_write _scope_atom_procedure
+	
+	_scope_command_write _scope_arduinoide_procedure
+	_scope_command_write _scope_ddd_procedure
 	
 	_scope_command_write _arduinoide
 	
@@ -9729,9 +9758,8 @@ _scope_attach() {
 	_scope_command_write _interface_debug_eclipse
 }
 
-_arduino_scope() {
-	export ub_scope_name='arduino'
-	_scope "$@"
+_scope_prog() {
+	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='arduino'
 }
 
 #virtualized
@@ -9781,6 +9809,19 @@ _arduino_executable() {
 	
 	#Do not create "project.afs". Create elsewhere if desired.
 	export afs_nofs=true
+	
+	#_JAVA_OPTIONS "user.home" updated by _fakeHome
+	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome: unset: java: user.home'
+	if [[ "$setFakeHome" == "true" ]]
+	then
+		if ! _safeEcho_newline "$_JAVA_OPTIONS" | grep "$HOME"
+		then
+			_messagePlain_good 'aU: detected: setFakeHome: set: java: user.home'
+			export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
+		else
+			_messagePlain_good 'aU: detected: setFakeHome: detected: java: user.home'
+		fi
+	fi
 	
 	_messagePlain_probe 'localPWD= '"$localPWD"
 	_messagePlain_probe 'abstractfs_base= '"$abstractfs_base"
@@ -9881,6 +9922,7 @@ _arduino_config() {
 	_arduino_executable "$@"
 	
 	_set_arduino_editShortHome
+	#_set_arduino_userShortHome
 	#_arduino_deconfigure_method
 	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
@@ -9910,6 +9952,36 @@ _arduino_edit() {
 	#_arduino_executable "$@"
 	
 	_set_arduino_editShortHome
+	#_set_arduino_userShortHome
+	_arduino_deconfigure_method
+	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
+	
+	_stop
+}
+
+_arduino_user() {
+	_start
+	
+	if ! _set_arduino_var "$@"
+	then
+		true
+		#_stop 1
+	fi
+	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
+	_prepare_arduino_installation
+	
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
+	#_arduino_executable "$@"
+	
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
 	_arduino_deconfigure_method
 	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
@@ -10002,7 +10074,7 @@ _compile() {
 	_ops_arduino_sketch
 	
 	_arduino_compile_procedure "$@"
-	_messagePlain_good 'Done.'
+	_messagePlain_good 'End.'
 }
 
 # WARNING: No production use. Obsolete hardware, upstream bugs in development tools. Recommend programming as zero.
@@ -10033,7 +10105,7 @@ _bootloader() {
 	_ops_arduino_sketch
 	
 	_arduino_bootloader "$@"
-	_messagePlain_good 'Done.'
+	_messagePlain_good 'End.'
 }
 
 _check_arduino_firmware() {
@@ -10140,7 +10212,7 @@ _upload() {
 	_ops_arduino_sketch
 	
 	_arduino_upload_procedure "$@"
-	_messagePlain_good 'Done.'
+	_messagePlain_good 'End.'
 }
 
 # ATTENTION Overload with ops!
@@ -10185,7 +10257,7 @@ _run() {
 	_ops_arduino_sketch
 	
 	_arduino_run_procedure "$@"
-	_messagePlain_good 'Done.'
+	_messagePlain_good 'End.'
 }
 
 
@@ -10201,15 +10273,27 @@ _arduino_blink() {
 	_arduino_run "$scriptLib"/Blink
 }
 
+
+_task_scope_arduinoide_blink() {
+	_scope_arduinoide "$scriptLib"/Blink "$@"
+}
+
+
+# ATTENTION: Override with ops!
 _refresh_anchors_task() {
-	true
+	_refresh_anchors_task() {
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_scope_arduinoide_blink
+}
 }
 
 #duplicate _anchor
 _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_konsole
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_dolphin
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_eclipse
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_arduinoide
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
 	
@@ -10268,7 +10352,8 @@ cat << CZXWXcRMTo8EmM8i4d
 
 #####Startup
 
-file "$au_arduinoFirmware_elf"
+file "$au_arduinoFirmware_sym"
+#file "$au_arduinoFirmware_elf"
 
 #set substitute-path /arduino/_build/sketch /arduino/sketch
 #set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
@@ -10304,6 +10389,33 @@ file "$au_arduinoFirmware_elf"
 set \$au_remotePort=$au_remotePort
 
 CZXWXcRMTo8EmM8i4d
+}
+
+_interface_debug_gdb_procedure() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	_set_arduino_firmware
+	! [[ -e "$au_arduinoFirmware_elf" ]] && _messagePlain_bad 'fail: missing: firmware elf' && return 1
+	! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' && return 1
+	! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' && return 1
+	
+	#! _check_arduino_debug && _messagePlain_bad 'fail: block: au_remotePort= '"$au_remotePort" && return 1
+	_check_arduino_debug && _arduino_swd_openocd_device
+	
+	_here_gdbinit_debug > "$safeTmp"/.gdbinit
+	#_messagePlain_probe "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
+	"$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
+	
+	#Kill process only if name is openocd.
+	#_messagePlain_probe 'au_openocdPID= '$au_openocdPID
+	kill $(pgrep openocd | grep "$au_openocdPID")
+	
+	cd "$localFunctionEntryPWD"
+}
+
+_debug_gdb() {
+	_interface_debug_gdb_procedure "$@"
 }
 
 # WARNING: Intermittent failures, upstream issues, bad practices, no production use, not officially supported.
@@ -10395,10 +10507,20 @@ _arduino_ddd_procedure() {
 	
 	_messagePlain_nominal 'IDE: ddd .'
 	
+	mkdir -p "$shortTmp"/_build
+	
 	_set_arduino_firmware
-	! [[ -e "$au_arduinoFirmware_elf" ]] && _messagePlain_bad 'fail: missing: firmware elf' > /dev/tty 2>&1 && return 1
-	! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
-	! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
+	if ! [[ -e "$au_arduinoFirmware_sym" ]]
+	then
+		_messagePlain_warn 'warn: missing: firmware elf' > /dev/tty 2>&1
+		#return 1
+		
+		[[ -e "$au_arduinoFirmware_elf" ]] && cp -n "$au_arduinoFirmware_elf" "$au_arduinoFirmware_sym"
+		! [[ -e "$au_arduinoFirmware_sym" ]] && echo > "$au_arduinoFirmware_sym"
+	fi
+	
+	#! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_warn 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
+	#! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_warn 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
 	
 	#Current directory is generally irrelevant to arduino, and if different from sketchDir, may cause problems.
 	cd "$au_arduinoSketchDir"
@@ -10411,8 +10533,8 @@ _arduino_ddd_procedure() {
 	
 	_here_gdbinit_debug > "$safeTmp"/.gdbinit
 	
-	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit
-	ddd --debugger "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit
+	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$shortTmp"/_build -x "$safeTmp"/.gdbinit
+	ddd --debugger "$au_gdbBin" -d "$shortTmp"/_build -x "$safeTmp"/.gdbinit
 	
 	#Kill process only if name is openocd.
 	kill $(pgrep openocd | grep "$au_openocdPID")
@@ -10548,6 +10670,65 @@ _debug() {
 _arduino_debug() {
 	_arduino_run "$@"
 	_arduino_ddd "$@"
+}
+
+_scope_arduinoide_procedure() {
+	_messagePlain_nominal 'ArduinoIDE.'
+	
+	# TODO: Is this redundant?
+	if ! _set_arduino_var "$ub_specimen"
+	then
+		true
+		#_stop 1
+	fi
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	#Current directory is generally irrelevant to arduino, and if different from sketchDir, may cause problems.
+	cd "$au_arduinoSketchDir"
+	
+	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
+	_set_arduino_userShortHome
+	
+	mkdir -p "$shortTmp"/_build
+	_arduino_method --save-prefs --pref build.path="$shortTmp"/_build
+	
+	_set_arduino_userShortHome
+	_prepare_arduino_board "$@"
+	
+	_set_arduino_userShortHome
+	_messagePlain_probe _fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$au_arduinoSketchDir" "$@"
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$au_arduinoSketch" "$@"
+	#_arduino_executable "$@"
+	
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
+	_arduino_deconfigure_method
+	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
+}
+
+#No production use.
+_scope_arduinoide_sequence() {
+	_start
+	
+	_scope_arduinoide_procedure "$@"
+	
+	_stop
+}
+
+_scope_arduinoide() {
+	local shiftParam1
+	shiftParam1="$1"
+	shift
+	
+	_scope_prog "$@"
+	_scope "$shiftParam1" "_scope_arduinoide_procedure" "$@"
+}
+
+_scope_ddd_procedure() {
+	_arduino_ddd_procedure "$@"
 }
 
 #matchingReversePorts=""
@@ -11625,8 +11806,10 @@ _compile_bash_installation_prog() {
 _compile_bash_program_prog() {	
 	export includeScriptList
 	
-	includeScriptList+=( interface.sh )
-	includeScriptList+=( external.sh )
+	includeScriptList+=( core_interface.sh )
+	includeScriptList+=( core_external.sh )
+	
+	includeScriptList+=( core_scope.sh )
 }
 
 _compile_bash_config_prog() {	

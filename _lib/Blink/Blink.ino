@@ -31,7 +31,7 @@ void setup() {
 // the loop function runs over and over again forever
 void loop() {
   PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
-  delay(16);                       // wait for a second
+  delay(15);                       // wait for a second
   PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
-  delay(16);                       // wait for a second
+  delay(15);                       // wait for a second
 }

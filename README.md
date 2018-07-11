@@ -15,6 +15,12 @@ From terminal, launch "_arduino" with existing sketch directory as a parameter.
 
 A "./.s_arduino" directory will appear with hardcoded shortcut scripts to compile, upload, and debug, as well as launch graphical IDE.
 
+Additional scopes may be launched from within this environment, or directly from the script directory. Shutdown of the initiating scope will remove this environment from all scopes.
+
+./ubiquitous_bash.sh _scope_arduinoide ./_lib/Blink/
+
+Many of these commands should ideally be launched within a visible terminal. Vivid diagnostics are written to stdout/error.
+
 Starting without an existing sketch is NOT OFFICIALLY SUPPORTED. For an example and template, see "_lib/Blink".
 
 Arbitrary shellcode may be added to "ops" file in same directory as sketch. Especially intended to set sketch-specific preferences (ie. board type). Example "ops" provided with "_lib/Blink". Run "./_arduino_blink" to compile and upload an LED blink example (configured for Arduino M0 with Arduino Zero bootloader by default).
@@ -28,6 +34,17 @@ Anchor script shortcuts neighboring "ubiquitous_bash.sh" are intended for end-us
 ./_arduino_blink
 
 Interface shortcuts, named "_interface*", bridge applications used internally (eg. gdb debugger interface to atom text editor), and are not intended for end-users.
+
+# Debugging
+Real-time debugging is supported with "_scope_ddd_procedure". Binary ELF is always taken from "$au_arduinoFirmware_sym", typically "$shortTmp"/_build/"$au_basename".ino.elf .
+
+Complete "_compile" or "_run", or compile through 'ArduinoIDE', before issuing 'load' command within "ddd" to refresh.
+
+Typical workflow is to launch a filemanager, text editor, terminal, or 'ArduinoIDE' as scope, then to launch ddd as a scope within the same session.
+
+./_scope_terminal ./_lib/Blink
+"$ub_scope"/_scope_arduinoide_procedure
+"$ub_scope"/_scope_ddd_procedure
 
 # Dependencies
 Nothing that would not be installed on a typical Linux development machine. Just run "./ubiquitous_bash.sh _setup" or "./ubiquitous_bash.sh _test" to install/check.
@@ -125,6 +142,10 @@ __asm__("nop\n\t");
 
 * https://mcuoneclipse.com/2015/03/22/openocdcmsis-dap-debugging-with-eclipse-and-without-an-ide/
 * https://thingtype.com/blog/gdb-debugging-in-eclipse/
+* https://github.com/jdolinay/avr_debug
+
+* https://forum.pjrc.com/threads/45091-Installing-Teensyduino-on-an-Arduino-portable
+* https://www.pjrc.com/teensy/td_download.html
 
 
 __Copyright__

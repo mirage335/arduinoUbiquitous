@@ -6,7 +6,8 @@ cat << CZXWXcRMTo8EmM8i4d
 
 #####Startup
 
-file "$au_arduinoFirmware_elf"
+file "$au_arduinoFirmware_sym"
+#file "$au_arduinoFirmware_elf"
 
 #set substitute-path /arduino/_build/sketch /arduino/sketch
 #set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
@@ -42,6 +43,33 @@ file "$au_arduinoFirmware_elf"
 set \$au_remotePort=$au_remotePort
 
 CZXWXcRMTo8EmM8i4d
+}
+
+_interface_debug_gdb_procedure() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	_set_arduino_firmware
+	! [[ -e "$au_arduinoFirmware_elf" ]] && _messagePlain_bad 'fail: missing: firmware elf' && return 1
+	! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' && return 1
+	! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' && return 1
+	
+	#! _check_arduino_debug && _messagePlain_bad 'fail: block: au_remotePort= '"$au_remotePort" && return 1
+	_check_arduino_debug && _arduino_swd_openocd_device
+	
+	_here_gdbinit_debug > "$safeTmp"/.gdbinit
+	#_messagePlain_probe "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
+	"$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
+	
+	#Kill process only if name is openocd.
+	#_messagePlain_probe 'au_openocdPID= '$au_openocdPID
+	kill $(pgrep openocd | grep "$au_openocdPID")
+	
+	cd "$localFunctionEntryPWD"
+}
+
+_debug_gdb() {
+	_interface_debug_gdb_procedure "$@"
 }
 
 # WARNING: Intermittent failures, upstream issues, bad practices, no production use, not officially supported.

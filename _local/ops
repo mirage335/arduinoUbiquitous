@@ -1,10 +1,6 @@
 #Enable search if "vm.img" and related files are missing.
 export ubVirtImageLocal="false"
 
-_task_aide_blink() {
-	_aide "$scriptLib"/Blink/Blink.ino
-}
-
-_refresh_anchors_task() {
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_aide_blink
-}
+#_refresh_anchors_task() {
+#	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_scope_arduinoide_blink
+#}

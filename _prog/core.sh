@@ -214,10 +214,15 @@ _scope_attach() {
 	_scope_here > "$ub_scope"/.devenv
 	_scope_readme_here > "$ub_scope"/README
 	
+	_scope_command_write _scope_terminal_procedure
+	
 	_scope_command_write _scope_konsole_procedure
 	_scope_command_write _scope_dolphin_procedure
 	_scope_command_write _scope_eclipse_procedure
 	_scope_command_write _scope_atom_procedure
+	
+	_scope_command_write _scope_arduinoide_procedure
+	_scope_command_write _scope_ddd_procedure
 	
 	_scope_command_write _arduinoide
 	
@@ -234,9 +239,8 @@ _scope_attach() {
 	_scope_command_write _interface_debug_eclipse
 }
 
-_arduino_scope() {
-	export ub_scope_name='arduino'
-	_scope "$@"
+_scope_prog() {
+	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='arduino'
 }
 
 #virtualized
@@ -286,6 +290,19 @@ _arduino_executable() {
 	
 	#Do not create "project.afs". Create elsewhere if desired.
 	export afs_nofs=true
+	
+	#_JAVA_OPTIONS "user.home" updated by _fakeHome
+	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome: unset: java: user.home'
+	if [[ "$setFakeHome" == "true" ]]
+	then
+		if ! _safeEcho_newline "$_JAVA_OPTIONS" | grep "$HOME" > /dev/null 2>&1
+		then
+			_messagePlain_good 'aU: detected: setFakeHome: set: java: user.home'
+			export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
+		else
+			_messagePlain_good 'aU: detected: setFakeHome: detected: java: user.home'
+		fi
+	fi
 	
 	_messagePlain_probe 'localPWD= '"$localPWD"
 	_messagePlain_probe 'abstractfs_base= '"$abstractfs_base"
@@ -386,6 +403,7 @@ _arduino_config() {
 	_arduino_executable "$@"
 	
 	_set_arduino_editShortHome
+	#_set_arduino_userShortHome
 	#_arduino_deconfigure_method
 	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
@@ -415,6 +433,36 @@ _arduino_edit() {
 	#_arduino_executable "$@"
 	
 	_set_arduino_editShortHome
+	#_set_arduino_userShortHome
+	_arduino_deconfigure_method
+	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
+	
+	_stop
+}
+
+_arduino_user() {
+	_start
+	
+	if ! _set_arduino_var "$@"
+	then
+		true
+		#_stop 1
+	fi
+	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
+	_prepare_arduino_installation
+	
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$@"
+	#_arduino_executable "$@"
+	
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
 	_arduino_deconfigure_method
 	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
@@ -507,7 +555,7 @@ _compile() {
 	_ops_arduino_sketch
 	
 	_arduino_compile_procedure "$@"
-	_messagePlain_good 'Done.'
+	_messagePlain_good 'End.'
 }
 
 # WARNING: No production use. Obsolete hardware, upstream bugs in development tools. Recommend programming as zero.
@@ -538,7 +586,7 @@ _bootloader() {
 	_ops_arduino_sketch
 	
 	_arduino_bootloader "$@"
-	_messagePlain_good 'Done.'
+	_messagePlain_good 'End.'
 }
 
 _check_arduino_firmware() {
@@ -645,7 +693,7 @@ _upload() {
 	_ops_arduino_sketch
 	
 	_arduino_upload_procedure "$@"
-	_messagePlain_good 'Done.'
+	_messagePlain_good 'End.'
 }
 
 # ATTENTION Overload with ops!
@@ -690,7 +738,7 @@ _run() {
 	_ops_arduino_sketch
 	
 	_arduino_run_procedure "$@"
-	_messagePlain_good 'Done.'
+	_messagePlain_good 'End.'
 }
 
 
@@ -706,15 +754,27 @@ _arduino_blink() {
 	_arduino_run "$scriptLib"/Blink
 }
 
+
+_task_scope_arduinoide_blink() {
+	_scope_arduinoide "$scriptLib"/Blink "$@"
+}
+
+
+# ATTENTION: Override with ops!
 _refresh_anchors_task() {
-	true
+	_refresh_anchors_task() {
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_scope_arduinoide_blink
+}
 }
 
 #duplicate _anchor
 _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_konsole
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_dolphin
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_eclipse
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_arduinoide
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
 	

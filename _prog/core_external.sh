@@ -6,10 +6,20 @@ _arduino_ddd_procedure() {
 	
 	_messagePlain_nominal 'IDE: ddd .'
 	
+	mkdir -p "$shortTmp"/_build
+	
 	_set_arduino_firmware
-	! [[ -e "$au_arduinoFirmware_elf" ]] && _messagePlain_bad 'fail: missing: firmware elf' > /dev/tty 2>&1 && return 1
-	! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
-	! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
+	if ! [[ -e "$au_arduinoFirmware_sym" ]]
+	then
+		_messagePlain_warn 'warn: missing: firmware elf' > /dev/tty 2>&1
+		#return 1
+		
+		[[ -e "$au_arduinoFirmware_elf" ]] && cp -n "$au_arduinoFirmware_elf" "$au_arduinoFirmware_sym"
+		! [[ -e "$au_arduinoFirmware_sym" ]] && echo > "$au_arduinoFirmware_sym"
+	fi
+	
+	#! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_warn 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
+	#! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_warn 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
 	
 	#Current directory is generally irrelevant to arduino, and if different from sketchDir, may cause problems.
 	cd "$au_arduinoSketchDir"
@@ -22,8 +32,8 @@ _arduino_ddd_procedure() {
 	
 	_here_gdbinit_debug > "$safeTmp"/.gdbinit
 	
-	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit
-	ddd --debugger "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit
+	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$shortTmp"/_build -x "$safeTmp"/.gdbinit
+	ddd --debugger "$au_gdbBin" -d "$shortTmp"/_build -x "$safeTmp"/.gdbinit
 	
 	#Kill process only if name is openocd.
 	kill $(pgrep openocd | grep "$au_openocdPID")
