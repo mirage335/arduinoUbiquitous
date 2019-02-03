@@ -1,3 +1,6 @@
+
+
+
 w_*/
 
 .s_*
@@ -96,4 +99,12 @@ _local/templates
 **/.config/Atom/Cookies-journal
 **/.config/Atom/Cookies*
 **/.config/Atom/IndexedDB/
+
+
+
+!_local/arduino/arduino-1.8.5/**
+!_local/arduino/arduino-1.8.6/**
+!_local/arduino/arduino-1.8.7/**
+!_local/arduino/arduino-1.8.8/**
+
 
