@@ -101,6 +101,7 @@ _local/templates
 **/.config/Atom/IndexedDB/
 
 
+!_local/arduino/.arduino15/packages/**
 
 !_local/arduino/arduino-1.8.5/**
 !_local/arduino/arduino-1.8.6/**
