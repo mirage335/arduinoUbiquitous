@@ -101,6 +101,8 @@ https://github.com/31i73/atom-dbg/issues/40
 * High drive current may not be available.
 https://github.com/arduino/ArduinoCore-samd/issues/158
 
+* ARM host version of Arduino is not included or selected automatically.
+
 # Guidelines
 * Keep "_lib/ArduinoCore-samd" to a version compatible with uploading sketch and bootloader code by external programmer.
 https://github.com/arduino/ArduinoCore-samd/pull/265
