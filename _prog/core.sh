@@ -245,7 +245,7 @@ _scope_prog() {
 
 #virtualized
 _v_arduino() {
-	_userQemu "$scriptAbsoluteLocation" _arduino_scope "$@"
+	_userQemu "$scriptAbsoluteLocation" _scope_arduinoide "$@"
 }
 
 #default
@@ -256,7 +256,7 @@ _arduino() {
 		_v${FUNCNAME[0]} "$@"
 		return
 	fi
-	_arduino_scope "$@" && return 0
+	_scope_arduinoide "$@" && return 0
 
 	#_messageNormal 'Launch: _v'${FUNCNAME[0]}
 	#_v${FUNCNAME[0]} "$@"
@@ -411,7 +411,7 @@ _arduino_config() {
 }
 
 #edit, fakeHome
-_arduino_edit() {
+_arduinoide_edit() {
 	_start
 	
 	if ! _set_arduino_var "$@"
@@ -439,8 +439,11 @@ _arduino_edit() {
 	
 	_stop
 }
+_arduino_edit() {
+	_arduinoide_edit "$@"
+}
 
-_arduino_user() {
+_arduinoide_user() {
 	_start
 	
 	if ! _set_arduino_var "$@"
@@ -467,6 +470,9 @@ _arduino_user() {
 	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 	
 	_stop
+}
+_arduino_user() {
+	_arduinoide_user "$@"
 }
 
 _arduinoide() {
@@ -762,9 +768,7 @@ _task_scope_arduinoide_blink() {
 
 # ATTENTION: Override with ops!
 _refresh_anchors_task() {
-	_refresh_anchors_task() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_scope_arduinoide_blink
-}
 }
 
 #duplicate _anchor
@@ -779,6 +783,8 @@ _refresh_anchors() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide_user
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide_edit
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_compile
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_upload
@@ -790,9 +796,14 @@ _refresh_anchors() {
 	
 	_tryExec "_refresh_anchors_task"
 	
-	#Critical PATH Inclusions
+	##### - BEGIN - Critical PATH Inclusions
 	# WARNING Hardcoded "ub_import_param" required, do NOT overwrite automatically!
-	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_interface_debug_atom
+	
+	
+	# WARNING: Part of a system considered too unstable for production or end-user . May not be maintained.
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_interface_debug_atom
+	
+	##### - END - Critical PATH Inclusions
 }
 
 
