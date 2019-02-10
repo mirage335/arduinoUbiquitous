@@ -43,6 +43,22 @@ _messagePlain_probe_expr() {
 	return 0
 }
 
+#Blue. Diagnostic instrumentation.
+_messagePlain_probe_var() {
+	echo -e -n '\E[0;34m '
+	
+	echo -n "$1"'= '
+	
+	eval echo -e -n \$"$1"
+	
+	echo -e -n ' \E[0m'
+	echo
+	return 0
+}
+_messageVar() {
+	_messagePlain_probe_var "$@"
+}
+
 #Green. Working as expected.
 _messagePlain_good() {
 	echo -e -n '\E[0;32m '
@@ -123,18 +139,354 @@ fi
 
 #Override.
 
+# WARNING: Only partially compatible.
+if ! type md5sum > /dev/null 2>&1 && type md5 > /dev/null 2>&1
+then
+	md5sum() {
+		md5 "$@"
+	}
+fi
+
+# DANGER: No production use. Testing only.
+# WARNING: Only partially compatible.
+#if ! type md5 > /dev/null 2>&1 && type md5sum > /dev/null 2>&1
+#then
+#	md5() {
+#		md5sum "$@"
+#	}
+#fi
+
 #Override (Program).
+
+#Override, cygwin.
+
+# ATTENTION: User must launch "tmux" (no parameters) in a graphical Cygwin terminal.
+# Launches graphical application through "tmux new-window" if available.
+# https://superuser.com/questions/531787/starting-windows-gui-program-in-windows-through-cygwin-sshd-from-ssh-client
+_workaround_cygwin_tmux() {
+	if pgrep -u "$USER" ^tmux$ > /dev/null 2>&1
+	then
+		tmux new-window "$@"
+		return "$?"
+	fi
+	
+	"$@"
+	return "$?"
+}
+
+if ! type nmap > /dev/null 2>&1 && type '/cygdrive/c/Program Files/Nmap/nmap.exe' > /dev/null 2>&1
+then
+	nmap() {
+		'/cygdrive/c/Program Files/Nmap/nmap.exe' "$@"
+	}
+fi
+
+if ! type nmap > /dev/null 2>&1 && type '/cygdrive/c/Program Files (x86)/Nmap/nmap.exe' > /dev/null 2>&1
+then
+	nmap() {
+		'/cygdrive/c/Program Files (x86)/Nmap/nmap.exe' "$@"
+	}
+fi
+
+# DANGER: Severely differing functionality. Intended only to stand in for "ip addr show" and similar.
+if ! type ip > /dev/null 2>&1 && type 'ipconfig' > /dev/null 2>&1 && uname -a | grep -i cygwin > /dev/null 2>&1
+then
+	ip() {
+		if [[ "$1" == "addr" ]] && [[ "$2" == "show" ]]
+		then
+			ipconfig
+			return $?
+		fi
+		
+		return 1
+	}
+fi
+
+
+
+# WARNING: Native 'vncviewer.exe' is a GUI app, and cannot be launched directly from Cygwin SSH server.
+
+#if ! type vncviewer > /dev/null 2>&1 && type '/cygdrive/c/Program Files/TigerVNC/vncviewer.exe' > /dev/null 2>&1
+
+if type '/cygdrive/c/Program Files/TigerVNC/vncviewer.exe' > /dev/null 2>&1 && uname -a | grep -i cygwin > /dev/null 2>&1
+then
+	export override_cygwin_vncviewer='true'
+	vncviewer() {
+		_workaround_cygwin_tmux '/cygdrive/c/Program Files/TigerVNC/vncviewer.exe' "$@"
+	}
+fi
+
+if type '/cygdrive/c/Program Files (x86)/TigerVNC/vncviewer.exe' > /dev/null 2>&1 && uname -a | grep -i cygwin > /dev/null 2>&1
+then
+	export override_cygwin_vncviewer='true'
+	vncviewer() {
+		_workaround_cygwin_tmux '/cygdrive/c/Program Files (x86)/TigerVNC/vncviewer.exe' "$@"
+	}
+fi
+
 
 #####Utilities
 
+_test_getAbsoluteLocation_sequence() {
+	_start
+	
+	local testScriptLocation_actual
+	local testScriptLocation
+	local testScriptFolder
+	
+	local testLocation_actual
+	local testLocation
+	local testFolder
+	
+	#script location/folder work directories
+	mkdir -p "$safeTmp"/sAL_dir
+	cp "$scriptAbsoluteLocation" "$safeTmp"/sAL_dir/script
+	ln -s "$safeTmp"/sAL_dir/script "$safeTmp"/sAL_dir/lnk
+	[[ ! -e "$safeTmp"/sAL_dir/script ]] && _stop 1
+	[[ ! -e "$safeTmp"/sAL_dir/lnk ]] && _stop 1
+	
+	ln -s "$safeTmp"/sAL_dir "$safeTmp"/sAL_lnk
+	[[ ! -e "$safeTmp"/sAL_lnk/script ]] && _stop 1
+	[[ ! -e "$safeTmp"/sAL_lnk/lnk ]] && _stop 1
+	
+	#_getScriptAbsoluteLocation
+	testScriptLocation_actual=$("$safeTmp"/sAL_dir/script _getScriptAbsoluteLocation)
+	[[ "$safeTmp"/sAL_dir/script != "$testScriptLocation_actual" ]] && echo 'crit: "$safeTmp"/sAL_dir/script != "$testScriptLocation_actual"' && _stop 1
+	
+	testScriptLocation=$("$safeTmp"/sAL_dir/script _getScriptAbsoluteLocation)
+	[[ "$testScriptLocation" != "$testScriptLocation_actual" ]] && echo 'crit: ! location "$safeTmp"/sAL_dir/script' && _stop 1
+	testScriptLocation=$("$safeTmp"/sAL_dir/lnk _getScriptAbsoluteLocation)
+	[[ "$testScriptLocation" != "$testScriptLocation_actual" ]] && echo 'crit: ! location "$safeTmp"/sAL_dir/lnk' && _stop 1
+	
+	testScriptLocation=$("$safeTmp"/sAL_lnk/script _getScriptAbsoluteLocation)
+	[[ "$testScriptLocation" != "$testScriptLocation_actual" ]] && echo 'crit: ! location "$safeTmp"/sAL_lnk/script' && _stop 1
+	testScriptLocation=$("$safeTmp"/sAL_lnk/lnk _getScriptAbsoluteLocation)
+	[[ "$testScriptLocation" != "$testScriptLocation_actual" ]] && echo 'crit: ! location "$safeTmp"/sAL_lnk/lnk' && _stop 1
+	
+	#_getScriptAbsoluteFolder
+	testScriptFolder_actual=$("$safeTmp"/sAL_dir/script _getScriptAbsoluteFolder)
+	[[ "$safeTmp"/sAL_dir != "$testScriptFolder_actual" ]] && echo 'crit: "$safeTmp"/sAL_dir != "$testScriptFolder_actual"' && _stop 1
+	
+	testScriptFolder=$("$safeTmp"/sAL_dir/script _getScriptAbsoluteFolder)
+	[[ "$testScriptFolder" != "$testScriptFolder_actual" ]] && echo 'crit: ! folder "$safeTmp"/sAL_dir/script' && _stop 1
+	testScriptFolder=$("$safeTmp"/sAL_dir/lnk _getScriptAbsoluteFolder)
+	[[ "$testScriptFolder" != "$testScriptFolder_actual" ]] && echo 'crit: ! folder "$safeTmp"/sAL_dir/lnk' && _stop 1
+	
+	testScriptFolder=$("$safeTmp"/sAL_lnk/script _getScriptAbsoluteFolder)
+	[[ "$testScriptFolder" != "$testScriptFolder_actual" ]] && echo 'crit: ! folder "$safeTmp"/sAL_lnk/script' && _stop 1
+	testScriptFolder=$("$safeTmp"/sAL_lnk/lnk _getScriptAbsoluteFolder)
+	[[ "$testScriptFolder" != "$testScriptFolder_actual" ]] && echo 'crit: ! folder "$safeTmp"/sAL_lnk/lnk' && _stop 1
+	
+	
+	#_getAbsoluteLocation
+	testLocation_actual=$("$safeTmp"/sAL_dir/script _getAbsoluteLocation "$safeTmp"/sAL_dir/script)
+	[[ "$safeTmp"/sAL_dir/script != "$testLocation_actual" ]] && echo 'crit: "$safeTmp"/sAL_dir/script != "$testLocation_actual"' && _stop 1
+	
+	testLocation=$("$safeTmp"/sAL_dir/script _getAbsoluteLocation "$safeTmp"/sAL_dir/script)
+	[[ "$testLocation" != "$testLocation_actual" ]] && echo 'crit: ! location "$safeTmp"/sAL_dir/script' && _stop 1
+	testLocation=$("$safeTmp"/sAL_dir/lnk _getAbsoluteLocation "$safeTmp"/sAL_dir/lnk)
+	[[ "$testLocation" != "$testLocation_actual" ]] && echo 'crit: ! location "$safeTmp"/sAL_dir/lnk' && _stop 1
+	
+	testLocation=$("$safeTmp"/sAL_lnk/script _getAbsoluteLocation "$safeTmp"/sAL_lnk/script)
+	[[ "$testLocation" != "$testLocation_actual" ]] && echo 'crit: ! location "$safeTmp"/sAL_lnk/script' && _stop 1
+	testLocation=$("$safeTmp"/sAL_lnk/lnk _getAbsoluteLocation "$safeTmp"/sAL_lnk/lnk)
+	[[ "$testLocation" != "$testLocation_actual" ]] && echo 'crit: ! location "$safeTmp"/sAL_lnk/lnk' && _stop 1
+	
+	#_getAbsoluteFolder
+	testFolder_actual=$("$safeTmp"/sAL_dir/script _getAbsoluteFolder "$safeTmp"/sAL_dir/script)
+	[[ "$safeTmp"/sAL_dir != "$testFolder_actual" ]] && echo 'crit: "$safeTmp"/sAL_dir != "$testFolder_actual"' && _stop 1
+	
+	testFolder=$("$safeTmp"/sAL_dir/script _getAbsoluteFolder "$safeTmp"/sAL_dir/script)
+	[[ "$testFolder" != "$testFolder_actual" ]] && echo 'crit: ! folder "$safeTmp"/sAL_dir/script' && _stop 1
+	testFolder=$("$safeTmp"/sAL_dir/lnk _getAbsoluteFolder "$safeTmp"/sAL_dir/script)
+	[[ "$testFolder" != "$testFolder_actual" ]] && echo 'crit: ! folder "$safeTmp"/sAL_dir/lnk' && _stop 1
+	
+	testFolder=$("$safeTmp"/sAL_lnk/script _getAbsoluteFolder "$safeTmp"/sAL_lnk/script)
+	[[ "$testFolder" != "$testFolder_actual" ]] && echo 'crit: ! folder "$safeTmp"/sAL_lnk/script' && _stop 1
+	testFolder=$("$safeTmp"/sAL_lnk/lnk _getAbsoluteFolder "$safeTmp"/sAL_lnk/script)
+	[[ "$testFolder" != "$testFolder_actual" ]] && echo 'crit: ! folder "$safeTmp"/sAL_lnk/lnk' && _stop 1
+	
+	_stop
+}
+
+_test_getAbsoluteLocation() {
+	"$scriptAbsoluteLocation" _test_getAbsoluteLocation_sequence "$@"
+	[[ "$?" != "0" ]] && _stop 1
+	return 0
+}
+
+#https://unix.stackexchange.com/questions/293892/realpath-l-vs-p
+_test_realpath_L_s_sequence() {
+	_start
+	local functionEntryPWD
+	functionEntryPWD="$PWD"
+	
+	
+	local testPath_actual
+	local testPath
+	
+	mkdir -p "$safeTmp"/src
+	mkdir -p "$safeTmp"/sub
+	ln -s  "$safeTmp"/src "$safeTmp"/sub/lnk
+	
+	echo > "$safeTmp"/sub/point
+	
+	ln -s "$safeTmp"/sub/point "$safeTmp"/sub/lnk/ref
+	
+	#correct
+	#"$safeTmp"/sub/ref
+	#realpath -L "$safeTmp"/sub/lnk/../ref
+	
+	#default, wrong
+	#"$safeTmp"/ref
+	#realpath -P "$safeTmp"/sub/lnk/../ref
+	#echo -n '>'
+	#readlink -f "$safeTmp"/sub/lnk/../ref
+	
+	testPath_actual="$safeTmp"/sub/ref
+	
+	cd "$functionEntryPWD"
+	testPath=$(_realpath_L "$safeTmp"/sub/lnk/../ref)
+	[[ "$testPath" != "$testPath_actual" ]] && echo 'crit: ! _realpath_L' && _stop 1
+	
+	cd "$safeTmp"
+	testPath=$(_realpath_L ./sub/lnk/../ref)
+	[[ "$testPath" != "$testPath_actual" ]] && echo 'crit: ! _realpath_L' && _stop 1
+	
+	#correct
+	#"$safeTmp"/sub/lnk/ref
+	#realpath -L -s "$safeTmp"/sub/lnk/ref
+	
+	#default, wrong for some use cases
+	#"$safeTmp"/sub/point
+	#realpath -L "$safeTmp"/sub/lnk/ref
+	#echo -n '>'
+	#readlink -f "$safeTmp"/sub/lnk/ref
+	
+	testPath_actual="$safeTmp"/sub/lnk/ref
+	
+	cd "$functionEntryPWD"
+	testPath=$(_realpath_L_s "$safeTmp"/sub/lnk/ref)
+	[[ "$testPath" != "$testPath_actual" ]] && echo 'crit: ! _realpath_L_s' && _stop 1
+	
+	cd "$safeTmp"
+	testPath=$(_realpath_L_s ./sub/lnk/ref)
+	[[ "$testPath" != "$testPath_actual" ]] && echo 'crit: ! _realpath_L_s' && _stop 1
+	
+	
+	cd "$functionEntryPWD"
+	_stop
+}
+
+_test_realpath_L_s() {
+	#Optional safety check. Nonconformant realpath solution should be caught by synthetic test cases.
+	#_compat_realpath
+	#! [[ -e "$compat_realpath_bin" ]] && [[ "$compat_realpath_bin" != "" ]] && echo 'crit: missing: realpath' && _stop 1
+	
+	"$scriptAbsoluteLocation" _test_realpath_L_s_sequence "$@"
+	[[ "$?" != "0" ]] && _stop 1
+	return 0
+}
+
+_test_realpath_L() {
+	_test_realpath_L_s "$@"
+}
+
+_test_realpath() {
+	_test_realpath_L_s "$@"
+}
+
+_test_readlink_f_sequence() {
+	_start
+	
+	echo > "$safeTmp"/realFile
+	ln -s "$safeTmp"/realFile "$safeTmp"/linkA
+	ln -s "$safeTmp"/linkA "$safeTmp"/linkB
+	
+	local currentReadlinkResult
+	currentReadlinkResult=$(readlink -f "$safeTmp"/linkB)
+	
+	local currentReadlinkResultBasename
+	currentReadlinkResultBasename=$(basename "$currentReadlinkResult")
+	
+	if [[ "$currentReadlinkResultBasename" != "realFile" ]]
+	then
+		#echo 'fail: readlink -f'
+		_stop 1
+	fi
+	
+	_stop 0
+}
+
+_test_readlink_f() {
+	if ! "$scriptAbsoluteLocation" _test_readlink_f_sequence
+	then
+		echo 'fail: readlink -f'
+		_stop 1
+	fi
+	
+	return 0
+}
+
+_compat_realpath() {
+	[[ -e "$compat_realpath_bin" ]] && [[ "$compat_realpath_bin" != "" ]] && return 0
+	
+	#Workaround, Mac. See https://github.com/mirage335/ubiquitous_bash/issues/1 .
+	export compat_realpath_bin=/opt/local/libexec/gnubin/realpath
+	[[ -e "$compat_realpath_bin" ]] && [[ "$compat_realpath_bin" != "" ]] && return 0
+	
+	export compat_realpath_bin=$(which realpath)
+	[[ -e "$compat_realpath_bin" ]] && [[ "$compat_realpath_bin" != "" ]] && return 0
+	
+	export compat_realpath_bin=/bin/realpath
+	[[ -e "$compat_realpath_bin" ]] && [[ "$compat_realpath_bin" != "" ]] && return 0
+	
+	export compat_realpath_bin=/usr/bin/realpath
+	[[ -e "$compat_realpath_bin" ]] && [[ "$compat_realpath_bin" != "" ]] && return 0
+	
+	# ATTENTION
+	# Command "readlink -f" or text processing can be used as fallbacks to obtain absolute path
+	# https://stackoverflow.com/questions/3572030/bash-script-absolute-path-with-osx
+	
+	export compat_realpath_bin=""
+	return 1
+}
+
+_compat_realpath_run() {
+	! _compat_realpath && return 1
+	
+	"$compat_realpath_bin" "$@"
+}
+
+_realpath_L() {
+	if ! _compat_realpath_run -L . > /dev/null 2>&1
+	then
+		readlink -f "$@"
+		return
+	fi
+	
+	realpath -L "$@"
+}
+
+_realpath_L_s() {
+	if ! _compat_realpath_run -L . > /dev/null 2>&1
+	then
+		readlink -f "$@"
+		return
+	fi
+	
+	realpath -L -s "$@"
+}
+
+
 #Critical prerequsites.
 _getAbsolute_criticalDep() {
-	! type realpath > /dev/null 2>&1 && return 1
+	#! type realpath > /dev/null 2>&1 && return 1
 	! type readlink > /dev/null 2>&1 && return 1
 	! type dirname > /dev/null 2>&1 && return 1
 	
-	#Known issue on Mac. See https://github.com/mirage335/ubiquitous_bash/issues/1 .
-	! realpath -L . > /dev/null 2>&1 && return 1
+	#Known to succeed under BusyBox (OpenWRT), NetBSD, and common Linux variants. No known failure modes. Extra precaution.
+	! readlink -f . > /dev/null 2>&1 && return 1
 	
 	return 0
 }
@@ -151,17 +503,17 @@ _getScriptAbsoluteLocation() {
 	
 	local absoluteLocation
 	if [[ (-e $PWD\/$0) && ($0 != "") ]] && [[ "$0" != "/"* ]]
-			then
-	absoluteLocation="$PWD"\/"$0"
-	absoluteLocation=$(realpath -L -s "$absoluteLocation")
-			else
-	absoluteLocation=$(realpath -L "$0")
+	then
+		absoluteLocation="$PWD"\/"$0"
+		absoluteLocation=$(_realpath_L_s "$absoluteLocation")
+	else
+		absoluteLocation=$(_realpath_L "$0")
 	fi
-
+	
 	if [[ -h "$absoluteLocation" ]]
-			then
-	absoluteLocation=$(readlink -f "$absoluteLocation")
-	absoluteLocation=$(realpath -L "$absoluteLocation")
+	then
+		absoluteLocation=$(readlink -f "$absoluteLocation")
+		absoluteLocation=$(_realpath_L "$absoluteLocation")
 	fi
 	echo $absoluteLocation
 }
@@ -195,11 +547,11 @@ _getAbsoluteLocation() {
 	
 	local absoluteLocation
 	if [[ (-e $PWD\/$1) && ($1 != "") ]] && [[ "$1" != "/"* ]]
-			then
-	absoluteLocation="$PWD"\/"$1"
-	absoluteLocation=$(realpath -L -s "$absoluteLocation")
-			else
-	absoluteLocation=$(realpath -L "$1")
+	then
+		absoluteLocation="$PWD"\/"$1"
+		absoluteLocation=$(_realpath_L_s "$absoluteLocation")
+	else
+		absoluteLocation=$(_realpath_L "$1")
 	fi
 	echo "$absoluteLocation"
 }
@@ -351,23 +703,26 @@ _safeRMR() {
 	#[[ "$1" == "/home/$USER"* ]] && safeToRM="true"
 	[[ "$1" == "/tmp/"* ]] && safeToRM="true"
 	
+	# WARNING: Allows removal of temporary folders created by current ubiquitous bash session only.
+	[[ "$sessionid" != "" ]] && [[ "$1" == *"$sessionid"* ]] && safeToRM="true"
+	
 	[[ "$safeToRM" == "false" ]] && return 1
 	
 	#Safeguards/
-	[[ "$safeToDeleteGit" != "true" ]] && [[ -d "$1" ]] && [[ -e "$1" ]] && find "$1" | grep -i '\.git$' >/dev/null 2>&1 && return 1
+	[[ "$safeToDeleteGit" != "true" ]] && [[ -d "$1" ]] && [[ -e "$1" ]] && find "$1" 2>/dev/null | grep -i '\.git$' >/dev/null 2>&1 && return 1
 	
 	#Validate necessary tools were available for path building and checks.
-	_checkDep realpath
-	_checkDep readlink
-	_checkDep dirname
-	_checkDep basename
+	#! type realpath > /dev/null 2>&1 && return 1
+	! type readlink > /dev/null 2>&1 && return 1
+	! type dirname > /dev/null 2>&1 && return 1
+	! type basename > /dev/null 2>&1 && return 1
 	
 	if [[ -e "$1" ]]
 	then
 		#sleep 0
 		#echo "$1"
 		# WARNING Recommend against adding any non-portable flags.
-		rm -rf "$1"
+		rm -rf "$1" > /dev/null 2>&1
 	fi
 }
 
@@ -431,16 +786,19 @@ _safePath() {
 	#[[ "$1" == "/home/$USER"* ]] && safeToRM="true"
 	[[ "$1" == "/tmp/"* ]] && safeToRM="true"
 	
+	# WARNING: Allows removal of temporary folders created by current ubiquitous bash session only.
+	[[ "$sessionid" != "" ]] && [[ "$1" == *"$sessionid"* ]] && safeToRM="true"
+	
 	[[ "$safeToRM" == "false" ]] && return 1
 	
 	#Safeguards/
-	[[ "$safeToDeleteGit" != "true" ]] && [[ -d "$1" ]] && [[ -e "$1" ]] && find "$1" | grep -i '\.git$' >/dev/null 2>&1 && return 1
+	[[ "$safeToDeleteGit" != "true" ]] && [[ -d "$1" ]] && [[ -e "$1" ]] && find "$1" 2>/dev/null | grep -i '\.git$' >/dev/null 2>&1 && return 1
 	
 	#Validate necessary tools were available for path building and checks.
-	_checkDep realpath
-	_checkDep readlink
-	_checkDep dirname
-	_checkDep basename
+	#! type realpath > /dev/null 2>&1 && return 1
+	! type readlink > /dev/null 2>&1 && return 1
+	! type dirname > /dev/null 2>&1 && return 1
+	! type basename > /dev/null 2>&1 && return 1
 	
 	if [[ -e "$1" ]]
 	then
@@ -456,8 +814,8 @@ _safeBackup() {
 	! type _getAbsolute_criticalDep > /dev/null 2>&1 && return 1
 	! _getAbsolute_criticalDep && return 1
 	
-	[[ ! -e "$scriptAbsoluteLocation" ]] && exit 1
-	[[ ! -e "$scriptAbsoluteFolder" ]] && exit 1
+	[[ ! -e "$scriptAbsoluteLocation" ]] && return 1
+	[[ ! -e "$scriptAbsoluteFolder" ]] && return 1
 	
 	#Fail sooner, avoiding irrelevant error messages. Especially important to cases where an upstream process has already removed the "$safeTmp" directory of a downstream process which reaches "_stop" later.
 	! [[ -e "$1" ]] && return 1
@@ -500,8 +858,8 @@ _command_safeBackup() {
 	! type _command_getAbsolute_criticalDep > /dev/null 2>&1 && return 1
 	! _command_getAbsolute_criticalDep && return 1
 	
-	[[ ! -e "$commandScriptAbsoluteLocation" ]] && exit 1
-	[[ ! -e "$commandScriptAbsoluteFolder" ]] && exit 1
+	[[ ! -e "$commandScriptAbsoluteLocation" ]] && return 1
+	[[ ! -e "$commandScriptAbsoluteFolder" ]] && return 1
 	
 	#Fail sooner, avoiding irrelevant error messages. Especially important to cases where an upstream process has already removed the "$safeTmp" directory of a downstream process which reaches "_stop" later.
 	! [[ -e "$1" ]] && return 1
@@ -530,7 +888,7 @@ _command_safeBackup() {
 	[[ "$1" == "$HOME" ]] && return 1
 	[[ "$1" == "$HOME/" ]] && return 1
 	
-	! type realpath > /dev/null 2>&1 && return 1
+	#! type realpath > /dev/null 2>&1 && return 1
 	! type readlink > /dev/null 2>&1 && return 1
 	! type dirname > /dev/null 2>&1 && return 1
 	! type basename > /dev/null 2>&1 && return 1
@@ -539,6 +897,23 @@ _command_safeBackup() {
 }
 
 
+
+_all_exist() {
+	local currentArg
+	for currentArg in "$@"
+	do
+		! [[ -e "$currentArg" ]] && return 1
+	done
+	
+	return 0
+}
+
+_wait_not_all_exist() {
+	while ! _all_exist "$@"
+	do
+		sleep 0.1
+	done
+}
 
 #http://stackoverflow.com/questions/687948/timeout-a-command-in-bash-without-unnecessary-delay
 _timeout() { ( set +b; sleep "$1" & "${@:2}" & wait -n; r=$?; kill -9 `jobs -p`; exit $r; ) } 
@@ -560,14 +935,58 @@ _terminate() {
 	rm "$processListFile"
 }
 
-_terminateAll() {
+_terminateMetaHostAll() {
+	! ls -d -1 ./.m_*/.pid > /dev/null 2>&1 && return 0
+	
 	local processListFile
 	processListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
 	
 	local currentPID
 	
-	cat ./w_*/.pid >> "$processListFile" 2> /dev/null
+	cat ./.m_*/.pid >> "$processListFile" 2> /dev/null
+	
+	while read -r currentPID
+	do
+		pkill -P "$currentPID"
+		kill "$currentPID"
+	done < "$processListFile"
+	
+	rm "$processListFile"
+	
+	! ls -d -1 ./.m_*/.pid > /dev/null 2>&1 && return 0
+	sleep 0.3
+	! ls -d -1 ./.m_*/.pid > /dev/null 2>&1 && return 0
+	sleep 1
+	! ls -d -1 ./.m_*/.pid > /dev/null 2>&1 && return 0
+	sleep 3
+	! ls -d -1 ./.m_*/.pid > /dev/null 2>&1 && return 0
+	sleep 10
+	! ls -d -1 ./.m_*/.pid > /dev/null 2>&1 && return 0
+	sleep 20
+	! ls -d -1 ./.m_*/.pid > /dev/null 2>&1 && return 0
+	sleep 20
+	! ls -d -1 ./.m_*/.pid > /dev/null 2>&1 && return 0
+	sleep 20
+	! ls -d -1 ./.m_*/.pid > /dev/null 2>&1 && return 0
+	
+	return 1
+}
+
+_terminateAll() {
+	_terminateMetaHostAll
+	
+	local processListFile
+	processListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
+	
+	local currentPID
+	
+	
 	cat ./.s_*/.pid >> "$processListFile" 2> /dev/null
+	
+	cat ./.e_*/.pid >> "$processListFile" 2> /dev/null
+	cat ./.m_*/.pid >> "$processListFile" 2> /dev/null
+	
+	cat ./w_*/.pid >> "$processListFile" 2> /dev/null
 	
 	while read -r currentPID
 	do
@@ -580,10 +999,29 @@ _terminateAll() {
 
 #Generates random alphanumeric characters, default length 18.
 _uid() {
-	local uidLength
-	! [[ -z "$1" ]] && uidLength="$1" || uidLength=18
+	local curentLengthUID
+
+	currentLengthUID="18"
+	! [[ -z "$uidLengthPrefix" ]] && ! [[ "$uidLengthPrefix" -lt "18" ]] && currentLengthUID="$uidLengthPrefix"
+	! [[ -z "$1" ]] && currentLengthUID="$1"
+
+	cat /dev/urandom 2> /dev/null | base64 2> /dev/null | tr -dc 'a-zA-Z0-9' 2> /dev/null | head -c "$currentLengthUID" 2> /dev/null
+}
+
+_compat_stat_c_run() {
+	local functionOutput
 	
-	cat /dev/urandom 2> /dev/null | base64 2> /dev/null | tr -dc 'a-zA-Z0-9' 2> /dev/null | head -c "$uidLength" 2> /dev/null
+	functionOutput=$(stat -c "$@" 2> /dev/null)
+	[[ "$?" == "0" ]] && echo "$functionOutput" && return 0
+	
+	#BSD
+	if stat --help 2>&1 | grep '\-f ' > /dev/null 2>&1
+	then
+		functionOutput=$(stat -f "$@" 2> /dev/null)
+		[[ "$?" == "0" ]] && echo "$functionOutput" && return 0
+	fi
+	
+	return 1
 }
 
 _permissions_directory_checkForPath() {
@@ -594,7 +1032,7 @@ _permissions_directory_checkForPath() {
 	
 	[[ "$parameterAbsoluteLocation" == "$PWD" ]] && ! [[ "$parameterAbsoluteLocation" == "$checkScriptAbsoluteFolder" ]] && return 1
 	
-	local permissions_readout=$(stat -c "%a" "$1")
+	local permissions_readout=$(_compat_stat_c_run "%a" "$1")
 	
 	local permissions_user
 	local permissions_group
@@ -614,8 +1052,8 @@ _permissions_directory_checkForPath() {
 	local permissions_uid
 	local permissions_gid
 	
-	permissions_uid=$(stat -c "%u" "$1")
-	permissions_gid=$(stat -c "%g" "$1")
+	permissions_uid=$(_compat_stat_c_run "%u" "$1")
+	permissions_gid=$(_compat_stat_c_run "%g" "$1")
 	
 	#Normally these variables are available through ubiqutious bash, but this permissions check may be needed earlier in that global variables setting process.
 	local permissions_host_uid
@@ -665,6 +1103,224 @@ _test_permissions_ubiquitous() {
 #"${globalArgs[@]}"
 _gather_params() {
 	export globalArgs=("${@}")
+}
+
+_self_critial() {
+	_priority_critical_pid "$$"
+}
+
+_self_interactive() {
+	_priority_interactive_pid "$$"
+}
+
+_self_background() {
+	_priority_background_pid "$$"
+}
+
+_self_idle() {
+	_priority_idle_pid "$$"
+}
+
+_self_app() {
+	_priority_app_pid "$$"
+}
+
+_self_zero() {
+	_priority_zero_pid "$$"
+}
+
+
+#Example.
+_priority_critical() {
+	_priority_dispatch "_priority_critical_pid"
+}
+
+_priority_critical_pid_root() {
+	! _wantSudo && return 1
+	
+	sudo -n ionice -c 2 -n 2 -p "$1"
+	! sudo -n renice -15 -p "$1" && return 1
+	
+	return 0
+}
+
+_priority_critical_pid() {
+	[[ "$1" == "" ]] && return 1
+	
+	_priority_critical_pid_root "$1" && return 0
+	
+	ionice -c 2 -n 4 -p "$1"
+	! renice 0 -p "$1" && return 1
+	
+	return 1
+}
+
+_priority_interactive_pid_root() {
+	! _wantSudo && return 1
+	
+	sudo -n ionice -c 2 -n 2 -p "$1"
+	! sudo -n renice -10 -p "$1" && return 1
+	
+	return 0
+}
+
+_priority_interactive_pid() {
+	[[ "$1" == "" ]] && return 1
+	
+	_priority_interactive_pid_root "$1" && return 0
+	
+	ionice -c 2 -n 4 -p "$1"
+	! renice 0 -p "$1" && return 1
+	
+	return 1
+}
+
+_priority_app_pid_root() {
+	! _wantSudo && return 1
+	
+	sudo -n ionice -c 2 -n 3 -p "$1"
+	! sudo -n renice -5 -p "$1" && return 1
+	
+	return 0
+}
+
+_priority_app_pid() {
+	[[ "$1" == "" ]] && return 1
+	
+	_priority_app_pid_root "$1" && return 0
+	
+	ionice -c 2 -n 4 -p "$1"
+	! renice 0 -p "$1" && return 1
+	
+	return 1
+}
+
+_priority_background_pid_root() {
+	! _wantSudo && return 1
+	
+	sudo -n ionice -c 2 -n 5 -p "$1"
+	! sudo -n renice +5 -p "$1" && return 1
+	
+	return 0
+}
+
+_priority_background_pid() {
+	[[ "$1" == "" ]] && return 1
+	
+	if ! type ionice > /dev/null 2>&1 || ! groups | grep -E 'wheel|sudo' > /dev/null 2>&1
+	then
+		renice +5 -p "$1"
+		return 0
+	fi
+	
+	_priority_background_pid_root "$1" && return 0
+	
+	ionice -c 2 -n 5 -p "$1"
+	
+	renice +5 -p "$1"
+}
+
+
+
+_priority_idle_pid_root() {
+	! _wantSudo && return 1
+	
+	sudo -n ionice -c 3 -p "$1"
+	! sudo -n renice +15 -p "$1" && return 1
+	
+	return 0
+}
+
+_priority_idle_pid() {
+	[[ "$1" == "" ]] && return 1
+	
+	if ! type ionice > /dev/null 2>&1 || ! groups | grep -E 'wheel|sudo' > /dev/null 2>&1
+	then
+		renice +15 -p "$1"
+		return 0
+	fi
+	
+	_priority_idle_pid_root "$1" && return 0
+	
+	#https://linux.die.net/man/1/ionice
+	ionice -c 3 -p "$1"
+	
+	renice +15 -p "$1"
+}
+
+_priority_zero_pid_root() {
+	! _wantSudo && return 1
+	
+	sudo -n ionice -c 2 -n 4 -p "$1"
+	! sudo -n renice 0 -p "$1" && return 1
+	
+	return 0
+}
+
+_priority_zero_pid() {
+	[[ "$1" == "" ]] && return 1
+	
+	_priority_zero_pid_root "$1" && return 0
+	
+	#https://linux.die.net/man/1/ionice
+	ionice -c 2 -n 4 -p "$1"
+	
+	renice 0 -p "$1"
+}
+
+# WARNING: Untested.
+_priority_dispatch() {
+	local processListFile
+	processListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
+	
+	echo "$1" >> "$processListFile"
+	pgrep -P "$1" 2>/dev/null >> "$processListFile"
+	
+	local currentPID
+	
+	while read -r currentPID
+	do
+		"$@" "$currentPID"
+	done < "$processListFile"
+	
+	rm "$processListFile"
+}
+
+# WARNING: Untested.
+_priority_enumerate_pid() {
+	[[ "$1" == "" ]] && return 1
+	
+	echo "$1"
+	pgrep -P "$1" 2>/dev/null
+}
+
+_priority_enumerate_pattern() {
+	local processListFile
+	processListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
+	
+	echo -n >> "$processListFile"
+	
+	pgrep "$1" >> "$processListFile"
+	
+	
+	local parentListFile
+	parentListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
+	
+	echo -n >> "$parentListFile"
+	
+	local currentPID
+	
+	while read -r currentPID
+	do
+		pgrep -P "$currentPID" 2>/dev/null > "$parentListFile"
+	done < "$processListFile"
+	
+	cat "$processListFile"
+	cat "$parentListFile"
+	
+	
+	rm "$processListFile"
+	rm "$parentListFile"
 }
 
 _instance_internal() {
@@ -795,6 +1451,15 @@ _messageColors() {
 	return 0
 }
 
+#Purple. User must do something manually to proceed. NOT to be used for dependency installation requests - use probe, bad, and fail statements for that.
+_messagePlain_request() {
+	echo -e -n '\E[0;35m '
+	echo -n "$@"
+	echo -e -n ' \E[0m'
+	echo
+	return 0
+}
+
 #Cyan. Harmless status messages.
 #"generic/ubiquitousheader.sh"
 _messagePlain_nominal() {
@@ -825,6 +1490,23 @@ _messagePlain_probe_expr() {
 	return 0
 }
 
+#Blue. Diagnostic instrumentation.
+#"generic/ubiquitousheader.sh"
+_messagePlain_probe_var() {
+	echo -e -n '\E[0;34m '
+	
+	echo -n "$1"'= '
+	
+	eval echo -e -n \$"$1"
+	
+	echo -e -n ' \E[0m'
+	echo
+	return 0
+}
+_messageVar() {
+	_messagePlain_probe_var "$@"
+}
+
 #Green. Working as expected.
 #"generic/ubiquitousheader.sh"
 _messagePlain_good() {
@@ -852,6 +1534,25 @@ _messagePlain_bad() {
 	echo -e -n ' \E[0m'
 	echo
 	return 0
+}
+
+#Blue. Diagnostic instrumentation.
+#Prints "$@" and runs "$@".
+# WARNING: Use with care.
+_messagePlain_probe_cmd() {
+	echo -e -n '\E[0;34m '
+	
+	_safeEcho "$@"
+	
+	echo -e -n ' \E[0m'
+	echo
+	
+	"$@"
+	
+	return
+}
+_messageCMD() {
+	_messagePlain_probe_cmd "$@"
 }
 
 #Demarcate major steps.
@@ -964,13 +1665,17 @@ _includeFile() {
 	return 1
 }
 
-#Provide only approximate, realative paths. These will be disassembled and treated as a search query following stricti preferences
+#Provide only approximate, realative paths. These will be disassembled and treated as a search query following strict preferences.
 #"generic/filesystem/absolutepaths.sh"
 _includeScript() {
+	_tryExec "_includeScript_prog" "$1" && return 0
 
 	local includeScriptFilename=$(basename "$1")
 	local includeScriptSubdirectory=$(dirname "$1")
 	
+	_includeFile "$configDir"/"$includeScriptSubdirectory"/"$includeScriptFilename" && return 0
+	
+	_includeFile "$configDir"/"$includeScriptFilename" && return 0
 	
 	_includeFile "$progDir"/"$includeScriptSubdirectory"/"$includeScriptFilename" && return 0
 	
@@ -979,8 +1684,6 @@ _includeScript() {
 	_includeFile "$ubiquitiousLibDir"/"$includeScriptSubdirectory"/"$includeScriptFilename" && return 0
 	
 	_includeFile "$ubiquitiousLibDir"/"$includeScriptFilename" && return 0
-	
-	_includeFile "$configDir"/"$includeScriptFilename" && return 0
 	
 	#[[ "$configBaseDir" == "" ]] && configBaseDir="_config"
 	[[ "$configBaseDir" == "" ]] && configBaseDir=$(basename "$configDir")
@@ -1013,6 +1716,17 @@ _includeScripts() {
 	done
 }
 
+# WARNING: Untested.
+#_includeScript_prog() {
+#	false
+	
+	# WARNING: Not recommended. Create folders and submodules under "_prog" instead, as in "_prog/libName".
+	#_includeFile "$scriptLib"/libName/"$includeScriptSubdirectory"/"$includeScriptFilename" && return 0
+	#_includeFile "$scriptLib"/libName/"$includeScriptFilename" && return 0
+	
+	#return 1
+#}
+
 #Gets filename extension, specifically any last three characters in given string.
 #"$1" == filename
 _getExt() {
@@ -1022,7 +1736,7 @@ _getExt() {
 #Reports either the directory provided, or the directory of the file provided.
 _findDir() {
 	local dirIn=$(_getAbsoluteLocation "$1")
-	dirInLogical=$(realpath -L -s "$dirIn")
+	dirInLogical=$(_realpath_L_s "$dirIn")
 	
 	if [[ -d "$dirInLogical" ]]
 	then
@@ -1049,33 +1763,46 @@ _discoverResource() {
 }
 
 _rmlink() {
+	[[ "$1" == "/dev/null" ]] && return 1
+	
 	[[ -h "$1" ]] && rm -f "$1" && return 0
+	
 	! [[ -e "$1" ]] && return 0
+	
 	return 1
 }
 
 #Like "ln -sf", but will not proceed if target is not link and exists (ie. will not erase files).
-_relink_sequence() {
-
+_relink_procedure() {
 	#Do not update correct symlink.
 	local existingLinkTarget
 	existingLinkTarget=$(readlink "$2")
 	[[ "$existingLinkTarget" == "$1" ]] && return 0
 	
 	! [[ "$relinkRelativeUb" == "true" ]] && _rmlink "$2" && ln -s "$1" "$2" && return 0
-	[[ "$relinkRelativeUb" == "true" ]] && _rmlink "$2" && ln -s -r "$1" "$2" && return 0
+	
+	if [[ "$relinkRelativeUb" == "true" ]]
+	then
+		_rmlink "$2" && ln -s --relative "$1" "$2" && return 0
+	fi
 	
 	return 1
 }
 
 _relink() {
+	[[ "$2" == "/dev/null" ]] && return 1
 	[[ "$relinkRelativeUb" == "true" ]] && export relinkRelativeUb=""
-	_relink_sequence "$@"
+	_relink_procedure "$@"
 }
 
 _relink_relative() {
-	export relinkRelativeUb="true"
-	_relink_sequence "$@"
+	export relinkRelativeUb=""
+	
+	[[ "$relinkRelativeUb" != "true" ]] && ln --help 2>/dev/null | grep '\-\-relative' > /dev/null 2>&1 && export relinkRelativeUb="true"
+	[[ "$relinkRelativeUb" != "true" ]] && ln 2>&1 | grep '\-\-relative' > /dev/null 2>&1 && export relinkRelativeUb="true"
+	[[ "$relinkRelativeUb" != "true" ]] && man ln 2>/dev/null | grep '\-\-relative' > /dev/null 2>&1 && export relinkRelativeUb="true"
+	
+	_relink_procedure "$@"
 	export relinkRelativeUb=""
 	unset relinkRelativeUb
 }
@@ -1189,9 +1916,9 @@ _checkForMounts() {
 	# TODO: Possible stability/portability improvements.
 	#https://unix.stackexchange.com/questions/248472/finding-mount-points-with-the-find-command
 	
-	find "$1" -type d -exec sudo -n mountpoint {} 2>/dev/null \; | grep 'is a mountpoint' >/dev/null 2>&1 && echo -n true > "$mountCheckFile"
+	find "$1" -type d -exec sudo -n mountpoint '{}' 2>/dev/null \; | grep 'is a mountpoint' >/dev/null 2>&1 && echo -n true > "$mountCheckFile"
 	
-	#find "$1" -type d -exec "$scriptAbsoluteLocation" {} "$mountCheckFile" \;
+	#find "$1" -type d -exec "$scriptAbsoluteLocation" '{}' "$mountCheckFile" \;
 	
 	local includesMount
 	includesMount=$(cat "$mountCheckFile")
@@ -1203,6 +1930,88 @@ _checkForMounts() {
 	
 	_stop 0
 }
+
+_test_channel_fifo() {
+	_getDep mkfifo
+	
+	#if ! dd if=$("$scriptAbsoluteLocation" _channel_host_fifo cat /dev/zero) of=/dev/null bs=1M count=10 iflag=fullblock > /dev/null 2>&1
+	if ! dd if=$("$scriptAbsoluteLocation" _channel_host_fifo cat /dev/zero) of=/dev/null bs=10000000 count=10 > /dev/null 2>&1
+	then
+		echo 'fail: channel: fifo'
+		_stop 1
+	fi
+}
+
+_test_channel() {
+	_tryExec "_test_channel_fifo"
+}
+
+_set_channel() {
+	export channelTmp="$scriptAbsoluteFolder""$tmpPrefix"/.c_"$sessionid"
+}
+
+_prepare_channel() {
+	mkdir -p "$channelTmp"
+}
+
+_stop_channel_allow() {
+	export channelStop="true"
+}
+_stop_channel_prohibit() {
+	export channelStop="false"
+}
+
+_rm_instance_channel() {
+	[[ "$channelStop" != "true" ]] && return 0
+	export channelStop="false"
+	
+	if [[ "$channelTmp" != "" ]] && [[ "$channelTmp" == *"$sessionid"* ]] && [[ -e "$channelTmp" ]]
+	then
+		_safeRMR "$channelTmp"
+		[[ -e "$channelTmp" ]] && sleep 0.1 && _safeRMR "$channelTmp"
+		[[ -e "$channelTmp" ]] && sleep 0.3 && _safeRMR "$channelTmp"
+		[[ -e "$channelTmp" ]] && sleep 1 && _safeRMR "$channelTmp"
+		[[ -e "$channelTmp" ]] && sleep 3 && _safeRMR "$channelTmp"
+		[[ -e "$channelTmp" ]] && sleep 3 && _safeRMR "$channelTmp"
+		[[ -e "$channelTmp" ]] && sleep 3 && _safeRMR "$channelTmp"
+	fi
+}
+
+_channel_fifo_example() {
+	cat /dev/urandom | base64
+}
+
+_channel_fifo_sequence() {
+	_stop_channel_allow
+	
+	"$@" 2>/dev/null > "$commandFIFO"
+	
+	_rm_instance_channel
+}
+
+_channel_host_fifo_sequence() {
+	_stop_channel_prohibit
+	_set_channel
+	_prepare_channel
+	
+	export commandFIFO="$channelTmp"/cmdfifo
+	mkfifo "$commandFIFO"
+	
+	echo "$commandFIFO"
+	
+	
+	#nohup "$scriptAbsoluteLocation" --embed _channel_fifo_sequence "$@" >/dev/null 2>&1 &
+	"$scriptAbsoluteLocation" --embed _channel_fifo_sequence "$@" >/dev/null 2>&1 &
+	#disown -h $!
+	disown -a -h
+}
+
+# example: dd if=$(./ubiquitous_bash.sh _channel_host_fifo _channel_fifo_example) of=/dev/null
+# example: dd if=$(./ubiquitous_bash.sh _channel_host_fifo cat /dev/zero) of=/dev/null bs=1M count=10000 iflag=fullblock
+_channel_host_fifo() {
+	"$scriptAbsoluteLocation" _channel_host_fifo_sequence "$@"
+}
+
 
 #Waits for the process PID specified by first parameter to end. Useful in conjunction with $! to provide process control and/or PID files. Unlike wait command, does not require PID to be a child of the current shell.
 _pauseForProcess() {
@@ -1447,10 +2256,24 @@ _validatePort() {
 }
 
 _testFindPort() {
-	_getDep ss
+	! _wantGetDep ss
+	! _wantGetDep sockstat
 	
-	local machineLowerPort=$(cat /proc/sys/net/ipv4/ip_local_port_range | cut -f1)
-	local machineUpperPort=$(cat /proc/sys/net/ipv4/ip_local_port_range | cut -f2)
+	# WARNING: Cygwin port range detection not yet implemented.
+	if uname -a | grep -i cygwin > /dev/null 2>&1
+	then
+		! type nmap > /dev/null 2>&1 && echo "missing socket detection" && _stop 1
+		return 0
+	fi
+	
+	! type ss > /dev/null 2>&1 && ! type sockstat > /dev/null 2>&1 && echo "missing socket detection" && _stop 1
+	
+	local machineLowerPort=$(cat /proc/sys/net/ipv4/ip_local_port_range 2> /dev/null | cut -f1)
+	local machineUpperPort=$(cat /proc/sys/net/ipv4/ip_local_port_range 2> /dev/null | cut -f2)
+	
+	[[ "$machineLowerPort" == "" ]] && echo "warn: autodetect: lower_port"
+	[[ "$machineUpperPort" == "" ]] && echo "warn: autodetect: upper_port"
+	[[ "$machineLowerPort" == "" ]] || [[ "$machineUpperPort" == "" ]] && return 0
 	
 	[[ "$machineLowerPort" -lt "1024" ]] && echo "invalid lower_port" && _stop 1
 	[[ "$machineLowerPort" -lt "32768" ]] && echo "warn: low lower_port"
@@ -1469,10 +2292,24 @@ _testFindPort() {
 _checkPort_local() {
 	[[ "$1" == "" ]] && return 1
 	
-	if ss -lpn | grep ":$1 " > /dev/null 2>&1
+	if type ss > /dev/null 2>&1
 	then
-		return 0
+		ss -lpn | grep ':'"$1"' ' > /dev/null 2>&1
+		return $?
 	fi
+	
+	if type sockstat > /dev/null 2>&1
+	then
+		sockstat -46ln | grep '\.'"$1"' ' > /dev/null 2>&1
+		return $?
+	fi
+	
+	if uname -a | grep -i cygwin > /dev/null 2>&1
+	then
+		nmap --host-timeout 0.1 -Pn localhost -p "$1" 2> /dev/null | grep open > /dev/null 2>&1
+		return $?
+	fi
+	
 	return 1
 }
 
@@ -1539,10 +2376,10 @@ _findPort() {
 	while true
 	do
 		for (( currentPort = lower_port ; currentPort <= upper_port ; currentPort++ )); do
-			if ! ss -lpn | grep ":$currentPort " > /dev/null 2>&1
+			if ! _checkPort_local "$currentPort"
 			then
 				sleep 0.1
-				if ! ss -lpn | grep ":$currentPort " > /dev/null 2>&1
+				if ! _checkPort_local "$currentPort"
 				then
 					break 2
 				fi
@@ -1568,16 +2405,151 @@ _test_waitport() {
 	_getDep nmap
 }
 
-#Checks hostname for open port.
-#"$1" == hostname
-#"$2" == port
-_checkPort() {
-	if nmap -Pn "$1" -p "$2" 2> /dev/null | grep open > /dev/null 2>&1
+_showPort_ipv6() {
+	nmap -6 --host-timeout "$netTimeout" -Pn "$1" -p "$2" 2> /dev/null
+}
+
+_showPort_ipv4() {
+	nmap --host-timeout "$netTimeout" -Pn "$1" -p "$2" 2> /dev/null
+}
+
+_checkPort_ipv6() {
+	if _showPort_ipv6 "$@" | grep open > /dev/null 2>&1
 	then
 		return 0
 	fi
 	return 1
 }
+
+#Checks hostname for open port.
+#"$1" == hostname
+#"$2" == port
+_checkPort_ipv4() {
+	if _showPort_ipv4 "$@" | grep open > /dev/null 2>&1
+	then
+		return 0
+	fi
+	return 1
+}
+
+_checkPort_sequence() {
+	_start
+	
+	local currentEchoStatus
+	currentEchoStatus=$(stty --file=/dev/tty -g 2>/dev/null)
+	
+	local currentExitStatus
+	
+	if ( [[ "$1" == 'localhost' ]] || [[ "$1" == '::1' ]] || [[ "$1" == '127.0.0.1' ]] )
+	then
+		_checkPort_ipv4 "localhost" "$2"
+		return "$?"
+	fi
+	
+	#Lack of coproc support implies old system, which implies IPv4 only.
+	#if ! type coproc >/dev/null 2>&1
+	#then
+	#	_checkPort_ipv4 "$1" "$2"
+	#	return "$?"
+	#fi
+	
+	( ( _showPort_ipv4 "$1" "$2" ) 2> /dev/null > "$safeTmp"/_showPort_ipv4 & )
+	
+	( ( _showPort_ipv6 "$1" "$2" ) 2> /dev/null > "$safeTmp"/_showPort_ipv6 & )
+	
+	
+	local currentTimer
+	currentTimer=1
+	while [[ "$currentTimer" -le "$netTimeout" ]]
+	do
+		grep -m1 'open' "$safeTmp"/_showPort_ipv4 > /dev/null 2>&1 && _stop
+		grep -m1 'open' "$safeTmp"/_showPort_ipv6 > /dev/null 2>&1 && _stop
+		let currentTimer="$currentTimer"+1
+		sleep 1
+	done
+	
+	
+	_stop 1
+}
+
+# DANGER: Unstable, abandoned. Reference only.
+# WARNING: Limited support for older systems.
+#https://unix.stackexchange.com/questions/86270/how-do-you-use-the-command-coproc-in-various-shells
+#http://wiki.bash-hackers.org/syntax/keywords/coproc
+#http://mywiki.wooledge.org/BashFAQ/024
+#[[ $COPROC_PID ]] && kill $COPROC_PID
+#coproc { bash -c '(sleep 9 ; echo test) &' ; bash -c 'echo test' ;  } ; grep -m1 test <&${COPROC[0]}
+#coproc { echo test ; echo x ; } ; sleep 1 ; grep -m1 test <&${COPROC[0]}
+_checkPort_sequence_coproc() {
+	local currentEchoStatus
+	currentEchoStatus=$(stty --file=/dev/tty -g 2>/dev/null)
+	
+	local currentExitStatus
+	
+	if ( [[ "$1" == 'localhost' ]] || [[ "$1" == '::1' ]] || [[ "$1" == '127.0.0.1' ]] )
+	then
+		_checkPort_ipv4 "localhost" "$2"
+		return "$?"
+	fi
+	
+	#Lack of coproc support implies old system, which implies IPv4 only.
+	if ! type coproc >/dev/null 2>&1
+	then
+		_checkPort_ipv4 "$1" "$2"
+		return "$?"
+	fi
+	
+	#coproc { sleep 30 ; echo foo ; sleep 30 ; echo bar; } ; grep -m1 foo <&${COPROC[0]}
+	#[[ $COPROC_PID ]] && kill $COPROC_PID ; coproc { ((sleep 1 ; echo test) &) ; echo x ; sleep 3 ; } ; sleep 0.1 ; grep -m1 test <&${COPROC[0]}
+	
+	[[ "$COPROC_PID" ]] && kill "$COPROC_PID" > /dev/null 2>&1
+	coproc {
+		( ( _showPort_ipv4 "$1" "$2" ) & )
+		
+		#[sleep] Lessens unlikely occurrence of interleaved text within "open" keyword.
+		#IPv6 delayed instead of IPv4 due to likelihood of additional delay by IPv6 tunneling.
+		#sleep 0.1
+		
+		# TODO: Better characterize problems with sleep.
+		# Workaround - sleep may disable 'stty echo', which may be irreversable within SSH proxy command.
+		#_timeout 0.1 cat < /dev/zero > /dev/null
+		if ! ping -c 2 -i 0.1 localhost > /dev/null 2>&1
+		then
+			ping -c 2 -i 1 localhost > /dev/null 2>&1
+		fi
+		
+		#[sleep] Lessens unlikely occurrence of interleaved text within "open" keyword.
+		#IPv6 delayed instead of IPv4 due to likelihood of additional delay by IPv6 tunneling.
+		( ( _showPort_ipv6 "$1" "$2" ) & )
+
+		#sleep 2
+		ping -c 2 -i 2 localhost > /dev/null 2>&1
+	}
+	grep -m1 open <&"${COPROC[0]}" > /dev/null 2>&1
+	currentExitStatus="$?"
+	
+	stty --file=/dev/tty "$currentEchoStatus" 2> /dev/null
+	
+	return "$currentExitStatus"
+}
+
+#Checks hostname for open port.
+#"$1" == hostname
+#"$2" == port
+_checkPort() {
+	#local currentEchoStatus
+	#currentEchoStatus=$(stty --file=/dev/tty -g 2>/dev/null)
+	
+	#if bash -c \""$scriptAbsoluteLocation"\"\ _checkPort_sequence\ \""$1"\"\ \""$2"\" > /dev/null 2>&1
+	if "$scriptAbsoluteLocation" _checkPort_sequence "$1" "$2" > /dev/null 2>&1
+	then
+		#stty --file=/dev/tty "$currentEchoStatus" 2> /dev/null
+		return 0
+	fi
+	#stty --file=/dev/tty "$currentEchoStatus" 2> /dev/null
+	return 1
+}
+
 
 #Waits a reasonable time interval for port to be open.
 #"$1" == hostname
@@ -1885,7 +2857,7 @@ _fetchDep_debianStretch_special() {
 	then
 		sudo -n dpkg --add-architecture i386
 		sudo -n apt-get update
-		sudo -n apt-get install --install-recommends -y wine
+		sudo -n apt-get install --install-recommends -y wine wine32 wine64 libwine libwine:i386 fonts-wine
 		return 0
 	fi
 	
@@ -1951,7 +2923,9 @@ _fetchDep_debianStretch_special() {
 		wget -q https://www.virtualbox.org/download/oracle_vbox.asc -O- | sudo -n apt-key add -
 		
 		sudo -n apt-get update
-		sudo -n apt-get install --install-recommends -y dkms virtualbox-5.2
+		sudo -n apt-get install --install-recommends -y dkms virtualbox-6.0
+		
+		echo "WARNING: Recommend manual system configuration after install. See https://www.virtualbox.org/wiki/Downloads ."
 		
 		return 0
 	fi
@@ -2058,6 +3032,13 @@ _fetchDep_debianStretch_special() {
 	if [[ "$1" == "go" ]]
 	then
 		sudo -n apt-get install --install-recommends -y golang-go
+		
+		return 0
+	fi
+	
+	if [[ "$1" == "php" ]]
+	then
+		sudo -n apt-get install --no-install-recommends -y php
 		
 		return 0
 	fi
@@ -2298,6 +3279,46 @@ _wantSudo() {
 	return 0
 }
 
+#Returns a UUID in the form of xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+_getUUID() {
+	cat /proc/sys/kernel/random/uuid
+}
+alias getUUID=_getUUID
+
+_test_bashdb() {
+	#_getDep ddd
+	
+	#if ! _discoverResource bashdb-code/bashdb.sh > /dev/null 2>&1
+	#then
+	#	echo
+	#	echo 'bashdb required for debugging'
+		#_stop 1
+	#fi
+	
+	if ! type bashdb > /dev/null 2>&1
+	then
+		echo
+		echo 'warn: bashdb required for debugging'
+	#_stop 1
+	fi
+	
+	return 0
+}
+
+
+_stopwatch() {
+	local measureDateA
+	local measureDateB
+	
+	measureDateA=$(date +%s%N | cut -b1-13)
+
+	"$@"
+
+	measureDateB=$(date +%s%N | cut -b1-13)
+
+	bc <<< "$measureDateB - $measureDateA"
+}
+
 #####Idle
 
 _gosuBinary() {
@@ -2367,7 +3388,7 @@ _verifyGosu_sequence() {
 	chmod 700 "$shortTmp"/vgosu
 	
 	# TODO Add further verification steps.
-	gpg --armor --import "$gpgTestDir"/gosudev.asc || _stop 1
+	gpg -q --batch --armor --import "$gpgTestDir"/gosudev.asc || _stop 1
 	
 	gpg --batch --verify "$gpgTestDir"/gosu-armel.asc "$gpgTestDir"/gosu-armel || _stop 1
 	gpg --batch --verify "$gpgTestDir"/gosu-amd64.asc "$gpgTestDir"/gosu-amd64 || _stop 1
@@ -2441,46 +3462,6 @@ _buildGosu_sequence() {
 
 _buildGosu() {
 	"$scriptAbsoluteLocation" _buildGosu_sequence "$@"
-}
-
-#Returns a UUID in the form of xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-_getUUID() {
-	cat /proc/sys/kernel/random/uuid
-}
-alias getUUID=_getUUID
-
-_test_bashdb() {
-	#_getDep ddd
-	
-	#if ! _discoverResource bashdb-code/bashdb.sh > /dev/null 2>&1
-	#then
-	#	echo
-	#	echo 'bashdb required for debugging'
-		#_stop 1
-	#fi
-	
-	if ! type bashdb > /dev/null 2>&1
-	then
-		echo
-		echo 'warn: bashdb required for debugging'
-	#_stop 1
-	fi
-	
-	return 0
-}
-
-
-_stopwatch() {
-	local measureDateA
-	local measureDateB
-	
-	measureDateA=$(date +%s%N | cut -b1-13)
-
-	"$@"
-
-	measureDateB=$(date +%s%N | cut -b1-13)
-
-	bc <<< "$measureDateB - $measureDateA"
 }
 
 
@@ -2686,6 +3667,11 @@ _nixToMSW() {
 	
 	_slashBackToForward "$intermediateStepOne"
 }
+
+_test_localpath() {
+	_getDep realpath
+}
+
 
 #Determines whether test parameter is in the path of base parameter.
 #"$1" == testParameter
@@ -2964,8 +3950,21 @@ _vector_virtUser() {
 
 
 
+_test_abstractfs_sequence() {
+	export afs_nofs="true"
+	if ! "$scriptAbsoluteLocation" _abstractfs ls "$scriptAbsoluteLocation" > /dev/null 2>&1
+	then
+		_stop 1
+	fi
+}
+
 _test_abstractfs() {
 	_getDep md5sum
+	if ! "$scriptAbsoluteLocation" _test_abstractfs_sequence
+	then
+		echo 'fail: abstractfs: ls'
+		_stop 1
+	fi
 }
 
 _abstractfs() {
@@ -3153,7 +4152,7 @@ _write_projectAFS() {
 	testAbstractfsBase="$abstractfs_base"
 	[[ "$1" != "" ]] && testAbstractfsBase=$(_getAbsoluteLocation "$1")
 	
-	( [[ "$nofs" == "true" ]] || [[ "$afs_nofs" == "true" ]] ) && return
+	( [[ "$nofs" == "true" ]] || [[ "$afs_nofs" == "true" ]] ) && return 0
 	_projectAFS_here > "$testAbstractfsBase"/project.afs
 	chmod u+x "$testAbstractfsBase"/project.afs
 }
@@ -4174,6 +5173,8 @@ _setShareMSW() {
 
 #Consider using explorer.exe to use file associations within the guest. Overload with ops to force a more specific 'preCommand'.
 _preCommand_MSW() {
+	echo 'X:'
+	echo 'cd '"$localPWD"
 	echo -e -n 'start /MAX "" "explorer.exe" '
 }
 
@@ -4622,6 +5623,12 @@ _readyChRoot() {
 	
 }
 
+# ATTENTION: Override with "core.sh" or similar.
+# WARNING: Must return true to complete mount/umount procedure
+_mountChRoot_image_raspbian_prog() {
+	true
+}
+
 _mountChRoot_image_raspbian() {
 	_mustGetSudo
 	
@@ -4647,10 +5654,11 @@ _mountChRoot_image_raspbian() {
 		local chrootimagepart
 		chrootimagepart="$chrootimagedev"p2
 		
-		local chrootloopdevfs
-		chrootloopdevfs=$(eval $(sudo -n blkid "$chrootimagepart" | awk ' { print $3 } '); echo $TYPE)
+		#local chrootloopdevfs
+		#chrootloopdevfs=$(eval $(sudo -n blkid "$chrootimagepart" | awk ' { print $3 } '); echo $TYPE)
+		#if [[ "$chrootloopdevfs" == "ext4" ]]
 		
-		if [[ "$chrootloopdevfs" == "ext4" ]]
+		if sudo -n blkid "$chrootimagepart" | grep 'ext4' > /dev/null 2>&1
 		then
 			
 			sudo -n mount "$chrootimagepart" "$chrootDir" || _stop 1
@@ -4666,6 +5674,8 @@ _mountChRoot_image_raspbian() {
 			
 			sudo -n cp -n "$chrootDir"/etc/ld.so.preload "$chrootDir"/etc/ld.so.preload.orig
 			echo | sudo -n tee "$chrootDir"/etc/ld.so.preload > /dev/null 2>&1
+			
+			! _mountChRoot_image_raspbian_prog "$chrootimagedev" && _stop 1
 			
 			_stop 0
 		fi
@@ -4773,10 +5783,20 @@ _umountChRoot_directory() {
 	"$scriptAbsoluteLocation" _checkForMounts "$1" && return 1
 }
 
+# ATTENTION: Override with "core.sh" or similar.
+# WARNING: Must return true to complete mount/umount procedure
+_umountChRoot_image_prog() {
+	true
+}
+
 _umountChRoot_image() {
 	_mustGetSudo || return 1
 	
 	_umountChRoot_directory "$chrootDir" && return 1
+	
+	! _umountChRoot_image_prog && return 1
+	
+	[[ -d "$globalVirtFS"/../boot ]] && mountpoint "$globalVirtFS"/../boot >/dev/null 2>&1 && sudo -n umount "$globalVirtFS"/../boot
 	
 	local chrootimagedev
 	chrootimagedev=$(cat "$scriptLocal"/imagedev)
@@ -4845,8 +5865,8 @@ _closeChRoot() {
 }
 
 _haltAllChRoot() {
-	find "$scriptAbsoluteFolder"/v_*/fs -maxdepth 1 -type d -exec "$scriptAbsoluteLocation" _umountChRoot_directory {} \;
-	find "$scriptAbsoluteFolder"/v_*/tmp -maxdepth 1 -type d -exec sudo -n umount {} \;
+	find "$scriptAbsoluteFolder"/v_*/fs -maxdepth 1 -type d -exec "$scriptAbsoluteLocation" _umountChRoot_directory '{}' \;
+	find "$scriptAbsoluteFolder"/v_*/tmp -maxdepth 1 -type d -exec sudo -n umount '{}' \;
 	find "$scriptAbsoluteFolder"/v_*/ -maxdepth 12 -type d | head -n 48 | tac | xargs rmdir
 	
 	"$scriptAbsoluteLocation" _closeChRoot --force
@@ -5275,7 +6295,7 @@ _dropChRoot() {
 	
 	"$scriptAbsoluteLocation" _gosuExecVirt cp -r /etc/skel/. "$virtGuestHomeDrop"
 	
-	"$scriptAbsoluteLocation" _gosuExecVirt "$scriptAbsoluteLocation" _setupUbiquitous_nonet
+	"$scriptAbsoluteLocation" _gosuExecVirt "$scriptAbsoluteLocation" _setupUbiquitous_nonet > /dev/null 2>&1
 	
 	# Drop to user ubvrtusr, using gosu.
 	_gosuExecVirt "$@"
@@ -5316,6 +6336,9 @@ _testQEMU_x64-raspi() {
 	_testQEMU_x64-x64
 	_getDep qemu-arm-static
 	_getDep qemu-armeb-static
+	
+	_getDep qemu-system-arm
+	_getDep qemu-system-aarch64
 	
 	_mustGetSudo
 	
@@ -5383,24 +6406,21 @@ _qemu-system() {
 	qemu-system-x86_64 "$@"
 }
 
-#Overload this function, or the guestArch variable, to configure QEMU to  guest with a specif
-_qemu() {
-	local qemuHostArch
-	qemuHostArch=$(uname -m)
-	[[ "$qemuHostArch" == "" ]] && qemuGuestArch="$qemuHostArch"
-	 _messagePlain_probe 'qemuGuestArch= '"$qemuGuestArch"
-	
-	local qemuExitStatus
-	
-	[[ "$qemuHostArch" == "x86_64" ]] && _messagePlain_probe '>qemu= qemu-system-x86_64' && qemu-system-x86_64 "$@"
-	qemuExitStatus="$?"
-	
-	
-	return "$qemuExitStatus"
+#Overload this function, or the guestArch variable, to configure QEMU with specialized parameters.
+_qemu_system_x86_64() {
+	qemu-system-x86_64 "$@"
 }
 
-_integratedQemu() {
-	_messagePlain_nominal 'init: _integratedQemu'
+_qemu_system_arm() {
+	qemu-system-arm "$@"
+}
+
+_qemu_system_aarch64() {
+	qemu-system-aarch64 "$@"
+}
+
+_integratedQemu_x64() {
+	_messagePlain_nominal 'init: _integratedQemu_x64'
 	
 	! mkdir -p "$instancedVirtDir" && _messagePlain_bad 'fail: mkdir -p instancedVirtDir= '"$instancedVirtDir" && _stop 1
 	
@@ -5423,7 +6443,7 @@ _integratedQemu() {
 		_messagePlain_warn 'warn: no nested x64'
 	fi
 	
-	local hostThreadCount=$(cat /proc/cpuinfo | grep MHz | wc -l)
+	local hostThreadCount=$(cat /proc/cpuinfo | grep MHz | wc -l | tr -dc '0-9')
 	[[ "$hostThreadCount" -ge "4" ]] && [[ "$hostThreadCount" -lt "8" ]] && _messagePlain_probe 'cpu: >4' && qemuArgs+=(-smp 4)
 	[[ "$hostThreadCount" -ge "8" ]] && _messagePlain_probe 'cpu: >6' && qemuArgs+=(-smp 6)
 	
@@ -5454,10 +6474,91 @@ _integratedQemu() {
 	
 	qemuArgs+=("${qemuSpecialArgs[@]}" "${qemuUserArgs[@]}")
 	
-	_messagePlain_probe _qemu "${qemuArgs[@]}"
-	_qemu "${qemuArgs[@]}"
+	_messagePlain_probe _qemu_system_x86_64 "${qemuArgs[@]}"
+	_qemu_system_x86_64 "${qemuArgs[@]}"
 	
 	_safeRMR "$instancedVirtDir" || _stop 1
+}
+
+# DANGER: Do NOT call without snapshot on RasPi images intended for real (ie. arm64, "RPI3") hardware! Untested!
+# WARNING: NOT recommended. Severely restricted performance and features.
+#https://azeria-labs.com/emulate-raspberry-pi-with-qemu/
+#https://www.raspberrypi.org/forums/viewtopic.php?t=195565
+#https://github.com/dhruvvyas90/qemu-rpi-kernel
+#qemu-system-arm -kernel ./kernel-raspi -cpu arm1176 -m 256 -M versatilepb -serial stdio -append "root=/dev/sda2 rootfstype=ext4 rw" -hda ./vm-raspbian.img -redir tcp:5022::22 -no-reboot
+#qemu-system-arm -kernel ./kernel-raspi -cpu arm1176 -m 256 -M versatilepb -dtb versatile-pb.dtb -no-reboot -append "root=/dev/sda2 panic=1 rootfstype=ext4 rw" -net nic -net user,hostfwd=tcp::5022-:22 -hda ./vm-raspbian.img
+#https://raspberrypi.stackexchange.com/questions/45936/has-anyone-managed-to-run-raspberry-pi-3-with-kvm-enabled
+#https://wiki.qemu.org/Documentation/Platforms/ARM
+#https://github.com/bztsrc/raspi3-tutorial
+#https://translatedcode.wordpress.com/2018/04/25/debian-on-qemus-raspberry-pi-3-model/
+_integratedQemu_raspi() {
+	_messagePlain_nominal 'init: _integratedQemu_raspi'
+	
+	! mkdir -p "$instancedVirtDir" && _messagePlain_bad 'fail: mkdir -p instancedVirtDir= '"$instancedVirtDir" && _stop 1
+	
+	! _commandBootdisc "$@" && _messagePlain_bad 'fail: _commandBootdisc' && _stop 1
+	
+	! [[ -e "$scriptLocal"/kernel-raspi ]] && _messagePlain_bad 'fail: missing: kernel-raspi' && _messagePlain_probe 'request: obtain kernel-raspi : https://github.com/dhruvvyas90/qemu-rpi-kernel'
+	! [[ -e "$scriptLocal"/kernel-raspi ]] && _messagePlain_bad 'fail: missing: versatile-pb.dtb' && _messagePlain_probe 'request: obtain versatile-pb.dtb : https://github.com/dhruvvyas90/qemu-rpi-kernel'
+	qemuUserArgs+=(-kernel "$scriptLocal"/kernel-raspi -cpu arm1176 -M versatilepb -dtb "$scriptLocal"/versatile-pb.dtb -append "root=/dev/sda2 panic=1 rootfstype=ext4 rw" -no-reboot)
+	#qemuUserArgs+=(-kernel "$scriptLocal"/kernel-raspi -M raspi3 -append "root=/dev/sda2 rootfstype=ext4 rw" -no-reboot)
+	#qemuUserArgs+=(-kernel "$scriptLocal"/kernel-raspi -M virt -bios /usr/share/qemu-efi/QEMU_EFI.fd -append "root=/dev/sda2 panic=1 rootfstype=ext4 rw" -no-reboot)
+	#qemuUserArgs+=(-kernel "$scriptLocal"/kernel-raspi -cpu arm1176 -M virt -bios /usr/share/qemu-efi/QEMU_EFI.fd -append "root=/dev/sda2 panic=1 rootfstype=ext4 rw" -no-reboot)
+	
+	#local hostThreadCount=$(cat /proc/cpuinfo | grep MHz | wc -l | tr -dc '0-9')
+	#[[ "$hostThreadCount" -ge "4" ]] && _messagePlain_probe 'cpu: >4' && qemuArgs+=(-smp 4)
+	
+	qemuUserArgs+=(-drive format=raw,file="$scriptLocal"/vm-raspbian.img)
+	#qemuUserArgs+=(-drive if=none,id=uas-cdrom,media=cdrom,file="$hostToGuestISO" -device nec-usb-xhci,id=xhci -device usb-uas,id=uas,bus=xhci.0 -device scsi-cd,bus=uas.0,scsi-id=0,lun=5,drive=uas-cdrom)
+	qemuUserArgs+=(-drive file="$hostToGuestISO",media=cdrom -boot c)
+	
+	#[[ "$vmMemoryAllocation" == "" ]] && vmMemoryAllocation="$vmMemoryAllocationDefault"
+	#qemuUserArgs+=(-m "$vmMemoryAllocation")
+	qemuUserArgs+=(-m 256)
+	
+	# ATTENTION: Overload with "ops" or similar.
+	[[ "$qemuUserArgs_netRestrict" == "" ]] && qemuUserArgs_netRestrict="n"
+	#[[ "$qemuUserArgs_net_guestSSH" == "" ]] && qemuUserArgs_net_guestSSH=",hostfwd=tcp::5022-:22"
+	[[ "$qemuUserArgs_net_guestSSH" == "" ]] && qemuUserArgs_net_guestSSH=""
+	
+	#qemuUserArgs+=(-net nic,model=rtl8139 -net user,restrict="$qemuUserArgs_netRestrict",smb="$sharedHostProjectDir")
+	qemuUserArgs+=(-net nic -net user,restrict="$qemuUserArgs_netRestrict""$qemuUserArgs_net_guestSSH",smb="$sharedHostProjectDir")
+	
+	#qemuArgs+=(-usbdevice tablet)
+	
+	#qemuArgs+=(-vga cirrus)
+	
+	#[[ "$qemuArgs_audio" == "" ]] && qemuArgs+=(-device ich9-intel-hda -device hda-duplex)
+	
+	#qemuArgs+=(-show-cursor)
+	
+	qemuUserArgs+=(-serial stdio)
+	
+	qemuArgs+=("${qemuSpecialArgs[@]}" "${qemuUserArgs[@]}")
+	
+	_messagePlain_probe _qemu_system_arm "${qemuArgs[@]}"
+	_qemu_system_arm "${qemuArgs[@]}"
+	#_messagePlain_probe _qemu_system_aarch64 "${qemuArgs[@]}"
+	#_qemu_system_aarch64 "${qemuArgs[@]}"
+	
+	_safeRMR "$instancedVirtDir" || _stop 1
+}
+
+_integratedQemu() {
+	if [[ -e "$scriptLocal"/vm.img ]]
+	then
+		_integratedQemu_x64 "$@"
+		return 0
+	fi
+	
+	if [[ -e "$scriptLocal"/vm-raspbian.img ]]
+	then
+		_integratedQemu_raspi "$@"
+		return 0
+	fi
+	
+	_messagePlain_bad 'fail: missing: vm*.img'
+	return 1
 }
 
 #"${qemuSpecialArgs[@]}" == ["-snapshot "]
@@ -5507,6 +6608,7 @@ _editQemu_sequence() {
 	_stop
 }
 
+# DANGER: Do NOT call without snapshot on RasPi images intended for real (ie. arm64, "RPI3") hardware! Untested!
 _editQemu() {
 	_findInfrastructure_virtImage ${FUNCNAME[0]} "$@"
 	[[ "$ubVirtImageLocal" == "false" ]] && return
@@ -5705,6 +6807,20 @@ _vboxlabSSH() {
 	ssh -q -F "$scriptLocal"/vblssh -i "$scriptLocal"/id_rsa "$1"
 }
 
+_labVBox_migrate() {
+	_messageNormal 'init: _labVBox_migrate'
+	
+	! _prepare_lab_vbox && _messagePlain_bad 'fail: _prepare_lab_vbox' && return 1
+	
+	export ub_new_VBOXID=$(_uid)
+	
+	find . \( -iname '*.xml' -o -iname '*.xml*' -o -iname '*.xbel' -o -iname '*.conf' -o -iname '*.vbox' -o -iname '*.vbox*' -o -iname '*.id' \) -exec sed -i 's/'$VBOXID'/'"$ub_new_VBOXID"'/g' '{}' \;
+	
+	_messagePlain_good 'complete: _labVBox_migrate'
+}
+
+
+
 _prepare_instance_vbox() {
 	_prepare_vbox "$instancedVirtDir"
 }
@@ -5744,7 +6860,34 @@ _remove_instance_vbox() {
 	_prepare_instance_vbox || return 1
 }
 
+#https://www.virtualbox.org/ticket/18257
+_workaround_VirtualBoxVM() {
+	if type VirtualBoxVM > /dev/null 2>&1
+	then
+		VirtualBoxVM "$@"
+		return
+	fi
+	if ! type VirtualBoxVM > /dev/null 2>&1 && type /usr/lib/virtualbox/VirtualBoxVM > /dev/null 2>&1
+	then
+		/usr/lib/virtualbox/VirtualBoxVM "$@"
+		return
+	fi
+	if ! type VirtualBoxVM > /dev/null 2>&1 && type /usr/local/lib/virtualbox/VirtualBoxVM > /dev/null 2>&1
+	then
+		/usr/local/lib/virtualbox/VirtualBoxVM "$@"
+		return
+	fi
+	if ! type VirtualBoxVM > /dev/null 2>&1
+	then
+		VirtualBox "$@"
+		return
+	fi
+}
+
 _vboxGUI() {
+	#_workaround_VirtualBoxVM "$@"
+	
+	#VirtualBoxVM "$@"
 	#VirtualBox "$@"
 	VBoxSDL "$@"
 }
@@ -5807,6 +6950,11 @@ _set_instance_vbox_features() {
 	
 }
 
+_set_instance_vbox_features_app() {
+	true
+	#VBoxManage modifyvm "$sessionid" --usbxhci on
+}
+
 _set_instance_vbox_share() {
 	#VBoxManage sharedfolder add "$sessionid" --name "root" --hostpath "/"
 	if [[ "$sharedHostProjectDir" != "" ]]
@@ -5849,6 +6997,8 @@ _create_instance_vbox() {
 	
 	! _set_instance_vbox_features && _messageError 'FAIL' && return 1
 	
+	! _set_instance_vbox_features_app && _messageError 'FAIL: unknown app failure' && return 1
+	
 	_set_instance_vbox_command "$@"
 	
 	_messagePlain_nominal 'Mounting shared filesystems.'
@@ -5858,7 +7008,8 @@ _create_instance_vbox() {
 	! VBoxManage storagectl "$sessionid" --name "IDE Controller" --add ide --controller PIIX4 && _messagePlain_bad 'fail: VBoxManage... attach ide controller'
 	
 	#export vboxDiskMtype="normal"
-	[[ "$vboxDiskMtype" == "" ]] && export vboxDiskMtype="multiattach"
+	#[[ "$vboxDiskMtype" == "" ]] && export vboxDiskMtype="multiattach"
+	[[ "$vboxDiskMtype" == "" ]] && export vboxDiskMtype="immutable"
 	_messagePlain_probe 'vboxDiskMtype= '"$vboxDiskMtype"
 	
 	_messagePlain_probe VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype"
@@ -6367,15 +7518,15 @@ _grepFileLine() {
 _findFunction() {
 	#-name '*.sh'
 	#-not -path "./_local/*"
-	#find ./blockchain -name '*.sh' -type f -size -10000k -exec grep -n "$@" {} /dev/null \;
-	#find ./generic -name '*.sh' -type f -size -10000k -exec grep -n "$@" {} /dev/null \;
-	#find ./instrumentation -name '*.sh' -type f -size -10000k -exec grep -n "$@" {} /dev/null \;
-	#find ./labels -name '*.sh' -type f -size -10000k -exec grep -n "$@" {} /dev/null \;
-	#find ./os -name '*.sh' -type f -size -10000k -exec grep -n "$@" {} /dev/null \;
-	#find ./shortcuts -name '*.sh' -type f -size -10000k -exec grep -n "$@" {} /dev/null \;
-	#find . -name '*.sh' -type f -size -10000k -exec grep -n "$@" {} /dev/null \;
+	#find ./blockchain -name '*.sh' -type f -size -10000k -exec grep -n "$@" '{}' /dev/null \;
+	#find ./generic -name '*.sh' -type f -size -10000k -exec grep -n "$@" '{}' /dev/null \;
+	#find ./instrumentation -name '*.sh' -type f -size -10000k -exec grep -n "$@" '{}' /dev/null \;
+	#find ./labels -name '*.sh' -type f -size -10000k -exec grep -n "$@" '{}' /dev/null \;
+	#find ./os -name '*.sh' -type f -size -10000k -exec grep -n "$@" '{}' /dev/null \;
+	#find ./shortcuts -name '*.sh' -type f -size -10000k -exec grep -n "$@" '{}' /dev/null \;
+	#find . -name '*.sh' -type f -size -10000k -exec grep -n "$@" '{}' /dev/null \;
 	
-	find . -not -path "./_local/*" -name '*.sh' -type f -size -1000k -exec grep -n "$@" {} /dev/null \;
+	find . -not -path "./_local/*" -name '*.sh' -type f -size -1000k -exec grep -n "$@" '{}' /dev/null \;
 }
 
 _test_devemacs() {
@@ -6777,6 +7928,119 @@ _eclipse() {
 	_eclipse_config "$@"
 }
 
+#Simulated client/server discussion testing.
+
+_log_query() {
+	[[ "$1" == "" ]] && return 1
+	
+	tee "$1"
+	
+	return 0
+}
+
+_report_query_stdout() {
+	[[ "$1" == "" ]] && return 1
+	
+	_messagePlain_probe 'stdout: strings'
+	strings "$1"
+	
+	_messagePlain_probe 'stdout: hex'
+	xxd -p "$1" | tr -d '\n'
+	echo
+	
+	return 0
+}
+
+# ATTENTION: Overload with "core.sh" or similar.
+_prepare_query_prog() {
+	true
+}
+
+_prepare_query() {
+	export ub_queryclientdir="$queryTmp"/client
+	export qc="$ub_queryclientdir"
+	
+	export ub_queryclient="$ub_queryclientdir"/script
+	export qce="$ub_queryclient"
+	
+	export ub_queryserverdir="$queryTmp"/server
+	export qs="$ub_queryserverdir"
+	
+	export ub_queryserver="$ub_queryserverdir"/script
+	export qse="$ub_queryserver"
+	
+	mkdir -p "$ub_queryclientdir"
+	mkdir -p "$ub_queryserverdir"
+	
+	! [[ -e "$ub_queryclient" ]] && cp "$scriptAbsoluteLocation" "$ub_queryclient"
+	! [[ -e "$ub_queryserver" ]] && cp "$scriptAbsoluteLocation" "$ub_queryserver"
+	
+	_prepare_query_prog "$@"
+}
+
+_queryServer_sequence() {
+	_start
+	
+	local currentExitStatus
+	
+	export queryType="server"
+	"$ub_queryserver" "$@"
+	currentExitStatus="$?"
+	
+	env > env_$(_uid)
+	
+	_stop "$currentExitStatus"
+}
+_queryServer() {
+	"$scriptAbsoluteLocation" _queryServer_sequence "$@"
+}
+_qs() {
+	_queryServer "$@"
+}
+
+_queryClient_sequence() {
+	_start
+	
+	local currentExitStatus
+	
+	export queryType="client"
+	"$ub_queryclient" "$@"
+	currentExitStatus="$?"
+	
+	env > env_$(_uid)
+	
+	_stop "$currentExitStatus"
+}
+_queryClient() {
+	"$scriptAbsoluteLocation" _queryClient_sequence "$@"
+}
+_qc() {
+	_queryClient "$@"
+}
+
+_query_diag() {
+	echo test | _query "$@"
+	local currentExitStatus="$?"
+	
+	_messagePlain_nominal 'diag: tx.log'
+	_report_query_stdout "$queryTmp"/tx.log
+	
+	_messagePlain_nominal 'diag: xc.log'
+	_report_query_stdout "$queryTmp"/xc.log
+	
+	_messagePlain_nominal 'diag: rx.log'
+	_report_query_stdout "$queryTmp"/rx.log
+	
+	return "$currentExitStatus"
+}
+
+# ATTENTION: Overload with "core.sh" or similar.
+_query() {
+	_prepare_query
+	
+	( cd "$qc" ; _queryClient _bin cat | _log_query "$queryTmp"/tx.log | ( cd "$qs" ; _queryServer _bin cat | _log_query "$queryTmp"/xc.log | ( cd "$qc" ; _queryClient _bin cat | _log_query "$queryTmp"/rx.log ; return "${PIPESTATUS[0]}" )))
+}
+
 #Example, override with "core.sh" .
 _scope_compile() {
 	true
@@ -6797,7 +8061,11 @@ _scope_attach() {
 	_scope_command_write _scope_eclipse_procedure
 	_scope_command_write _scope_atom_procedure
 	
-	_scope_command_write _compile
+	_scope_command_write _query
+	_scope_command_write _qs
+	_scope_command_write _qc
+	
+	#_scope_command_write _compile
 	#_scope_command_external_here _compile
 }
 
@@ -6847,6 +8115,8 @@ _start_scope() {
 	export scope="$ub_scope"
 	[[ -e "$ub_scope" ]] && _messagePlain_bad 'fail: safety: multiple scopes && single specimen' && _stop 1
 	[[ -L "$ub_scope" ]] && _messagePlain_bad 'fail: safety: multiple scopes && single specimen' && _stop 1
+	
+	#[[ -e "$ub_specimen"/.e_* ]] && _messagePlain_bad 'fail: safety: engine root scope strongly discouraged' && _stop 1
 	
 	#export ub_scope_tmp="$ub_scope"/s_"$sessionid"
 	
@@ -7012,7 +8282,7 @@ _scope_terminal_procedure() {
 	
 	export PATH="$PATH":"$ub_scope"
 	echo
-	/bin/bash --norc
+	/usr/bin/env bash --norc
 	echo
 }
 
@@ -7152,7 +8422,7 @@ _findGit_procedure() {
 		return 0
 	fi
 	
-	find -L . -mindepth 1 -maxdepth 1 -type d -exec "$scriptAbsoluteLocation" _findGit_procedure {} "$@" \;
+	find -L . -mindepth 1 -maxdepth 1 -type d -exec "$scriptAbsoluteLocation" _findGit_procedure '{}' "$@" \;
 }
 
 #Recursively searches for directories containing ".git".
@@ -7163,7 +8433,7 @@ _findGit() {
 		return 0
 	fi
 	
-	find -L . -mindepth 1 -maxdepth 1 -type d -exec "$scriptAbsoluteLocation" _findGit_procedure {} "$@" \;
+	find -L . -mindepth 1 -maxdepth 1 -type d -exec "$scriptAbsoluteLocation" _findGit_procedure '{}' "$@" \;
 }
 
 _gitPull() {
@@ -7205,6 +8475,15 @@ _gitPullRecursive_sequence() {
 #Updates all git repositories recursively.
 _gitPullRecursive() {
 	_findGit "$scriptAbsoluteLocation" _gitPullRecursive_sequence
+}
+
+# DANGER
+# Pushes all changes as a commit described as "Upstream."
+_gitUpstream() {
+	git add -A . ; git commit -a -m "Upstream." ; git push
+}
+_gitUp() {
+	_gitUpstream
 }
 
 # DANGER
@@ -7631,19 +8910,19 @@ _fetch_raspbian_sequence() {
 	
 	cd "$safeTmp"
 	
-	[[ -e "$storageLocation"/2017-09-07-raspbian-stretch.zip ]] && cp "$storageLocation"/2017-09-07-raspbian-stretch.zip ./2017-09-07-raspbian-stretch.zip > /dev/null 2>&1
-	[[ -e ./2017-09-07-raspbian-stretch.zip ]] || _fetch 'https://downloads.raspberrypi.org/raspbian/images/raspbian-2017-09-08/2017-09-07-raspbian-stretch.zip'
+	[[ -e "$storageLocation"/2018-10-09-raspbian-stretch.zip ]] && cp "$storageLocation"/2018-10-09-raspbian-stretch.zip ./2018-10-09-raspbian-stretch.zip > /dev/null 2>&1
+	[[ -e ./2018-10-09-raspbian-stretch.zip ]] || _fetch 'https://downloads.raspberrypi.org/raspbian/images/raspbian-2018-10-11/2018-10-09-raspbian-stretch.zip'
 	
-	wget https://downloads.raspberrypi.org/raspbian/images/raspbian-2017-09-08/2017-09-07-raspbian-stretch.zip.sha256
+	wget 'https://downloads.raspberrypi.org/raspbian/images/raspbian-2018-10-11/2018-10-09-raspbian-stretch.zip.sha256'
 	
-	if ! cat 2017-09-07-raspbian-stretch.zip.sha256 | grep 2017-09-07-raspbian-stretch.zip | sha256sum -c - > /dev/null 2>&1
+	if ! cat '2018-10-09-raspbian-stretch.zip.sha256' | grep '2018-10-09-raspbian-stretch.zip' | sha256sum -c - > /dev/null 2>&1
 	then
 		echo 'invalid'
 		_stop 1
 	fi
 	
 	#Raspbian signature is difficult to authenticate. Including hash here allows some trust to be established from a Git/SSH server, as well HTTPS generally.
-	if [[ "$(cat 2017-09-07-raspbian-stretch.zip.sha256 | cut -f1 -d\  )" != "a64d742bc525b548f0435581fac5876b50a4e9ba1d1cd6433358b4ab6c7a770b" ]]
+	if [[ "$(cat 2018-10-09-raspbian-stretch.zip.sha256 | cut -f1 -d\  )" != "6e3aa76e21473ef316c0bfc9efa5c27a27fe46bd698f71de3e06e66b64a55500" ]]
 	then
 		echo 'invalid'
 		_stop 1
@@ -7652,7 +8931,7 @@ _fetch_raspbian_sequence() {
 	mkdir -p "$storageLocation"
 	
 	cd "$functionEntryPWD"
-	mv "$safeTmp"/2017-09-07-raspbian-stretch.zip "$storageLocation"
+	mv "$safeTmp"/2018-10-09-raspbian-stretch.zip "$storageLocation"
 	
 	
 	
@@ -7676,11 +8955,11 @@ _create_raspbian_sequence() {
 	
 	cd "$storageLocation"
 	
-	unzip "$scriptAbsoluteFolder"/_lib/os/2017-09-07-raspbian-stretch.zip
+	unzip "$scriptAbsoluteFolder"/_lib/os/2018-10-09-raspbian-stretch.zip
 	
 	export raspbianImageFile="$scriptLocal"/vm-raspbian.img
 	
-	[[ ! -e "$raspbianImageFile" ]] && mv "$scriptAbsoluteFolder"/_lib/os/2017-09-07-raspbian-stretch.img "$raspbianImageFile"
+	[[ ! -e "$raspbianImageFile" ]] && mv "$scriptAbsoluteFolder"/_lib/os/2018-10-09-raspbian-stretch.img "$raspbianImageFile"
 	
 	cd "$functionEntryPWD"
 	
@@ -7898,10 +9177,15 @@ _gparted() {
 
 _setupUbiquitous_here() {
 	cat << CZXWXcRMTo8EmM8i4d
+type sudo > /dev/null 2>&1 && groups | grep -E 'wheel|sudo' > /dev/null 2>&1 && sudo -n renice -n -10 -p \$\$ > /dev/null 2>&1
+
 export profileScriptLocation="$ubcoreUBdir"/ubiquitous_bash.sh
 export profileScriptFolder="$ubcoreUBdir"
 [[ "\$scriptAbsoluteLocation" != "" ]] && . "\$scriptAbsoluteLocation" --parent _importShortcuts
 [[ "\$scriptAbsoluteLocation" == "" ]] && . "\$profileScriptLocation" --profile _importShortcuts
+
+renice -n 0 -p \$\$ > /dev/null 2>&1
+
 true
 CZXWXcRMTo8EmM8i4d
 }
@@ -7965,7 +9249,7 @@ _installUbiquitous() {
 		ub_gitPullStatus="$?"
 		! cd "$localFunctionEntryPWD" && return 1
 		
-		[[ "$ub_gitPullStatus" == "0" ]] && _messagePlain_good 'pass: git pull' cd "$localFunctionEntryPWD" && return 0
+		[[ "$ub_gitPullStatus" == "0" ]] && _messagePlain_good 'pass: git pull' && cd "$localFunctionEntryPWD" && return 0
 	fi
 	_messagePlain_warn 'fail: git pull'
 	
@@ -8086,7 +9370,205 @@ _anchor() {
 }
 
 
+_unix_renice_execDaemon() {
+	_cmdDaemon "$scriptAbsoluteLocation" _unix_renice_repeat
+}
+
+_unix_renice_daemon() {
+	_priority_idle_pid "$$" > /dev/null 2>&1
+	
+	_start
+	
+	_killDaemon
+	
+	
+	_unix_renice_execDaemon
+	while _daemonStatus
+	do
+		sleep 5
+	done
+	
+	_stop
+}
+
+_unix_renice_repeat() {
+	while true
+	do
+		_unix_renice_app > /dev/null 2>&1
+		sleep 10
+		_unix_renice_app > /dev/null 2>&1
+		sleep 10
+		_unix_renice_app > /dev/null 2>&1
+		sleep 10
+		_unix_renice_app > /dev/null 2>&1
+		sleep 10
+		_unix_renice_app > /dev/null 2>&1
+		sleep 10
+		_unix_renice_app > /dev/null 2>&1
+		sleep 10
+		_unix_renice_app > /dev/null 2>&1
+		sleep 10
+		_unix_renice_app > /dev/null 2>&1
+		sleep 10
+		_unix_renice_app > /dev/null 2>&1
+		sleep 10
+		
+		_unix_renice
+		sleep 10
+	done
+}
+
+_unix_renice() {
+	_priority_idle_pid "$$" > /dev/null 2>&1
+	
+	_unix_renice_critical > /dev/null 2>&1
+	_unix_renice_interactive > /dev/null 2>&1
+	_unix_renice_app > /dev/null 2>&1
+	_unix_renice_idle > /dev/null 2>&1
+}
+
+_unix_renice_critical() {
+	local processListFile
+	processListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
+	
+	_priority_enumerate_pattern "^ksysguard$" >> "$processListFile"
+	_priority_enumerate_pattern "^ksysguardd$" >> "$processListFile"
+	_priority_enumerate_pattern "^top$" >> "$processListFile"
+	_priority_enumerate_pattern "^iotop$" >> "$processListFile"
+	_priority_enumerate_pattern "^latencytop$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^Xorg$" >> "$processListFile"
+	_priority_enumerate_pattern "^modeset$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^smbd$" >> "$processListFile"
+	_priority_enumerate_pattern "^nmbd$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^ssh$" >> "$processListFile"
+	_priority_enumerate_pattern "^sshd$" >> "$processListFile"
+	_priority_enumerate_pattern "^ssh-agent$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^sshfs$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^socat$" >> "$processListFile"
+	
+	#_priority_enumerate_pattern "^cron$" >> "$processListFile"
+	
+	local currentPID
+	
+	while read -r currentPID
+	do
+		_priority_critical_pid "$currentPID"
+	done < "$processListFile"
+	
+	rm "$processListFile"
+}
+
+_unix_renice_interactive() {
+	local processListFile
+	processListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
+	
+	_priority_enumerate_pattern "^kwin$" >> "$processListFile"
+	_priority_enumerate_pattern "^pager$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^pulseaudio$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^synergy$" >> "$processListFile"
+	_priority_enumerate_pattern "^synergys$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^kactivitymanagerd$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^dbus" >> "$processListFile"
+	
+	local currentPID
+	
+	while read -r currentPID
+	do
+		_priority_interactive_pid "$currentPID"
+	done < "$processListFile"
+	
+	rm "$processListFile"
+}
+
+_unix_renice_app() {
+	local processListFile
+	processListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
+	
+	_priority_enumerate_pattern "^plasmashell$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^audacious$" >> "$processListFile"
+	_priority_enumerate_pattern "^vlc$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^firefox$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^dolphin$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^kwrite$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^konsole$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^pavucontrol$" >> "$processListFile"
+	
+	local currentPID
+	
+	while read -r currentPID
+	do
+		_priority_app_pid "$currentPID"
+	done < "$processListFile"
+	
+	rm "$processListFile"
+}
+
+_unix_renice_idle() {
+	local processListFile
+	processListFile="$scriptAbsoluteFolder"/.pidlist_$(_uid)
+	
+	_priority_enumerate_pattern "^packagekitd$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^apt-config$" >> "$processListFile"
+	
+	#_priority_enumerate_pattern "^ModemManager$" >> "$processListFile"
+	
+	#_priority_enumerate_pattern "^sddm$" >> "$processListFile"
+	
+	#_priority_enumerate_pattern "^lpqd$" >> "$processListFile"
+	#_priority_enumerate_pattern "^cupsd$" >> "$processListFile"
+	#_priority_enumerate_pattern "^cups-browsed$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^akonadi" >> "$processListFile"
+	_priority_enumerate_pattern "^akonadi_indexing_agent$" >> "$processListFile"
+	
+	#_priority_enumerate_pattern "^kdeconnectd$" >> "$processListFile"
+	#_priority_enumerate_pattern "^kacceessibleapp$" >> "$processListFile"
+	#_priority_enumerate_pattern "^kglobalaccel5$" >> "$processListFile"
+	
+	#_priority_enumerate_pattern "^kded4$" >> "$processListFile"
+	#_priority_enumerate_pattern "^ksmserver$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^sleep$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^exim4$" >> "$processListFile"
+	_priority_enumerate_pattern "^apache2$" >> "$processListFile"
+	_priority_enumerate_pattern "^mysqld$" >> "$processListFile"
+	_priority_enumerate_pattern "^ntpd$" >> "$processListFile"
+	#_priority_enumerate_pattern "^avahi-daemon$" >> "$processListFile"
+	
+	
+	local currentPID
+	
+	while read -r currentPID
+	do
+		_priority_idle_pid "$currentPID"
+	done < "$processListFile"
+	
+	rm "$processListFile"
+}
+
+
+
 #####Basic Variable Management
+
+#Reset prefixes.
+export tmpPrefix="" 
 
 #####Global variables.
 #Fixed unique identifier for ubiquitious bash created global resources, such as bootdisc images to be automaticaly mounted by guests. Should NEVER be changed.
@@ -8144,8 +9626,9 @@ export initPWD="$PWD"
 intInitPWD="$PWD"
 
 #Temporary directories.
-export safeTmp="$scriptAbsoluteFolder"/w_"$sessionid"
-export scopeTmp="$scriptAbsoluteFolder"/s_"$sessionid"
+export safeTmp="$scriptAbsoluteFolder""$tmpPrefix"/w_"$sessionid"
+export scopeTmp="$scriptAbsoluteFolder""$tmpPrefix"/s_"$sessionid"
+export queryTmp="$scriptAbsoluteFolder""$tmpPrefix"/q_"$sessionid"
 export logTmp="$safeTmp"/log
 #Solely for misbehaved applications called upon.
 export shortTmp=/tmp/w_"$sessionid"
@@ -8187,6 +9670,10 @@ export bootTmp="$scriptLocal"
 
 #Specialized temporary directories.
 
+#MetaEngine/Engine Tmp Defaults (example, no production use)
+#export metaTmp="$scriptAbsoluteFolder""$tmpPrefix"/.m_"$sessionid"
+#export engineTmp="$scriptAbsoluteFolder""$tmpPrefix"/.e_"$sessionid"
+
 # WARNING: Only one user per (virtual) machine. Requires _prepare_abstract . Not default.
 # DANGER: Mandatory strict directory 8.3 compliance for this variable! Long subdirectory/filenames permitted thereafter.
 # DANGER: Permitting multi-user access to this directory may cause unexpected behavior, including inconsitent file ownership.
@@ -8211,6 +9698,8 @@ export daemonPidFile="$scriptLocal"/.bgpid
 export vncPasswdFile="$safeTmp"/.vncpasswd
 
 #Network Defaults
+[[ "$netTimeout" == "" ]] && export netTimeout=18
+
 export AUTOSSH_FIRST_POLL=45
 export AUTOSSH_POLL=45
 #export AUTOSSH_GATETIME=0
@@ -8288,11 +9777,18 @@ export globalBuildDir="$scriptLocal"/b
 export globalBuildFS="$globalBuildDir"/fs
 export globalBuildTmp="$globalBuildDir"/tmp
 
-
 #Machine information.
-export hostMemoryTotal=$(cat /proc/meminfo | grep MemTotal | tr -cd '[[:digit:]]')
-export hostMemoryAvailable=$(cat /proc/meminfo | grep MemAvailable | tr -cd '[[:digit:]]')
-export hostMemoryQuantity="$hostMemoryTotal"
+
+if [[ -e "/proc/meminfo" ]]
+then
+	export hostMemoryTotal=$(cat /proc/meminfo | grep MemTotal | tr -cd '[[:digit:]]')
+	export hostMemoryAvailable=$(cat /proc/meminfo | grep MemAvailable | tr -cd '[[:digit:]]')
+	export hostMemoryQuantity="$hostMemoryTotal"
+else
+	export hostMemoryTotal="384000"
+	export hostMemoryAvailable="256000"
+	export hostMemoryQuantity="$hostMemoryTotal"
+fi
 
 export virtGuestUserDrop="ubvrtusr"
 export virtGuestUser="$virtGuestUserDrop"
@@ -8415,6 +9911,13 @@ _unset_vbox() {
 _reset_vboxLabID() {
 	[[ "$VBOX_ID_FILE" == "" ]] && _messagePlain_bad 'blank: VBOX_ID_FILE' && return 1
 	
+	if [[ "$ub_VBoxLab_prepare" == "true" ]]
+	then
+		_messagePlain_warn 'warn: path has changed and lock not reset'
+		_messagePlain_warn 'user: recommend: _labVBox_migrate'
+		return 0
+	fi
+	
 	rm -f "$VBOX_ID_FILE" > /dev/null 2>&1
 	
 	[[ -e "$VBOX_ID_FILE" ]] && _messagePlain_bad 'fail: VBOX_ID_FILE exists' && return 1
@@ -8479,9 +9982,1982 @@ _prepare_vbox() {
 }
 
 _prepare_lab_vbox() {
+	export ub_VBoxLab_prepare='true'
+	local currentExitStatus
 	_prepare_vbox "$scriptLocal"
+	currentExitStatus="$?"
+	export ub_VBoxLab_prepare='false'
+	
+	return "$currentExitStatus"
 }
 #_prepare_lab_vbox
+
+
+_test_metaengine_sequence() {
+	! _start_metaengine_host && _stop 1
+	! _stop_metaengine_allow && _stop 1
+	
+	! _reset_me_name && _stop 1
+	! _assign_me_coordinates "" "" "" "" "" "" 0 1 0 1 1 0 && _stop 1
+	! _set_me_null_in && _stop 1
+	
+	
+	! _reset_me_name && _stop 1
+	! _set_me_null_in && _stop 1
+	! _set_me_rand_out && _stop 1
+	! _cycle_me && _stop 1
+	! _set_me_null_out && _stop 1
+	
+	! _reset_me_name && _stop 1
+	! _set_me_null_in && _stop 1
+	! _assign_me_name_out "1" && _stop 1
+	! _cycle_me && _stop 1
+	! _assign_me_name_out "2" && _stop 1
+	! _cycle_me && _stop 1
+	! _assign_me_name_out "3" && _stop 1
+	! _cycle_me && _stop 1
+	! _set_me_null_out && _stop 1
+	
+	! _stop_metaengine_allow && _stop 1
+	_stop
+}
+
+_test_metaengine() {
+	_getDep mkfifo
+	
+	if ! "$scriptAbsoluteLocation" _test_metaengine_sequence > /dev/null 2>&1
+	then
+		echo 'fail: metaengine: internal'
+		_stop 1
+	fi
+}
+
+_report_metaengine() {
+	_messagePlain_nominal 'init: _report_metaengine'
+	
+	[[ ! -e "$metaTmp" ]] && _messagePlain_bad 'missing: metaTmp'
+	
+	
+	[[ "$metaBase" == "" ]] && _messagePlain_warn 'blank: metaBase'
+	[[ "$metaObjName" == "" ]] && _messagePlain_warn 'blank: metaObjName'
+	
+	#[[ "$metaType" == "" ]] && _messagePlain_warn 'blank: metaID'
+	
+	[[ "$metaID" == "" ]] && _messagePlain_warn 'blank: metaID'
+	
+	[[ "$metaPath" == "" ]] && _messagePlain_warn 'blank: metaPath'
+	
+	[[ "$metaDir_tmp" == "" ]] && _messagePlain_warn 'blank: metaDir_tmp'
+	[[ "$metaDir_base" == "" ]] && _messagePlain_warn 'blank: metaDir_base'
+	[[ "$metaDir" == "" ]] && _messagePlain_warn 'blank: metaDir'
+	
+	[[ "$metaReg" == "" ]] && _messagePlain_warn 'blank: metaReg'
+	
+	[[ "$metaConfidence" == "" ]] && _messagePlain_warn 'blank: metaConfidence'
+	
+	[[ ! -e "$metaBase" ]] && _messagePlain_warn 'missing: metaBase'
+	
+	[[ ! -e "$metaDir_tmp" ]] && _messagePlain_warn 'missing: metaDir_tmp'
+	[[ ! -e "$metaDir_base" ]] && _messagePlain_warn 'missing: metaDir_base'
+	[[ ! -e "$metaDir" ]] && _messagePlain_warn 'missing: metaDir'
+	
+	[[ ! -e "$metaReg" ]] && _messagePlain_warn 'missing: metaReg'
+	
+	[[ ! -e "$metaDir"/ao ]] && _messagePlain_warn 'missing: "$metaDir"/ao'
+	[[ ! -e "$metaDir"/bo ]] && _messagePlain_warn 'missing: "$metaDir"/bo'
+	
+	[[ ! -e "$in_me_a_path" ]] && _messagePlain_warn 'missing: in_me_a_path'
+	[[ ! -e "$in_me_b_path" ]] && _messagePlain_warn 'missing: in_me_b_path'
+}
+
+_report_metaengine_relink_in() {
+	[[ ! -e "$metaDir"/ai ]] && _messagePlain_warn 'missing: "$metaDir"/ai'
+	[[ ! -e "$metaDir"/bi ]] && _messagePlain_warn 'missing: "$metaDir"/bi'
+}
+
+_report_metaengine_relink_out() {
+	[[ ! -e "$out_me_a_path" ]] && _messagePlain_warn 'missing: out_me_a_path'
+	[[ ! -e "$out_me_b_path" ]] && _messagePlain_warn 'missing: out_me_b_path'
+}
+
+_message_me_vars() {
+	_message_me_set
+	_message_me_coordinates
+	_message_me_name
+}
+
+_message_me_set() {
+	_messagePlain_probe '########## SET'
+	
+	_messageVar metaBase
+	_messageVar metaObjName
+	echo
+	_messageVar metaID
+	echo
+	_messageVar metaPath
+	_messageVar metaDir_tmp
+	_messageVar metaDir_base
+	_messageVar metaDir
+	_messageVar metaReg
+	_messageVar metaConfidence
+	echo
+	_message_me_path
+}
+
+_message_me_path() {
+	_messagePlain_probe '########## PATH'
+	_messageVar in_me_a_path
+	_messageVar in_me_b_path
+	_messageVar out_me_a_path
+	_messageVar out_me_b_path
+	echo
+}
+
+_message_me_coordinates() {
+	_messagePlain_probe '########## IO - COORDINATES'
+	_messagePlain_probe '##### ai'
+	_messageVar in_me_a_z
+	_messageVar in_me_a_x
+	_messageVar in_me_a_y
+	echo
+	_messagePlain_probe '##### bi'
+	_messageVar in_me_b_z
+	_messageVar in_me_b_x
+	_messageVar in_me_b_y
+	echo
+	_messagePlain_probe '##### ao'
+	_messageVar out_me_a_z
+	_messageVar out_me_a_x
+	_messageVar out_me_a_y
+	echo
+	_messagePlain_probe '##### bo'
+	_messageVar out_me_b_z
+	_messageVar out_me_b_x
+	_messageVar out_me_b_y
+	echo
+}
+
+_message_me_name() {
+	_messagePlain_probe '########## IO - NAMES'
+	_messageVar in_me_a_name
+	_messageVar in_me_b_name
+	_messageVar out_me_a_name
+	_messageVar out_me_b_name
+}
+
+_me_header_here() {
+	cat << CZXWXcRMTo8EmM8i4d
+#!/usr/bin/env bash
+
+#Green. Working as expected.
+_messagePlain_good() {
+	echo -e -n '\E[0;32m '
+	echo -n "\$@"
+	echo -e -n ' \E[0m'
+	echo
+	return 0
+}
+
+#Yellow. May or may not be a problem.
+_messagePlain_warn() {
+	echo -e -n '\E[1;33m '
+	echo -n "\$@"
+	echo -e -n ' \E[0m'
+	echo
+	return 0
+}
+
+#Red. Will result in missing functionality, reduced performance, etc, but not necessarily program failure overall.
+_messagePlain_bad() {
+	echo -e -n '\E[0;31m '
+	echo -n "\$@"
+	echo -e -n ' \E[0m'
+	echo
+	return 0
+}
+
+CZXWXcRMTo8EmM8i4d
+}
+
+_me_var_here_script() {
+	cat << CZXWXcRMTo8EmM8i4d
+	
+export scriptAbsoluteLocation="$scriptAbsoluteLocation"
+export scriptAbsoluteFolder="$scriptAbsoluteFolder"
+export sessionid="$sessionid"
+
+CZXWXcRMTo8EmM8i4d
+}
+
+_me_var_here_prog() {
+	cat << CZXWXcRMTo8EmM8i4d
+CZXWXcRMTo8EmM8i4d
+}
+
+_me_var_here() {
+	_me_var_here_script
+
+	cat << CZXWXcRMTo8EmM8i4d
+
+#Special. Signals do NOT reset metaID .
+export metaEmbed="true"
+
+#near equivalent: _set_me_host
+	export metaBase="$metaBase"
+	export metaObjName="$metaObjName"
+	export metaTmp="$metaTmp"
+	#export metaTmp="$scriptAbsoluteFolder""$tmpPrefix"/.m_"$sessionid"
+	export metaProc="$metaProc"
+	# WARNING: Setting metaProc to a value not including sessionid disables automatic removal by default!
+	#export metaProc="$metaBase""$tmpPrefix"/.m_"$sessionid"
+
+export metaType="$metaType"
+
+export metaID="$metaID"
+
+export metaPath="$metaPath"
+
+#export metaDir_tmp="$metaTmp"/"$metaPath"
+#export metaDir_base="$metaProc"/"$metaPath"
+
+#near equivalent _set_me_dir
+	#export metaDir_tmp="$metaTmp"/"$metaPath"
+	#export metaDir_base="$metaProc"/"$metaPath"
+	#export metaDir="$metaDir_tmp"
+	export metaDir_tmp="$metaDir_tmp"
+	export metaDir_base="$metaDir_base"
+	export metaDir="$metaDir"
+	#[[ "$metaType" == "base" ]] && export metaDir="$metaDir_base" && _messagePlain_warn 'metaType= base'
+	#[[ "$metaType" == "" ]] && _messagePlain_good 'metaType= '
+	[[ "$metaType" == "base" ]] && _messagePlain_warn 'metaType= base'
+	[[ "$metaType" == "" ]] && _messagePlain_good 'metaType= '
+
+export metaReg="$metaReg"
+export metaConfidence="$metaConfidence"
+
+export in_me_a_path="$in_me_a_path"
+export in_me_b_path="$in_me_b_path"
+export out_me_a_path="$out_me_a_path"
+export out_me_b_path="$out_me_b_path"
+
+
+
+CZXWXcRMTo8EmM8i4d
+	
+	_me_var_here_prog "$@"
+}
+
+_me_embed_here() {
+	_me_header_here
+	
+	_me_var_here
+	
+	cat << CZXWXcRMTo8EmM8i4d
+
+
+. "$scriptAbsoluteLocation" --embed "\$@"
+CZXWXcRMTo8EmM8i4d
+}
+
+_me_command_here() {
+	_me_header_here
+	
+	_me_var_here
+	
+	#cat << CZXWXcRMTo8EmM8i4d
+#
+#
+#. "$scriptAbsoluteLocation" --embed "$1" "\$@"
+#CZXWXcRMTo8EmM8i4d
+
+echo -n '. "$scriptAbsoluteLocation" --embed'
+
+local currentArg
+for currentArg in "$@"
+do
+	echo -n ' '
+	_safeEcho \""$currentArg"\"
+done
+
+echo ' "$@"'
+
+cat << CZXWXcRMTo8EmM8i4d
+# Mark task complete, if part of parallel thread set.
+if [[ "$processThreadID" != "" ]]
+then
+	_complete_me "$processThreadID"
+	rm -f "$metaProc"/_active/"$processThreadID" > /dev/null 2>&1
+fi
+CZXWXcRMTo8EmM8i4d
+
+}
+
+_me_command_here_write() {
+	mkdir -p "$metaDir"
+	_me_command_here "$@" > "$metaDir"/me.sh
+	chmod 700 "$metaDir"/me.sh
+}
+_me_command_here_write_noclobber() {
+	[[ -e "$metaDir"/me.sh ]] && return 0
+	
+	_me_command_here_write "$@"
+}
+_me_command() {
+	_messageNormal 'write: '"$metaObjName"
+	_set_me
+	_me_command_here_write "$@"
+	
+	_messageNormal 'fork: '"$metaObjName"': '"$metaDir"/me.sh
+	"$metaDir"/me.sh &
+}
+
+
+
+# ATTENTION: Declare with "core.sh" or similar if appropriate.
+# WARNING: Any "$tmpPrefix" will be reset before metaengine unless explicitly declared here.
+#_set_me_host_prefix() {
+#	export metaPrefix="prefix"
+#}
+
+_set_me_host() {
+	_set_me_base
+	
+	_tryExec "_set_me_host_prefix"
+	
+	export metaTmp="$scriptAbsoluteFolder""$metaPrefix"/.m_"$sessionid"
+	
+	# WARNING: Setting metaProc to a value not including sessionid disables automatic removal by default!
+	export metaProc="$metaBase""$metaPrefix"/.m_"$sessionid"
+}
+
+_reset_me_host() {
+	_reset_me_base
+	
+	export metaTmp=
+	export metaProc=
+}
+
+_set_me() {
+	_messagePlain_nominal 'init: _set_me'
+	
+	#_set_me_base
+	#_set_me_objname
+	
+	_set_me_uid
+	
+	_set_me_path
+	_set_me_dir
+	_set_me_reg
+	
+	_set_me_confidence
+	
+	_set_me_io_in
+	_set_me_io_out
+	
+	_message_me_set
+}
+
+_reset_me() {
+	#_reset_me_base
+	#_reset_me_objname
+	
+	#_reset_me_host
+	
+	_reset_me_uid
+	
+	_reset_me_path
+	_reset_me_dir
+	_reset_me_reg
+	
+	_reset_me_confidence
+	
+	_reset_me_name
+	_reset_me_coordinates
+	
+	_reset_me_type
+	
+	_reset_me_io
+	
+	_stop_metaengine_allow
+}
+
+_set_me_uid() {
+	[[ "$metaEmbed" == "true" ]] && return 0
+	export metaID=$(_uid)
+}
+
+_reset_me_uid() {
+	export metaID=
+}
+
+_set_me_path() {
+	export metaPath="$metaID"
+}
+
+_reset_me_path() {
+	export metaPath=
+}
+
+# ATTENTION: Overload with "core.sh" if appropriate.
+_set_me_dir() {
+	export metaDir_tmp="$metaTmp"/"$metaPath"
+	
+	export metaDir_base="$metaProc"/"$metaPath"
+	
+	export metaDir="$metaDir_tmp"
+	[[ "$metaType" == "base" ]] && export metaDir="$metaDir_base" && _messagePlain_warn 'metaDir= base'
+	[[ "$metaType" == "" ]] && _messagePlain_good 'metaDir= tmp'
+}
+
+_reset_me_dir() {
+	export metaDir_tmp=
+	export metaDir_base=
+	
+	export metaDir=
+}
+
+# ATTENTION: Overload with "core.sh" if appropriate.
+_set_me_reg() {
+	export metaReg="$metaTmp"/_reg
+	[[ "$metaType" == "base" ]] && export metaReg="$metaBase"/_reg && _messagePlain_warn 'metaReg= base'
+	[[ "$metaType" == "" ]] && _messagePlain_good 'metaReg= tmp'
+}
+
+_reset_me_reg() {
+	export metaReg=
+}
+
+#Intended to signal task completion, allowing shutdown of processing chain.
+_set_me_confidence() {
+	export metaConfidence="$metaReg"/confidence
+}
+
+_reset_me_confidence() {
+	export metaConfidence=
+}
+
+
+
+# ATTENTION: Overload with "core.sh" if appropriate.
+_set_me_base() {
+	export metaBase=
+	
+	export metaBase="$outerPWD"
+	
+	#[[ "$@" != "" ]] && export metaengine_base=$(_searchBaseDir "$@")
+	#[[ "$metaengine_base" == "" ]] && export metaengine_base=$(_searchBaseDir "$@" "$virtUserPWD")
+	
+	#export metaengine_base="$scriptAbsoluteLocation"
+}
+
+_reset_me_base() {
+	export metaBase=
+}
+
+# ATTENTION: Overload with "core.sh" if appropriate.
+# WARNING: No default production use.
+_set_me_objname() {
+	export metaObjName=
+	
+	export metaObjName="$objectName"
+}
+
+_reset_me_objname() {
+	export metaObjName=
+}
+
+
+
+_reset_me_coordinates_ai() {
+	export in_me_a_x=
+	export in_me_a_y=
+	export in_me_a_z=
+}
+
+_reset_me_coordinates_bi() {
+	export in_me_b_x=
+	export in_me_b_y=
+	export in_me_b_z=
+}
+
+_reset_me_coordinates_ao() {
+	export out_me_a_x=
+	export out_me_a_y=
+	export out_me_a_z=
+}
+
+_reset_me_coordinates_bo() {
+	export out_me_b_x=
+	export out_me_b_y=
+	export out_me_b_z=
+}
+
+_reset_me_coordinates() {
+	_reset_me_coordinates_ai
+	_reset_me_coordinates_bi
+	_reset_me_coordinates_ao
+	_reset_me_coordinates_bo
+}
+
+
+_check_me_coordinates_ai() {
+	[[ "$in_me_a_x" == "" ]] && return 1
+	[[ "$in_me_a_y" == "" ]] && return 1
+	[[ "$in_me_a_z" == "" ]] && return 1
+	return 0
+}
+
+_check_me_coordinates_bi() {
+	[[ "$in_me_b_x" == "" ]] && return 1
+	[[ "$in_me_b_y" == "" ]] && return 1
+	[[ "$in_me_b_z" == "" ]] && return 1
+	return 0
+}
+
+_check_me_coordinates_ao() {
+	[[ "$out_me_a_x" == "" ]] && return 1
+	[[ "$out_me_a_y" == "" ]] && return 1
+	[[ "$out_me_a_z" == "" ]] && return 1
+	return 0
+}
+
+_check_me_coordinates_bo() {
+	[[ "$out_me_b_x" == "" ]] && return 1
+	[[ "$out_me_b_y" == "" ]] && return 1
+	[[ "$out_me_b_z" == "" ]] && return 1
+	return 0
+}
+
+_check_me_coordinates_in() {
+	! _check_me_coordinates_ai && return 1
+	! _check_me_coordinates_bi && return 1
+	return 0
+}
+
+_check_me_coordinates_out() {
+	! _check_me_coordinates_ao && return 1
+	! _check_me_coordinates_bo && return 1
+	return 0
+}
+
+_check_me_coordinates() {
+	! _check_me_coordinates_ai && return 1
+	! _check_me_coordinates_bi && return 1
+	! _check_me_coordinates_ao && return 1
+	! _check_me_coordinates_bo && return 1
+	return 0
+}
+
+_reset_me_name_ai() {
+	export in_me_a_name=
+}
+
+_reset_me_name_bi() {
+	export in_me_b_name=
+}
+
+_reset_me_name_ao() {
+	export out_me_a_name=
+}
+
+_reset_me_name_bo() {
+	export out_me_b_name=
+}
+
+_reset_me_rand() {
+	_reset_me_name_ai
+	_reset_me_name_bi
+	_reset_me_name_ao
+	_reset_me_name_bo
+}
+_reset_me_name() {
+	_reset_me_name_ai
+	_reset_me_name_bi
+	_reset_me_name_ao
+	_reset_me_name_bo
+}
+
+_check_me_name_in() {
+	[[ "$in_me_a_name" == "" ]] && return 1
+	[[ "$in_me_b_name" == "" ]] && return 1
+	return 0
+}
+
+_check_me_name_out() {
+	[[ "$out_me_a_name" == "" ]] && return 1
+	[[ "$out_me_b_name" == "" ]] && return 1
+	return 0
+}
+
+_check_me_name() {
+	[[ "$in_me_a_name" == "" ]] && return 1
+	[[ "$in_me_b_name" == "" ]] && return 1
+	[[ "$out_me_a_name" == "" ]] && return 1
+	[[ "$out_me_b_name" == "" ]] && return 1
+	return 0
+}
+_check_me_rand() {
+	_check_me_name
+}
+
+
+_set_me_io_name_in() {
+	_messagePlain_nominal 'init: _set_me_io_name_in'
+	
+	# Optional feature. While used, must must contain at least one file/dir.
+	export in_me_a_active="$metaReg"/name/"$in_me_a_name"/_active
+	export in_me_a_active_tmp="$in_me_a_active"_tmp
+	export in_me_b_active="$metaReg"/name/"$in_me_b_name"/_active
+	export in_me_b_active_tmp="$in_me_b_active"_tmp
+	export in_me_active="$in_me_a_active"
+	export in_me_active_tmp="$in_me_a_active_tmp"
+	
+	export in_me_a_path="$metaReg"/name/"$in_me_a_name"/ao
+		[[ "$in_me_a_name" == "null" ]] && export in_me_a_path=/dev/null
+	export in_me_b_path="$metaReg"/name/"$in_me_b_name"/bo
+		[[ "$in_me_b_name" == "null" ]] && export in_me_b_path=/dev/null
+	
+	_messagePlain_good 'return: success'
+	return 0
+}
+
+_set_me_io_name_out() {
+	_messagePlain_nominal 'init: _set_me_io_name_out'
+	
+	# Optional feature. While used, must must contain at least one file/dir.
+	export out_me_a_active="$metaReg"/name/"$out_me_a_name"/_active
+	export out_me_a_active_tmp="$out_me_a_active"_tmp
+	export out_me_b_active="$metaReg"/name/"$out_me_b_name"/_active
+	export out_me_b_active_tmp="$out_me_b_active"_tmp
+	export out_me_active="$out_me_a_active"
+	export out_me_active_tmp="$out_me_a_active_tmp"
+	
+	export out_me_a_path="$metaReg"/name/"$out_me_a_name"/ao
+		[[ "$out_me_a_name" == "null" ]] && export out_me_a_path=/dev/null
+	export out_me_b_path="$metaReg"/name/"$out_me_b_name"/bo
+		[[ "$out_me_b_name" == "null" ]] && export out_me_b_path=/dev/null
+	
+	_messagePlain_good 'return: success'
+	return 0
+}
+
+_set_me_io_coordinates_in() {
+	_messagePlain_nominal 'init: _set_me_io_coordinates_in'
+	
+	# WARNING: Untested.
+	# Optional feature. While used, must must contain at least one file/dir.
+	export in_me_a_active="$metaReg"/grid/_active/"$in_me_a_z"/"$in_me_a_x"/"$in_me_a_y"
+	export in_me_a_active_tmp="$in_me_a_active"_tmp
+	export in_me_b_active="$metaReg"/grid/_active/"$in_me_b_z"/"$in_me_b_x"/"$in_me_b_y"
+	export in_me_b_active_tmp="$in_me_b_active"_tmp
+	export in_me_active="$in_me_a_active"
+	export in_me_active_tmp="$in_me_a_active_tmp"
+	
+	export in_me_a_path="$metaReg"/grid/"$in_me_a_z"/"$in_me_a_x"/"$in_me_a_y"
+	export in_me_b_path="$metaReg"/grid/"$in_me_b_z"/"$in_me_b_x"/"$in_me_b_y"
+	
+	_messagePlain_good 'return: success'
+	return 0
+}
+
+_set_me_io_coordinates_out() {
+	_messagePlain_nominal 'init: _set_me_io_coordinates_out'
+	
+	# WARNING: Untested.
+	# Optional feature. While used, must must contain at least one file/dir.
+	export out_me_a_active="$metaReg"/grid/_active/"$out_me_a_z"/"$out_me_a_x"/"$out_me_a_y"
+	export out_me_a_active_tmp="$out_me_a_active"_tmp
+	export out_me_b_active="$metaReg"/grid/_active/"$out_me_b_z"/"$out_me_b_x"/"$out_me_b_y"
+	export out_me_b_active_tmp="$out_me_b_active"_tmp
+	export out_me_active="$out_me_a_active"
+	export out_me_active_tmp="$out_me_a_active_tmp"
+	
+	export out_me_a_path="$metaReg"/grid/"$out_me_a_z"/"$out_me_a_x"/"$out_me_a_y"
+	export out_me_b_path="$metaReg"/grid/"$out_me_b_z"/"$out_me_b_x"/"$out_me_b_y"
+	
+	_messagePlain_good 'return: success'
+	return 0
+}
+
+#No production use.
+_set_me_io_coordinates() {
+	_messagePlain_nominal 'init: _set_me_io_coordinates'
+	
+	export in_me_a_path="$metaReg"/grid/"$in_me_a_z"/"$in_me_a_x"/"$in_me_a_y"
+	export in_me_b_path="$metaReg"/grid/"$in_me_b_z"/"$in_me_b_x"/"$in_me_b_y"
+	export out_me_a_path="$metaReg"/grid/"$out_me_a_z"/"$out_me_a_x"/"$out_me_a_y"
+	export out_me_b_path="$metaReg"/grid/"$out_me_b_z"/"$out_me_b_x"/"$out_me_b_y"
+	
+	_messagePlain_good 'return: success'
+	return 0
+}
+
+_set_me_io_in() {
+	_messagePlain_nominal 'init: _set_me_io'
+	
+	! _check_me_coordinates_in && ! _check_me_name_in && _messageError 'FAIL: invalid IO coordinates and names' && _stop 1
+	
+	#_check_me_name && _messagePlain_good 'valid: name' && _set_me_io_name && _messagePlain_good 'return: success' && return 0
+	_check_me_name_in && _messagePlain_good 'valid: name_in' && _set_me_io_name_in && _messagePlain_good 'return: success' && return 0
+	
+	#_check_me_coordinates && _messagePlain_good 'valid: coordinates' && _set_me_io_coordinates && _messagePlain_good 'return: success' && return 0
+	_check_me_coordinates_in && _messagePlain_good 'valid: coordinates_in' && _set_me_io_coordinates_in && _messagePlain_good 'return: success' && return 0
+	
+	_messageError 'FAIL: undefined failure'
+	_stop 1
+}
+
+_set_me_io_out() {
+	_messagePlain_nominal 'init: _set_me_io'
+	
+	! _check_me_coordinates_out && ! _check_me_name_out && _messageError 'FAIL: invalid IO coordinates and names' && _stop 1
+	
+	#_check_me_name && _messagePlain_good 'valid: name' && _set_me_io_name && _messagePlain_good 'return: success' && return 0
+	_check_me_name_out && _messagePlain_good 'valid: name_out' && _set_me_io_name_out && _messagePlain_good 'return: success' && return 0
+	
+	#_check_me_coordinates && _messagePlain_good 'valid: coordinates' && _set_me_io_coordinates && _messagePlain_good 'return: success' && return 0
+	_check_me_coordinates_out && _messagePlain_good 'valid: coordinates_out' && _set_me_io_coordinates_out && _messagePlain_good 'return: success' && return 0
+	
+	_messageError 'FAIL: undefined failure'
+	_stop 1
+}
+
+#No production use.
+_set_me_io() {
+	_messagePlain_nominal 'init: _set_me_io'
+	
+	! _check_me_coordinates && ! _check_me_name && _messageError 'FAIL: invalid IO coordinates and names' && _stop 1
+	
+	#_check_me_name && _messagePlain_good 'valid: name' && _set_me_io_name && _messagePlain_good 'return: success' && return 0
+	_check_me_name_in && _messagePlain_good 'valid: name_in' && _set_me_io_name_in && _messagePlain_good 'return: success' && return 0
+	_check_me_name_out && _messagePlain_good 'valid: name_out' && _set_me_io_name_out && _messagePlain_good 'return: success' && return 0
+	
+	#_check_me_coordinates && _messagePlain_good 'valid: coordinates' && _set_me_io_coordinates && _messagePlain_good 'return: success' && return 0
+	_check_me_coordinates_in && _messagePlain_good 'valid: coordinates_in' && _set_me_io_coordinates_in && _messagePlain_good 'return: success' && return 0
+	_check_me_coordinates_out && _messagePlain_good 'valid: coordinates_out' && _set_me_io_coordinates_out && _messagePlain_good 'return: success' && return 0
+	
+	_messageError 'FAIL: undefined failure'
+	_stop 1
+}
+
+_reset_me_io() {
+	export in_me_a_path=
+	export in_me_b_path=
+	export out_me_a_path=
+	export out_me_b_path=
+}
+
+
+
+_assign_me_objname() {
+	export metaObjName="$1"
+	_messagePlain_nominal 'set: metaObjName= '"$metaObjName"
+}
+
+_set_me_type_tmp() {
+	export metaType=""
+	_messagePlain_nominal 'set: metaType= (tmp)'"$metaType"
+}
+
+_set_me_type_base() {
+	export metaType="base"
+	_messagePlain_nominal 'set: metaType= '"$metaType"
+}
+
+_reset_me_type() {
+	export metaType=
+}
+
+
+_cycle_me_name() {
+	export in_me_a_name="$out_me_a_name"
+	export in_me_b_name="$out_me_b_name"
+	_set_me_rand_out
+	
+	_messagePlain_nominal 'cycle: in_me_a_name= (out_me_a_name)'"$in_me_a_name"' ''cycle: in_me_b_name= (out_me_b_name)'"$in_me_b_name"
+	_messagePlain_probe 'rand: out_me_a_name= '"$out_me_a_name"' ''rand: out_me_b_name= '"$out_me_b_name"
+}
+_cycle_me() {
+	_cycle_me_name
+}
+
+
+_assign_me_name_ai() {
+	export in_me_a_name="$1"
+}
+
+_assign_me_name_bi() {
+	export in_me_b_name="$1"
+}
+
+_assign_me_name_ao() {
+	export out_me_a_name="$1"
+}
+
+_assign_me_name_bo() {
+	export out_me_b_name="$1"
+}
+
+_assign_me_name_in() {
+	_assign_me_name_ai "$1"
+	_assign_me_name_bi "$1"
+}
+
+_assign_me_name_out() {
+	_assign_me_name_ao "$1"
+	_assign_me_name_bo "$1"
+}
+
+
+
+# WARNING: Coordinate assignment by centroid for 3D pipeline representation ONLY. Detailed spatial data to be completely represented in binary formatted named buffers.
+#_assign_me_coordinates aiX aiY aiZ biX biY biZ aoX aoY aoZ boX boY boZ
+_assign_me_coordinates() {
+	_assign_me_coordinates_ai "$1" "$2" "$3"
+		shift ; shift ; shift
+	_assign_me_coordinates_bi "$1" "$2" "$3"
+		shift ; shift ; shift
+	_assign_me_coordinates_ao "$1" "$2" "$3"
+		shift ; shift ; shift
+	_assign_me_coordinates_bo "$1" "$2" "$3"
+}
+
+#_assign_me... X Y Z
+_assign_me_coordinates_ai() {
+	export in_me_a_x="$1"
+		shift
+	export in_me_a_y="$1"
+		shift
+	export in_me_a_z="$1"
+}
+
+#_assign_me... X Y Z
+_assign_me_coordinates_bi() {
+	export in_me_b_x="$1"
+		shift
+	export in_me_b_y="$1"
+		shift
+	export in_me_b_z="$1"
+}
+
+#_assign_me... X Y Z
+_assign_me_coordinates_ao() {
+	export out_me_a_x="$1"
+		shift
+	export out_me_a_y="$1"
+		shift
+	export out_me_a_z="$1"
+}
+
+#_assign_me... X Y Z
+_assign_me_coordinates_bo() {
+	export out_me_b_x="$1"
+		shift
+	export out_me_b_y="$1"
+		shift
+	export out_me_b_z="$1"
+}
+
+# No known production use.
+_set_me_rand_in() {
+	_messagePlain_nominal 'init: _set_me_rand_in'
+	local rand_uid
+	rand_uid=$(_uid)
+	export in_me_a_name="$rand_uid"
+	export in_me_b_name="$rand_uid"
+}
+
+_set_me_rand_out() {
+	_messagePlain_nominal 'init: _set_me_rand_out'
+	local rand_uid
+	rand_uid=$(_uid)
+	export out_me_a_name="$rand_uid"
+	export out_me_b_name="$rand_uid"
+}
+
+# No known production use.
+_set_me_rand() {
+	_messagePlain_nominal 'init: _set_me_rand'
+	_set_me_rand_in
+	_set_me_rand_out
+}
+
+_set_me_null_in() {
+	_messagePlain_nominal 'init: _set_me_null_in'
+	_assign_me_name_ai null
+	_assign_me_name_bi null
+}
+
+_set_me_null_out() {
+	_messagePlain_nominal 'init: _set_me_null_out'
+	_assign_me_name_ao null
+	_assign_me_name_bo null
+}
+
+_set_me_null() {
+	_messagePlain_nominal 'init: _set_me_null'
+	_set_me_null_in
+	_set_me_null_out
+}
+
+_relink_metaengine_coordinates_in() {
+	_messagePlain_nominal 'init: _relink_metaengine_coordinates_in'
+	
+	_messageCMD mkdir -p "$metaReg"/grid/"$in_me_a_z"/"$in_me_a_x"
+	_messageCMD _relink_relative "$in_me_a_path" "$metaDir"/ai
+	
+	_messageCMD mkdir -p "$metaReg"/grid/"$in_me_b_z"/"$in_me_b_x"
+	_messageCMD _relink_relative "$in_me_b_path" "$metaDir"/bi
+	
+	_report_metaengine_relink_in
+	
+	_messagePlain_good 'return: complete'
+	return 0
+}
+
+_relink_metaengine_coordinates_out() {
+	_messagePlain_nominal 'init: _relink_metaengine_coordinates_out'
+	
+	_messageCMD mkdir -p "$metaReg"/grid/"$out_me_a_z"/"$out_me_a_x"
+	_messageCMD _relink_relative "$metaDir"/ao "$out_me_a_path"
+	
+	_messageCMD mkdir -p "$metaReg"/grid/"$out_me_b_z"/"$out_me_b_x"
+	_messageCMD _relink_relative "$metaDir"/bo "$out_me_b_path"
+	
+	_report_metaengine_relink_out
+	
+	_messagePlain_good 'return: complete'
+	return 0
+}
+
+#No production use.
+_relink_metaengine_coordinates() {
+	_messagePlain_nominal 'init: _relink_metaengine_coordinates'
+	
+	_messageCMD mkdir -p "$metaReg"/grid/"$in_me_a_z"/"$in_me_a_x"
+	_messageCMD _relink_relative "$in_me_a_path" "$metaDir"/ai
+	
+	_messageCMD mkdir -p "$metaReg"/grid/"$in_me_b_z"/"$in_me_b_x"
+	_messageCMD _relink_relative "$in_me_b_path" "$metaDir"/bi
+	
+	_messageCMD mkdir -p "$metaReg"/grid/"$out_me_a_z"/"$out_me_a_x"
+	_messageCMD _relink_relative "$metaDir"/ao "$out_me_a_path"
+	
+	_messageCMD mkdir -p "$metaReg"/grid/"$out_me_b_z"/"$out_me_b_x"
+	_messageCMD _relink_relative "$metaDir"/bo "$out_me_b_path"
+	
+	_messagePlain_good 'return: complete'
+	return 0
+}
+
+#No production use. Untested.
+_rmlink_metaengine_coordinates() {
+	#_rmlink "$metaDir"/ai > /dev/null 2>&1
+	#rmdir "$metaReg"/grid/"$in_me_a_z"/"$in_me_a_x" > /dev/null 2>&1
+	#rmdir "$metaReg"/grid/"$in_me_a_z" > /dev/null 2>&1
+	
+	#_rmlink "$metaDir"/bi > /dev/null 2>&1
+	#rmdir "$metaReg"/grid/"$in_me_b_z"/"$in_me_b_x" > /dev/null 2>&1
+	#rmdir "$metaReg"/grid/"$in_me_b_z" > /dev/null 2>&1
+	
+	_rmlink "$out_me_a_path" > /dev/null 2>&1
+	rmdir "$metaReg"/grid/"$out_me_a_z"/"$out_me_a_x" > /dev/null 2>&1
+	rmdir "$metaReg"/grid/"$out_me_a_z" > /dev/null 2>&1
+	
+	_rmlink "$out_me_b_path" > /dev/null 2>&1
+	rmdir "$metaReg"/grid/"$out_me_b_z"/"$out_me_b_x" > /dev/null 2>&1
+	rmdir "$metaReg"/grid/"$out_me_b_z" > /dev/null 2>&1
+}
+
+_relink_metaengine_name_in() {
+	_messagePlain_nominal 'init: _relink_metaengine_name'
+	
+	#No known production relevance.
+	[[ -e "$metaReg"/name/"$metaID" ]] && _messageError 'FAIL: unexpected safety' && _stop 1
+	
+	_messageCMD mkdir -p "$metaReg"/name/"$in_me_a_name"
+	! [[ "$in_me_a_path" == "/dev/null" ]] && _messageCMD _relink_relative "$in_me_a_path" "$metaDir"/ai
+	_messageCMD mkdir -p "$metaReg"/name/"$in_me_b_name"
+	! [[ "$in_me_a_path" == "/dev/null" ]] && _messageCMD _relink_relative "$in_me_b_path" "$metaDir"/bi
+	
+	[[ "$in_me_a_path" == "/dev/null" ]] && _relink "$in_me_a_path" "$metaDir"/ai
+	[[ "$in_me_b_path" == "/dev/null" ]] && _relink "$in_me_b_path" "$metaDir"/bi
+	
+	# DANGER: Administrative/visualization use ONLY.
+	( [[ "$in_me_a_path" == "/dev/null" ]] || [[ "$in_me_b_path" == "/dev/null" ]] ) && _relink_relative "$metaDir" "$metaReg"/name/null/"$metaID"
+	
+	_report_metaengine_relink_in
+	
+	_messagePlain_good 'return: complete'
+	return 0
+}
+
+_relink_metaengine_name_out() {
+	_messagePlain_nominal 'init: _relink_metaengine_name'
+	
+	#No known production relevance.
+	[[ -e "$metaReg"/name/"$metaID" ]] && _messageError 'FAIL: unexpected safety' && _stop 1
+	
+	_messageCMD mkdir -p "$metaReg"/name/"$out_me_a_name"
+	! [[ "$out_me_a_path" == "/dev/null" ]] && _messageCMD _relink_relative "$metaDir"/ao "$out_me_a_path"
+	_messageCMD mkdir -p "$metaReg"/name/"$out_me_b_name"
+	! [[ "$out_me_b_path" == "/dev/null" ]] && _messageCMD _relink_relative "$metaDir"/bo "$out_me_b_path"
+	
+	[[ "$out_me_a_path" == "/dev/null" ]] && rmdir "$metaDir"/ao && _relink /dev/null "$metaDir"/ao
+	[[ "$out_me_b_path" == "/dev/null" ]] && rmdir "$metaDir"/bo && _relink /dev/null "$metaDir"/bo
+	
+	# DANGER: Administrative/visualization use ONLY.
+	( [[ "$out_me_a_path" == "/dev/null" ]] || [[ "$out_me_b_path" == "/dev/null" ]] ) && _relink_relative "$metaDir" "$metaReg"/name/null/"$metaID"
+	
+	_report_metaengine_relink_out
+	
+	_messagePlain_good 'return: complete'
+	return 0
+}
+
+#No production use. Unmaintained.
+_relink_metaengine_name() {
+	_messagePlain_nominal 'init: _relink_metaengine_name'
+	
+	#No known production relevance.
+	[[ -e "$metaReg"/name/"$metaID" ]] && _messageError 'FAIL: unexpected safety' && _stop 1
+	
+	_messageCMD mkdir -p "$metaReg"/name/"$in_me_a_name"
+	_messageCMD _relink_relative "$in_me_a_path" "$metaDir"/ai
+	_messageCMD mkdir -p "$metaReg"/name/"$in_me_b_name"
+	_messageCMD _relink_relative "$in_me_b_path" "$metaDir"/bi
+	
+	_messageCMD mkdir -p "$metaReg"/name/"$out_me_a_name"
+	_messageCMD _relink_relative "$metaDir"/ao "$out_me_a_path"
+	_messageCMD mkdir -p "$metaReg"/name/"$out_me_b_name"
+	_messageCMD _relink_relative "$metaDir"/bo "$out_me_b_path"
+	
+	[[ "$out_me_a_path" == "/dev/null" ]] && rmdir "$metaDir"/ao && _relink /dev/null "$metaDir"/ao
+	[[ "$out_me_b_path" == "/dev/null" ]] && rmdir "$metaDir"/bo && _relink /dev/null "$metaDir"/bo
+	
+	_messagePlain_good 'return: complete'
+	return 0
+}
+
+#No production use. Untested.
+_rmlink_metaengine_name() {
+	
+	#_rmlink "$metaDir"/ai > /dev/null 2>&1
+	#rmdir "$metaReg"/name/"$in_me_a_name" > /dev/null 2>&1
+	#_rmlink "$metaDir"/bi > /dev/null 2>&1
+	#rmdir "$metaReg"/name/"$in_me_a_name" > /dev/null 2>&1
+	
+	_rmlink "$out_me_a_path" > /dev/null 2>&1
+	rmdir "$metaReg"/name/"$out_me_a_name" > /dev/null 2>&1
+	_rmlink "$out_me_b_path" > /dev/null 2>&1
+	rmdir "$metaReg"/name/"$out_me_b_name" > /dev/null 2>&1
+}
+
+
+_relink_metaengine_out() {
+	_messagePlain_nominal 'init: _relink_metaengine'
+	
+	! _check_me_coordinates_out && ! _check_me_name_out && _messageError 'FAIL: invalid IO coordinates and names' && _stop 1
+	
+	#_check_me_name && _messagePlain_good 'valid: name' && _prepare_metaengine_name && _relink_metaengine_name && _messagePlain_good 'return: success' && return 0
+	_check_me_name_out && _messagePlain_good 'valid: name_out' && _prepare_metaengine_name && _relink_metaengine_name_out && _messagePlain_good 'return: success' && return 0
+	
+	#_check_me_coordinates && _messagePlain_good 'valid: coordinates' && _prepare_metaengine_coordinates && _relink_metaengine_coordinates && _messagePlain_good 'return: success' && return 0
+	_check_me_coordinates_out && _messagePlain_good 'valid: coordinates_out' && _prepare_metaengine_coordinates && _relink_metaengine_coordinates_out && _messagePlain_good 'return: success' && return 0
+	
+	_messagePlain_bad 'stop: undefined failure'
+	_stop 1
+}
+
+_relink_metaengine_in() {
+	_messagePlain_nominal 'init: _relink_metaengine'
+	
+	! _check_me_coordinates_in && ! _check_me_name_in && _messageError 'FAIL: invalid IO coordinates and names' && _stop 1
+	
+	#_check_me_name && _messagePlain_good 'valid: name' && _prepare_metaengine_name && _relink_metaengine_name && _messagePlain_good 'return: success' && return 0
+	_check_me_name_in && _messagePlain_good 'valid: name_in' && _prepare_metaengine_name && _relink_metaengine_name_in && _messagePlain_good 'return: success' && return 0
+	
+	#_check_me_coordinates && _messagePlain_good 'valid: coordinates' && _prepare_metaengine_coordinates && _relink_metaengine_coordinates && _messagePlain_good 'return: success' && return 0
+	_check_me_coordinates_in && _messagePlain_good 'valid: coordinates_in' && _prepare_metaengine_coordinates && _relink_metaengine_coordinates_in && _messagePlain_good 'return: success' && return 0
+	
+	_messagePlain_bad 'stop: undefined failure'
+	_stop 1
+}
+
+#No production use.  Unmaintained.
+_relink_metaengine() {
+	_messagePlain_nominal 'init: _relink_metaengine'
+	
+	! _check_me_coordinates && ! _check_me_name && _messageError 'FAIL: invalid IO coordinates and names' && _stop 1
+	
+	#_check_me_name && _messagePlain_good 'valid: name' && _prepare_metaengine_name && _relink_metaengine_name && _messagePlain_good 'return: success' && return 0
+	_check_me_name_in && _messagePlain_good 'valid: name_in' && _prepare_metaengine_name && _relink_metaengine_name_in && _messagePlain_good 'return: success' && return 0
+	_check_me_name_out && _messagePlain_good 'valid: name_out' && _prepare_metaengine_name && _relink_metaengine_name_out && _messagePlain_good 'return: success' && return 0
+	
+	#_check_me_coordinates && _messagePlain_good 'valid: coordinates' && _prepare_metaengine_coordinates && _relink_metaengine_coordinates && _messagePlain_good 'return: success' && return 0
+	_check_me_coordinates_in && _messagePlain_good 'valid: coordinates_in' && _prepare_metaengine_coordinates && _relink_metaengine_coordinates_in && _messagePlain_good 'return: success' && return 0
+	_check_me_coordinates_out && _messagePlain_good 'valid: coordinates_out' && _prepare_metaengine_coordinates && _relink_metaengine_coordinates_out && _messagePlain_good 'return: success' && return 0
+	
+	_messagePlain_bad 'stop: undefined failure'
+	_stop 1
+}
+
+
+_prepare_metaengine_coordinates() {
+	mkdir -p "$metaReg"/grid
+}
+
+_prepare_metaengine_name() {
+	mkdir -p "$metaReg"/name
+}
+
+_prepare_metaengine() {
+	mkdir -p "$metaTmp"
+	
+	[[ "$metaDir_tmp" != "" ]] && mkdir -p "$metaDir_tmp"
+	[[ "$metaDir" != "" ]] && mkdir -p "$metaDir"
+	
+	mkdir -p "$metaReg"
+	
+	mkdir -p "$metaDir"/ao
+	mkdir -p "$metaDir"/bo
+}
+
+_start_metaengine_host() {
+	_stop_metaengine_allow
+	
+	[[ -e "$scriptAbsoluteFolder""$tmpPrefix"/.e_"$sessionid" ]] && _messageError 'FAIL: safety: meta conflicts engine' && _stop 1
+	
+	_messageNormal 'init: _start_metaengine_host'
+	
+	_set_me_host
+	
+	_start
+	
+	mkdir -p "$metaTmp"
+	
+	#_relink_relative "$safeTmp"/.pid "$metaTmp"/.pid
+}
+
+_start_metaengine() {
+	_stop_metaengine_prohibit
+	
+	[[ -e "$scriptAbsoluteFolder""$tmpPrefix"/.e_"$sessionid" ]] && _messageError 'FAIL: safety: meta conflicts engine' && _stop 1
+	
+	_messageNormal 'processor: '"$metaObjName"
+	_messagePlain_probe 'init: _start_metaengine'
+	
+	_prepare
+	#_start
+	
+	_set_me
+	_prepare_metaengine
+	
+	# WARNING: Processors must include "_relink_metaengine_in" and "_relink_metaengine_out" where appropriate.
+	#_relink_metaengine_in
+	#_relink_metaengine_out
+	
+	_report_metaengine
+	
+	echo $$ > "$metaDir"/.pid
+	_relink_relative "$metaDir"/.pid "$metaDir_tmp"/.pid
+	
+	_me_embed_here > "$metaDir"/.metaenv.sh
+	chmod 755 "$metaDir"/.metaenv.sh
+	
+	echo "$sessionid" > "$metaDir"/.sessionid
+	_embed_here > "$metaDir"/.embed.sh
+	chmod 755 "$metaDir"/.embed.sh
+}
+
+_stop_metaengine_allow() {
+	export metaStop="true"
+}
+_stop_metaengine_prohibit() {
+	export metaStop="false"
+}
+
+#Waits for files to exist, or indefinitely pauses, allowing SIGINT or similar to trigger "_stop" at any time. Former case also terminates if metaConfidence is set.
+_stop_metaengine_wait() {
+	_stop_metaengine_allow
+	
+	while ! _all_exist "$@" 
+	do
+		sleep 0.1
+	done
+	
+	if [[ "$1" == "" ]]
+	then
+		while true
+		do
+			sleep 1
+		done
+	fi
+}
+
+_confidence_metaengine() {
+	if [[ -e "$metaConfidence" ]]
+	then
+		local currentMetaConfidenceValue
+		currentMetaConfidenceValue=$(cat "$metaConfidence")
+		
+		[[ "$currentMetaConfidenceValue" == '1' ]] && return 0
+	fi
+	
+	return 1
+}
+
+#_rm_instance_metaengine_metaDir() {
+#	# WARNING: No production use, heredoc unsupported.
+#	[[ "$metaPreserve" == "true" ]] && return 0
+#	
+#	[[ "$metaDir" != "" ]] && [[ "$metaDir" == *"$sessionid"* ]] && [[ -e "$metaDir" ]] && _safeRMR "$metaDir"
+#}
+
+_rm_instance_metaengine() {
+	# WARNING: Documentation only. Any "_stop" condition expected to cleanup work directory corresponding to sessionid.
+	# Recommended practice is separate MetaEngine host for any intermittent processing chain.
+	#_rm_instance_metaengine_metaDir
+	
+	[[ "$metaStop" != "true" ]] && return 0
+	export metaStop="false"
+	
+	_terminateMetaProcessorAll_metaengine
+	
+	# ATTENTION: Optional feature. Copies host metaengine directories for analysis.
+	if [[ "$metaLog" != "" ]] && [[ -e "$metaLog" ]]
+	then
+		cp -a "$metaTmp" "$metaLog"/metaTmp
+		cp -a "$metaProc" "$metaLog"/metaProc
+	fi
+	
+	#Only created if needed by meta.
+	[[ "$metaTmp" != "" ]] && [[ -e "$metaTmp" ]] && _safeRMR "$metaTmp"
+	
+	[[ "$metaProc" != "" ]] && [[ "$metaProc" == *"$sessionid"* ]] && [[ -e "$metaProc" ]] && _safeRMR "$metaProc"
+}
+
+_complete_me_active() {
+	[[ "$in_me_active" == "" ]] && return 1
+	! [[ -e "$in_me_active" ]] && return 1
+	
+	local currentActiveProcCount
+	currentActiveProcCount=$(ls -1 "$in_me_active" | wc -l | tr -dc '0-9')
+	
+	if [[ "$currentActiveProcCount" == '0' ]]
+	then
+		return 0
+	fi
+	
+	return 1
+}
+
+_ready_me_in() {
+	#! [[ -e "$in_me_a_path" ]] && _messagePlain_warn 'missing: in_me_a_path= '"$in_me_a_path"
+	#! [[ -e "$in_me_b_path" ]] && _messagePlain_warn 'missing: in_me_b_path= '"$in_me_b_path"
+	
+	if [[ ! -e "$in_me_a_path" ]] || [[ ! -e "$in_me_b_path" ]]
+	then
+		return 1
+	fi
+	
+	_messagePlain_good 'ready: in_me_a_path, in_me_b_path'
+	return 0
+}
+
+_wait_metaengine_host() {
+	_messagePlain_nominal 'init: _wait_metaengine_host'
+	_wait_metaengine_in "$@"
+}
+
+_wait_metaengine() {
+	_messagePlain_nominal 'init: _wait_metaengine'
+	_wait_metaengine_in "$@"
+}
+
+# ATTENTION: Overload with "core.sh" if appropriate.
+_wait_metaengine_in() {
+	#_ready_me_in && return 0
+	#sleep 0.1
+	#_ready_me_in && return 0
+	#sleep 0.3
+	#_ready_me_in && return 0
+	#sleep 1
+	#_ready_me_in && return 0
+	
+	#sleep 3
+	#_ready_me_in && return 0
+	#sleep 10
+	#_ready_me_in && return 0
+	#sleep 10
+	#_ready_me_in && return 0
+	#sleep 10
+	#_ready_me_in && return 0
+	#sleep 20
+	#_ready_me_in && return 0
+	#sleep 20
+	#_ready_me_in && return 0
+	#sleep 20
+	#_ready_me_in && return 0
+	
+	while ! _ready_me_in && ! _complete_me_active && ! [[ -e "$metaConfidence" ]]
+	do
+		sleep 0.1
+	done
+	
+	if [[ -e "$metaConfidence" ]]
+	then
+		if [[ $(head -c 1 "$metaConfidence") == '0' ]]
+		then
+			_messagePlain_bad 'fail: flag: exists: false: metaConfidence= '"$metaConfidence"
+			return 1
+		fi
+		
+		_messagePlain_good 'pass: flag: exists: metaConfidence= '"$metaConfidence"
+		return 1
+	fi
+	
+	if ! _ready_me_in && _complete_me_active
+	then
+		rm -f "$in_me_active" > /dev/null 2>&1
+		[[ -e "$in_me_active" ]] && rmdir "$in_me_active" > /dev/null 2>&1
+		_messagePlain_bad 'fail: died: '"$in_me_active" && return 1
+	fi
+	
+	return 0
+	
+	# Unexpected.
+	! _ready_me_in && _messagePlain_bad 'unexpected: missing: in_me_a_path, in_me_b_path' && return 1
+}
+
+# "$1" == uid
+_active_me() {
+	_set_me_io_out
+	
+	mkdir -p "$out_me_active_tmp"
+	echo "$$" > "$out_me_active_tmp"/"$1"
+	_relink_relative "$out_me_active_tmp" "$out_me_active"
+}
+
+# "$1" == uid
+_complete_me() {
+	rm "$out_me_active_tmp"/"$1"
+}
+
+_terminateMetaProcessorAll_metaengine() {
+	local processListFile
+	processListFile="$scriptAbsoluteFolder"/.pidlist_m_$(_uid)
+	
+	local currentPID
+	
+	cat "$metaTmp"/*/.pid >> "$processListFile" 2> /dev/null
+	
+	while read -r currentPID
+	do
+		pkill -P "$currentPID" > /dev/null 2>&1
+		kill "$currentPID" > /dev/null 2>&1
+	done < "$processListFile"
+	
+	rm "$processListFile"
+}
+
+# Intended to illustrate the basic logic flow. Uses global variables for some arguments - resetting these is MANDATORY .
+_example_process_rand() {
+	_start_metaengine_host
+	
+	_set_me_null_in
+	_set_me_rand_out
+	_example_processor_name
+	
+	_cycle_me
+	_example_processor_name
+	
+	_cycle_me
+	_example_processor_name
+	
+	_cycle_me
+	_set_me_null_out
+	_example_processor_name
+	
+	_reset_me
+	
+	_stop_metaengine_wait
+}
+
+# Intended to illustrate the basic logic flow. Uses global variables for some arguments - resetting these is MANDATORY .
+_example_process_name() {
+	_start_metaengine_host
+	
+	_set_me_null_in
+	_assign_me_name_out "1"
+	_example_processor_name
+	
+	_cycle_me
+	_assign_me_name_out "2"
+	_example_processor_name
+	
+	_cycle_me
+	_assign_me_name_out "3"
+	_example_processor_name
+	
+	_cycle_me
+	_set_me_null_out
+	_example_processor_name
+	
+	_reset_me
+	
+	_stop_metaengine_wait
+}
+
+# Intended to illustrate the basic logic flow. Uses global variables for some arguments - resetting these is MANDATORY .
+_example_process_coordinates() {
+	_start_metaengine_host
+	
+	#_assign_me_coordinates aiX aiY aiZ biX biY biZ aoX aoY aoZ boX boY boZ
+	#"$metaReg"/grid/"$z"/"$x"/"$y"
+	
+	_reset_me_name
+	_assign_me_coordinates "" "" "" "" "" "" 0 1 0 1 1 0
+	_set_me_null_in
+	_example_processor_name
+	
+	_reset_me_name
+	_assign_me_coordinates 0 1 0 1 1 0 0 2 0 1 2 0
+	_example_processor_name
+	
+	_reset_me_name
+	_assign_me_coordinates 0 2 0 1 2 0 0 3 0 1 3 0
+	_example_processor_name
+	
+	_reset_me_name
+	_assign_me_coordinates 0 3 0 1 3 0 0 4 0 1 4 0
+	_example_processor_name
+	
+	_reset_me
+	
+	_stop_metaengine_wait
+}
+
+# Intended to illustrate the basic logic flow. Uses global variables for some arguments - resetting these is MANDATORY .
+_example_process_base() {
+	_start_metaengine_host
+	
+	_set_me_type_base
+	
+	#_assign_me_coordinates aiX aiY aiZ biX biY biZ aoX aoY aoZ boX boY boZ
+	#"$metaReg"/grid/"$z"/"$x"/"$y"
+	
+	_reset_me_name
+	_assign_me_coordinates "" "" "" "" "" "" 0 1 0 1 1 0
+	_set_me_null_in
+	_example_processor_name
+	
+	_reset_me_name
+	_assign_me_coordinates 0 1 0 1 1 0 0 2 0 1 2 0
+	_example_processor_name
+	
+	_reset_me_name
+	_assign_me_coordinates 0 2 0 1 2 0 0 3 0 1 3 0
+	_example_processor_name
+	
+	_reset_me_name
+	_assign_me_coordinates 0 3 0 1 3 0 0 4 0 1 4 0
+	_example_processor_name
+	
+	_reset_me
+	
+	_stop_metaengine_wait
+}
+
+
+# Intended to illustrate the basic logic flow. Uses global variables for some arguments - resetting these is MANDATORY .
+_example_processor_name() {
+	_assign_me_objname "_example_processor_name"
+	
+	_me_command "_example_me_processor_name"
+	
+	#Optional. Usually correctly orders diagnostic output.
+	sleep 3
+}
+
+_example_me_processor_name() {
+	_messageNormal 'launch: '"$metaObjName"
+	
+	! _wait_metaengine && _stop 1
+	_start_metaengine
+	_relink_metaengine_in
+	_relink_metaengine_out
+	
+	#Do something.
+	#> cat >
+	while true
+	do
+		sleep 10
+	done
+	
+	#optional, closes host upon completion
+	#_stop
+}
+
+
+# Intended to illustrate the basic logic flow. Uses global variables for some arguments - resetting these is MANDATORY .
+#"$1" == _me_processor_name
+#"$2" == metaObjName (optional)
+_processor_launch() {
+	_assign_me_objname "$1"
+	#[[ "$2" != "" ]] && _assign_me_objname "$2"
+	
+	_me_command "$@"
+	
+	#Optional. Usually correctly orders diagnostic output.
+	#_wait_metaengine_host
+	#sleep 3
+}
+
+_me_processor_noise() {
+	_messageNormal 'launch: '"$metaObjName"
+	
+	! _wait_metaengine && _stop 1
+	_start_metaengine
+	_relink_metaengine_in
+	_relink_metaengine_out
+	
+	_buffer_me_processor_fifo
+	
+	cat < /dev/urandom > "$metaDir"/ao/fifo
+	
+	#while true
+	#do
+	#	sleep 1
+	#done
+	
+	#optional, closes host upon completion
+	#_stop
+}
+
+_me_divert() {
+	_buffer_me_processor_divert "$@"
+}
+
+#Registers an output to a diversion directory for processors which may support more than two inputs. Expected to be used with special processors creating their own unique registrations (ie. _reg/special).
+_buffer_me_processor_divert() {
+	mkdir -p "$metaReg"/"$1"/divert
+	mkdir -p "$metaReg"/"$2"/divert
+	
+	
+	_relink "$metaDir"/ao "$metaReg"/"$1"/divert/"$metaID"
+	_relink "$metaDir"/bo "$metaReg"/"$2"/divert/"$metaID"
+}
+
+_me_fifo() {
+	_buffer_me_processor_fifo
+}
+
+_me_snippet_reset() {
+	_buffer_me_processor_snippet_reset
+}
+
+_me_snippet_write() {
+	_buffer_me_processor_snippet_write
+}
+
+_me_snippet_read() {
+	_buffer_me_processor_snippet_read
+}
+
+_me_snippet_read_wait() {
+	_buffer_me_processor_snippet_read_wait
+}
+
+_me_confidence_full() {
+	_buffer_me_processor_confidence_full
+}
+
+_me_confidence_none() {
+	_buffer_me_processor_confidence_none
+}
+
+_buffer_me_processor_fifo() {
+	_buffer_me_processor_fifo_rm
+	
+	#[[ -d "$metaDir"/ai ]] && mkfifo "$metaDir"/ai/fifo
+	#[[ -d "$metaDir"/bi ]] && mkfifo "$metaDir"/bi/fifo
+	
+	[[ -d "$metaDir"/ao ]] && mkfifo "$metaDir"/ao/fifo
+	#[[ -d "$metaDir"/bo ]] && mkfifo "$metaDir"/bo/fifo
+}
+
+_buffer_me_processor_fifo_rm() {
+	rm -f "$metaDir"/ao/fifo > /dev/null 2>&1
+	#rm -f "$metaDir"/bo/fifo > /dev/null 2>&1
+}
+
+_buffer_me_processor_snippet_reset() {
+	echo | _buffer_me_processor_snippet_assign
+}
+
+_buffer_me_processor_snippet_write() {
+	! [[ -d "$metaDir"/ao ]] && return 1
+	
+	cat > "$metaDir"/ao/quicktmp_snippet
+	mv -n "$metaDir"/ao/quicktmp_snippet "$metaDir"/ao/snippet
+	rm -f "$metaDir"/ao/quicktmp_snippet > /dev/null 2>&1
+}
+
+_buffer_me_processor_snippet_check_binary() {
+	! [[ -e "$metaDir"/bi/confidence ]] && return 1
+	! [[ -e "$metaDir"/ai/snippet ]] && return 1
+	
+	local snippetConfidence
+	snippetConfidence=$(cat "$metaDir"/bi/confidence)
+	
+	#cat "$metaDir"/bi/confidence
+	
+	[[ "$snippetConfidence" == "1" ]] && return 0
+	return 1
+}
+
+_buffer_me_processor_snippet_check() {
+	! [[ -e "$metaDir"/bi/confidence ]] && return 1
+	! [[ -e "$metaDir"/ai/snippet ]] && return 1
+	
+	local snippetConfidence
+	snippetConfidence=$(cat "$metaDir"/bi/confidence)
+	
+	cat "$metaDir"/bi/confidence
+	
+	[[ "$snippetConfidence" == "1" ]] && return 0
+	return 1
+}
+
+_buffer_me_processor_snippet_read() {
+	! [[ -d "$metaDir"/ai ]] && return 1
+	! [[ -d "$metaDir"/bi ]] && return 1
+	
+	! [[ -e "$metaDir"/ai/snippet ]] && return 1
+	
+	cat "$metaDir"/ai/snippet
+}
+
+_buffer_me_processor_snippet_read_wait() {
+	! [[ -d "$metaDir"/ai ]] && return 1
+	! [[ -d "$metaDir"/bi ]] && return 1
+	
+	while ! _buffer_me_processor_snippet_check_binary
+	do
+		sleep 0.3
+	done
+	
+	cat "$metaDir"/ai/snippet
+}
+
+_buffer_me_processor_confidence_reset() {
+	_buffer_me_processor_confidence_none
+}
+
+_buffer_me_processor_confidence_none() {
+	echo 0 | _buffer_me_processor_confidence_write
+}
+
+#Typically signals snippet processor task complete.
+_buffer_me_processor_confidence_full() {
+	echo 1 | _buffer_me_processor_confidence_write
+}
+
+_buffer_me_processor_confidence_write() {
+	! [[ -d "$metaDir"/bo ]] && return 1
+	
+	cat > "$metaDir"/bo/quicktmp_confidence
+	mv "$metaDir"/bo/quicktmp_confidence "$metaDir"/bo/confidence
+	rm -f "$metaDir"/bo/quicktmp_confidence > /dev/null 2>&1
+}
+
+# WARNING: Untested.
+_me_page_read() {
+	_buffer_me_processor_page_in_read "$@"
+}
+
+# WARNING: Untested.
+_me_page_write() {
+	_buffer_me_processor_page_out_write "$@"
+}
+
+_me_page_tick_read() {
+	_buffer_me_processor_page_tick_default _me_page_read "$@"
+}
+
+_me_page_tick_write() {
+	_buffer_me_processor_page_tick_default _me_page_write "$@"
+}
+
+# WARNING: High performance is not to be expected from bash implementation. C/OpenCL may be better suited.
+_me_page_tick_advance() {
+	_buffer_me_processor_page_tick_advance_default "$@"
+}
+
+
+
+
+_buffer_me_processor_page_tick() {
+	local measureTickA
+	local measureTickB
+	local measureTickDifference
+	
+	measureTickA=$(cat "$bufferTick_file")
+	
+	while true
+	do
+		measureTickB=$(cat "$bufferTick_file")
+		measureTickDifference=$(bc <<< "$measureTickB - $measureTickA")
+		
+		if [[ "$measureTickDifference" -ge "$bufferTick_count" ]]
+		then
+			"$@"
+		fi
+		
+		sleep 0.005
+	done
+}
+
+_buffer_me_processor_page_tick_default() {
+	export bufferTick_file="$metaReg"/tick
+	export bufferTick_count=1
+	
+	_buffer_me_processor_page_tick "$@"
+	
+	export bufferTick_file=
+	export bufferTick_count=
+}
+
+_buffer_me_processor_page_tick_advance_default() {
+	export bufferTick_file="$metaReg"/tick
+	export bufferTick_count=1
+	
+	_buffer_me_processor_page_tick_advance "$@"
+	
+	export bufferTick_file=
+	export bufferTick_count=
+}
+
+_buffer_me_processor_page_tick_advance() {
+	! [[ -e "$bufferTick_file" ]] && _buffer_me_processor_page_tick_reset
+	
+	local bufferTick_current
+	bufferTick_current=$(cat "$bufferTick_file")
+	
+	local bufferTick_next
+	bufferTick_next=$(bc <<< "$bufferTick_current + 1")
+	
+	echo "$bufferTick_next" | _buffer_me_processor_page_tick_write
+}
+
+_buffer_me_processor_page_tick_reset() {
+	echo 0 | _buffer_me_processor_page_tick_write
+}
+
+_buffer_me_processor_page_tick_write() {
+	#! [[ -d "$metaReg" ]] && return 1
+	
+	cat > "$bufferTick_file".tmp
+	mv "$bufferTick_file".tmp "$bufferTick_file"
+	rm -f "$bufferTick_file".tmp > /dev/null 2>&1
+}
+
+_buffer_me_processor_page_clock() {
+	local measureDateA
+	local measureDateB
+	local measureDateDifference
+	
+	measureDateA=$(date +%s%N | cut -b1-13)
+	
+	while true
+	do
+		measureDateB=$(date +%s%N | cut -b1-13)
+		measureDateDifference=$(bc <<< "$measureDateB - $measureDateA")
+		
+		if [[ "$measureDateDifference" -ge "$bufferClock_ms" ]]
+		then
+			"$@"
+		fi
+		
+		[[ "$bufferClock_ms" -ge "3000" ]] && sleep 1
+		[[ "$bufferClock_ms" -ge "300" ]] && sleep 0.1
+		sleep 0.005
+	done
+}
+
+_buffer_me_processor_page_clock_100fps() {
+	export bufferClock_ms=10
+	_buffer_me_processor_page_clock "$@"
+	export bufferClock_ms=
+}
+
+_buffer_me_processor_page_clock_90fps() {
+	export bufferClock_ms=11
+	_buffer_me_processor_page_clock "$@"
+	export bufferClock_ms=
+}
+
+_buffer_me_processor_page_clock_30fps() {
+	export bufferClock_ms=33
+	_buffer_me_processor_page_clock "$@"
+	export bufferClock_ms=
+}
+
+_buffer_me_processor_page_clock_1fps() {
+	export bufferClock_ms=1000
+	_buffer_me_processor_page_clock "$@"
+	export bufferClock_ms=
+}
+
+_buffer_me_processor_page_clock_1fpm() {
+	export bufferClock_ms=60000
+	_buffer_me_processor_page_clock "$@"
+	export bufferClock_ms=
+}
+
+_buffer_me_processor_page_clock_1fph() {
+	export bufferClock_ms=360000
+	_buffer_me_processor_page_clock "$@"
+	export bufferClock_ms=
+}
+
+
+
+
+_buffer_me_processor_page_in_read() {
+	! [[ -e "$metaDir"/bi/pointer ]] && return 1
+	
+	local bufferPointerRead
+	
+	bufferPointerRead=$(_buffer_me_processor_page_pointer_in_get_current)
+	
+	! [[ -e "$metaDir"/ai/"$bufferPointerRead" ]] && return 1
+	
+	cat "$metaDir"/ai/"$bufferPointerRead"
+}
+
+
+_buffer_me_processor_page_pointer_in_get_current() {
+	! [[ -e "$metaDir"/bi/pointer ]] && return 1
+	
+	cat "$metaDir"/bi/pointer
+}
+
+_buffer_me_processor_page_pointer_out_get_previous() {
+	! [[ -e "$metaDir"/bi/pointer ]] && return 1
+	
+	local bufferPointer
+	
+	bufferPointer=$(cat "$metaDir"/bi/pointer)
+	
+	[[ "$bufferPointer" == "0" ]] && echo 2 && return 0
+	[[ "$bufferPointer" == "1" ]] && echo 0 && return 0
+	[[ "$bufferPointer" == "2" ]] && echo 1 && return 0
+}
+
+_buffer_me_processor_page_pointer_out_get_next() {
+	! [[ -e "$metaDir"/bi/pointer ]] && return 1
+	
+	local bufferPointer
+	
+	bufferPointer=$(cat "$metaDir"/bi/pointer)
+	
+	[[ "$bufferPointer" == "0" ]] && echo 1 && return 0
+	[[ "$bufferPointer" == "1" ]] && echo 2 && return 0
+	[[ "$bufferPointer" == "2" ]] && echo 0 && return 0
+}
+
+
+
+
+
+_buffer_me_processor_page_out_write() {
+	_buffer_me_processor_page_pointer_out_advance
+	
+	local bufferPointerWrite
+	bufferPointerNext=$(_buffer_me_processor_page_pointer_out_get_next)
+	
+	cat > "$metaDir"/ao/quicktmp_page"$bufferPointerWrite"
+	mv "$metaDir"/ao/quicktmp_page"$bufferPointerWrite" "$metaDir"/ao/"$bufferPointerWrite"
+	rm -f "$metaDir"/ao/quicktmp_page"$bufferPointerWrite" > /dev/null 2>&1
+}
+
+_buffer_me_processor_page_pointer_out_advance() {
+	! [[ -d "$metaDir"/bo ]] && return 1
+	
+	! [[ -e "$metaDir"/bo/pointer ]] && _buffer_me_processor_page_pointer_out_reset
+	
+	local bufferPointerNext
+	bufferPointerNext=$(_buffer_me_processor_page_pointer_out_get_next)
+	
+	echo "$bufferPointerNext" | _buffer_me_processor_page_pointer_out_write
+}
+
+_buffer_me_processor_page_pointer_out_get_current() {
+	! [[ -e "$metaDir"/bo/pointer ]] && return 1
+	
+	cat "$metaDir"/bo/pointer
+}
+
+_buffer_me_processor_page_pointer_out_get_previous() {
+	! [[ -e "$metaDir"/bo/pointer ]] && return 1
+	
+	local bufferPointer
+	
+	bufferPointer=$(cat "$metaDir"/bo/pointer)
+	
+	[[ "$bufferPointer" == "0" ]] && echo 2 && return 0
+	[[ "$bufferPointer" == "1" ]] && echo 0 && return 0
+	[[ "$bufferPointer" == "2" ]] && echo 1 && return 0
+}
+
+_buffer_me_processor_page_pointer_out_get_next() {
+	! [[ -e "$metaDir"/bo/pointer ]] && return 1
+	
+	local bufferPointer
+	
+	bufferPointer=$(cat "$metaDir"/bo/pointer)
+	
+	[[ "$bufferPointer" == "0" ]] && echo 1 && return 0
+	[[ "$bufferPointer" == "1" ]] && echo 2 && return 0
+	[[ "$bufferPointer" == "2" ]] && echo 0 && return 0
+}
+
+#No production use.
+_buffer_me_processor_page_reset() {
+	_buffer_me_processor_page_pointer_reset
+	
+	rm -f "$metaDir"/ao/0 > /dev/null 2>&1
+	rm -f "$metaDir"/ao/1 > /dev/null 2>&1
+	rm -f "$metaDir"/ao/2 > /dev/null 2>&1
+}
+
+_buffer_me_processor_page_pointer_out_reset() {
+	_buffer_me_processor_page_pointer_out_0
+}
+
+_buffer_me_processor_page_pointer_out_0() {
+	echo 0 | _buffer_me_processor_page_pointer_out_write
+}
+
+_buffer_me_processor_page_pointer_out_1() {
+	echo 1 | _buffer_me_processor_page_pointer_out_write
+}
+
+_buffer_me_processor_page_pointer_out_2() {
+	echo 2 | _buffer_me_processor_page_pointer_out_write
+}
+
+
+_buffer_me_processor_page_pointer_out_write() {
+	! [[ -d "$metaDir"/bo ]] && return 1
+	
+	cat > "$metaDir"/bo/quicktmp_pointer
+	mv "$metaDir"/bo/quicktmp_pointer "$metaDir"/bo/pointer
+	rm -f "$metaDir"/bo/quicktmp_pointer > /dev/null 2>&1
+}
+
 
 
 _buildHello() {
@@ -8632,9 +12108,9 @@ _build() {
 
 #####Local Environment Management (Resources)
 
-_prepare_prog() {
-	true
-}
+#_prepare_prog() {
+#	true
+#}
 
 _extra() {
 	true
@@ -8644,12 +12120,19 @@ _prepare_abstract() {
 	! mkdir -p "$abstractfs_root" && exit 1
 	chmod 0700 "$abstractfs_root" > /dev/null 2>&1
 	! chmod 700 "$abstractfs_root" && exit 1
-	! chown "$USER":"$USER" "$abstractfs_root" && exit 1
+	if ! chown "$USER":"$USER" "$abstractfs_root" > /dev/null 2>&1
+	then
+		! /sbin/chown "$USER" "$abstractfs_root" && exit 1
+	fi
+	
 	
 	! mkdir -p "$abstractfs_lock" && exit 1
 	chmod 0700 "$abstractfs_lock" > /dev/null 2>&1
 	! chmod 700 "$abstractfs_lock" && exit 1
-	! chown "$USER":"$USER" "$abstractfs_lock" && exit 1
+	if ! chown "$USER":"$USER" "$abstractfs_lock" > /dev/null 2>&1
+	then
+		! /sbin/chown "$USER" "$abstractfs_root" && exit 1
+	fi
 }
 
 _prepare() {
@@ -8667,16 +12150,27 @@ _prepare() {
 	#_prepare_abstract
 	
 	_extra
-	_prepare_prog
+	_tryExec "_prepare_prog"
 }
 
 #####Local Environment Management (Instancing)
 
-_start_prog() {
-	true
+#_start_prog() {
+#	true
+#}
+
+# ATTENTION: Consider carefully, override with "ops".
+# WARNING: Unfortunate, but apparently necessary, workaround for script termintaing while "sleep" or similar run under background.
+_start_stty_echo() {
+	#true
+	
+	#stty echo --file=/dev/tty > /dev/null 2>&1
+	
+	export ubFoundEchoStatus=$(stty --file=/dev/tty -g 2>/dev/null)
 }
 
 _start() {
+	_start_stty_echo
 	
 	_prepare
 	
@@ -8688,26 +12182,38 @@ _start() {
 	_embed_here > "$safeTmp"/.embed.sh
 	chmod 755 "$safeTmp"/.embed.sh
 	
-	_start_prog
+	_tryExec "_start_prog"
 }
 
-_saveVar_prog() {
-	true
-}
+#_saveVar_prog() {
+#	true
+#}
 
 _saveVar() {
 	true
 	#declare -p varName > "$varStore"
 	
-	_saveVar_prog
+	_tryExec "_saveVar_prog"
 }
 
-_stop_prog() {
-	true
+#_stop_prog() {
+#	true
+#}
+
+# ATTENTION: Consider carefully, override with "ops".
+# WARNING: Unfortunate, but apparently necessary, workaround for script termintaing while "sleep" or similar run under background.
+_stop_stty_echo() {
+	#true
+	
+	#stty echo --file=/dev/tty > /dev/null 2>&1
+	
+	[[ "$ubFoundEchoStatus" != "" ]] && stty --file=/dev/tty "$ubFoundEchoStatus" 2> /dev/null
 }
 
 _stop() {
-	_stop_prog
+	_stop_stty_echo
+	
+	_tryExec "_stop_prog"
 	
 	_preserveLog
 	
@@ -8715,25 +12221,50 @@ _stop() {
 	local ub_stop_pid
 	if [[ -e "$safeTmp"/.pid ]]
 	then
-		ub_stop_pid=$(cat "$safeTmp"/.pid)
+		ub_stop_pid=$(cat "$safeTmp"/.pid 2> /dev/null)
 		if [[ $$ != "$ub_stop_pid" ]]
 		then
-			pkill -P "$ub_stop_pid"
-			kill "$ub_stop_pid"
+			pkill -P "$ub_stop_pid" > /dev/null 2>&1
+			kill "$ub_stop_pid" > /dev/null 2>&1
 		fi
 	fi
+	#Redundant, as this usually resides in "$safeTmp".
+	rm -f "$pidFile" > /dev/null 2>&1
 	
-	rm -f "$pidFile" > /dev/null 2>&1	#Redundant, as this usually resides in "$safeTmp".
-	rm -f "$ub_scope" > /dev/null 2>&1	#Symlink, or nonexistent.
-	[[ -e "$scopeTmp" ]] && _safeRMR "$scopeTmp"			#Only created if needed by scope.
+	if [[ -e "$scopeTmp" ]] && [[ -e "$scopeTmp"/.pid ]] && [[ "$$" == $(cat "$scopeTmp"/.pid 2>/dev/null) ]]
+	then
+		#Symlink, or nonexistent.
+		rm -f "$ub_scope" > /dev/null 2>&1
+		#Only created if needed by scope.
+		[[ -e "$scopeTmp" ]] && _safeRMR "$scopeTmp"
+	fi
+	
+	#Only created if needed by query.
+	[[ -e "$queryTmp" ]] && _safeRMR "$queryTmp"
+	
+	#Only created if needed by engine.
+	[[ -e "$engineTmp" ]] && _safeRMR "$engineTmp"
+	
+	_tryExec _rm_instance_metaengine
+	_tryExec _rm_instance_channel
+	
 	_safeRMR "$shortTmp"
 	_safeRMR "$safeTmp"
+	
+	[[ -e "$safeTmp" ]] && sleep 0.1 && _safeRMR "$safeTmp"
+	[[ -e "$safeTmp" ]] && sleep 0.3 && _safeRMR "$safeTmp"
+	[[ -e "$safeTmp" ]] && sleep 1 && _safeRMR "$safeTmp"
+	[[ -e "$safeTmp" ]] && sleep 3 && _safeRMR "$safeTmp"
+	[[ -e "$safeTmp" ]] && sleep 3 && _safeRMR "$safeTmp"
+	[[ -e "$safeTmp" ]] && sleep 3 && _safeRMR "$safeTmp"
 	
 	_tryExec _rm_instance_fakeHome
 	
 	#Optionally always try to remove any systemd shutdown hook.
 	#_tryExec _unhook_systemd_shutdown
 	
+	
+	_stop_stty_echo
 	if [[ "$1" != "" ]]
 	then
 		exit "$1"
@@ -8743,9 +12274,9 @@ _stop() {
 }
 
 #Do not overload this unless you know why you need it instead of _stop_prog.
-_stop_emergency_prog() {
-	true
-}
+#_stop_emergency_prog() {
+#	true
+#}
 
 #Called upon SIGTERM or similar signal.
 _stop_emergency() {
@@ -8754,7 +12285,7 @@ _stop_emergency() {
 	export EMERGENCYSHUTDOWN=true
 	
 	#Not yet using _tryExec since this function would typically result from user intervention, or system shutdown, both emergency situations in which an error message would be ignored if not useful. Higher priority is guaranteeing execution if needed and available.
-	_closeChRoot_emergency
+	_tryExec "_closeChRoot_emergency"
 	
 	#Daemon uses a separate instance, and will not be affected by previous actions, possibly even if running in the foreground.
 	#jobs -p >> "$daemonPidFile" #Could derrange the correct order of descendent job termination.
@@ -8762,7 +12293,7 @@ _stop_emergency() {
 	
 	_tryExec _stop_virtLocal
 	
-	_stop_emergency_prog
+	_tryExec "_stop_emergency_prog"
 	
 	_stop "$1"
 	
@@ -9142,22 +12673,91 @@ _timetest() {
 	_stop 1
 }
 
-_test_prog() {
-	true
-}
-
-_test() {
-	_start
-	
-	_tryExec "_test_permissions_ubiquitous"
-	
-	echo -n -e '\E[1;32;46m Argument length...	\E[0m'
-	
+_testarglength() {
 	local testArgLength
 	
 	! testArgLength=$(getconf ARG_MAX) && _messageFAIL && _stop 1
-	[[ "$testArgLength" -lt 131071 ]] && _messageFAIL && _stop 1
 	
+	
+	# Typical UNIX.
+	if [[ "$testArgLength" -lt 131071 ]]
+	then
+		# Typical Cygwin. Marginal result at best.
+		[[ "$testArgLength" -ge 32000 ]] && uname -a | grep -i 'cygwin' > /dev/null 2>&1 && return 0
+		
+		_messageFAIL && _stop 1
+	fi
+	
+	_messagePASS
+}
+
+#_test_prog() {
+#	true
+#}
+
+_test() {
+	_messageNormal "Sanity..."
+	
+	! "$scriptAbsoluteLocation" _true && _messageFAIL && return 1
+	"$scriptAbsoluteLocation" _false && _messageFAIL && return 1
+	
+	local santiySessionID_length
+	santiySessionID_length=$(echo -n "$sessionid" | wc -c | tr -dc '0-9')
+	
+	[[ "$santiySessionID_length" -lt "18" ]] && _messageFAIL && return 1
+	[[ "$uidLengthPrefix" != "" ]] && [[ "$santiySessionID_length" -lt "$uidLengthPrefix" ]] && _messageFAIL && return 1
+	
+	[[ -e "$safeTmp" ]] && _messageFAIL && return 1
+	
+	_start
+	
+	[[ ! -e "$safeTmp" ]] && _messageFAIL && return 1
+	
+	local currentTestUID=$(_uid 245)
+	mkdir -p "$safeTmp"/"$currentTestUID"
+	echo > "$safeTmp"/"$currentTestUID"/"$currentTestUID"
+	
+	[[ ! -e "$safeTmp"/"$currentTestUID"/"$currentTestUID" ]] && _messageFAIL && return 1
+	
+	rm -f "$safeTmp"/"$currentTestUID"/"$currentTestUID"
+	rmdir "$safeTmp"/"$currentTestUID"
+	
+	[[ -e "$safeTmp"/"$currentTestUID" ]] && _messageFAIL && return 1
+	
+	echo 'true' > "$safeTmp"/shouldNotOverwrite
+	mv "$safeTmp"/doesNotExist "$safeTmp"/shouldNotOverwrite > /dev/null 2>&1 && _messageFAIL && return 1
+	[[ $(cat "$safeTmp"/shouldNotOverwrite) != "true" ]] && _messageFAIL && return 1
+	rm -f "$safeTmp"/shouldNotOverwrite > /dev/null 2>&1
+	
+	
+	_getDep flock
+	
+	( flock 200; echo > "$safeTmp"/ready ; sleep 3 ) 200>"$safeTmp"/flock &
+	sleep 1
+	if ( flock 200; ! [[ -e "$safeTmp"/ready ]] ) 200>"$safeTmp"/flock
+	then
+		_messageFAIL
+		_stop 1
+	fi
+	rm -f "$safeTmp"/flock > /dev/null 2>&1
+	rm -f "$safeTmp"/ready > /dev/null 2>&1
+	
+	_messagePASS
+	
+	
+	_messageNormal "Permissions..."
+	
+	! _test_permissions_ubiquitous && _messageFAIL
+	
+	_messagePASS
+	
+	#Environment generated by ubiquitous bash is typically 10000 characters.
+	echo -n -e '\E[1;32;46m Argument length...	\E[0m'
+	
+	_testarglength
+	
+	_messageNormal "Absolute pathfinding..."
+	#_tryExec "_test_getAbsoluteLocation"
 	_messagePASS
 	
 	echo -n -e '\E[1;32;46m Timing...		\E[0m'
@@ -9179,8 +12779,10 @@ _test() {
 	_getDep head
 	_getDep tail
 	
+	_getDep wc
 	
-	_getDep realpath
+	
+	! _compat_realpath && ! _wantGetDep realpath && echo 'realpath missing'
 	_getDep readlink
 	_getDep dirname
 	_getDep basename
@@ -9221,8 +12823,9 @@ _test() {
 	
 	_getDep diff
 	
-	_tryExec "_test_package"
+	_test_readlink_f
 	
+	_tryExec "_test_package"
 	
 	_tryExec "_test_daemon"
 	
@@ -9296,6 +12899,10 @@ _test() {
 	_tryExec "_test_ethereum"
 	_tryExec "_test_ethereum_parity"
 	
+	_tryExec "_test_metaengine"
+	
+	_tryExec "_test_channel"
+	
 	[[ -e /dev/urandom ]] || echo /dev/urandom missing _stop
 	
 	_messagePASS
@@ -9304,14 +12911,14 @@ _test() {
 	_vector
 	_messagePASS
 	
-	_test_prog
+	_tryExec "_test_prog"
 	
 	_stop
 }
 
-_testBuilt_prog() {
-	true
-}
+#_testBuilt_prog() {
+#	true
+#}
 
 _testBuilt() {
 	_start
@@ -9329,7 +12936,7 @@ _testBuilt() {
 	
 	_tryExec "_testBuiltExtra"
 	
-	_testBuilt_prog
+	_tryExec "_testBuilt_prog"
 	
 	_messagePASS
 	
@@ -9388,19 +12995,19 @@ _find_setupCommands() {
 
 #Consider placing files like ' _vnc-machine-"$netName" ' in an "_index" folder for automatic installation.
 _setupCommands() {
-	#_find_setupCommands -name '_command' -exec "$scriptAbsoluteLocation" _setupCommand {} \;
+	#_find_setupCommands -name '_command' -exec "$scriptAbsoluteLocation" _setupCommand '{}' \;
 	
 	_tryExec "_setup_ssh_commands"
 	_tryExec "_setup_command_commands"
 }
 
-_setup_pre() {
-	true
-}
+#_setup_pre() {
+#	true
+#}
 
-_setup_prog() {
-	true
-}
+#_setup_prog() {
+#	true
+#}
 
 _setup() {
 	_start
@@ -9422,13 +13029,21 @@ _setup() {
 	
 	_setupCommands
 	
-	_setup_pre
+	_tryExec "_setup_pre"
 	
 	_tryExec "_setup_ssh"
 	
-	_setup_prog
+	_tryExec "_setup_prog"
 	
 	_stop
+}
+
+# DANGER: Especially not expected to modify system program behavior (eg. not to modify "$HOME"/.ssh ).
+# WARNING: Strictly expected to not modify anyting outside the script directory.
+_setup_local() {
+	export ub_setup_local='true'
+	
+	_setup
 }
 
 _test_package() {
@@ -9515,6 +13130,474 @@ _package_prog() {
 	rm "$safeTmp"/package/arduino/portable/sketchbook
 	mkdir -p "$safeTmp"/package/arduino/portable/sketchbook
 	cp -a "$globalFakeHome"/Arduino/. "$safeTmp"/package/arduino/portable/sketchbook
+}
+
+
+_arduino_blink() {
+	_arduino_run "$scriptLib"/Blink
+}
+
+
+_task_scope_arduinoide_blink() {
+	_scope_arduinoide "$scriptLib"/Blink "$@"
+}
+
+
+# ATTENTION: Override with ops!
+_refresh_anchors_task() {
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_scope_arduinoide_blink
+}
+
+#duplicate _anchor
+_refresh_anchors() {
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_konsole
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_dolphin
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_eclipse
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_arduinoide
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide_user
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide_edit
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_compile
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_upload
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_run
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_debug
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_blink
+	
+	_tryExec "_refresh_anchors_task"
+	
+	##### - BEGIN - Critical PATH Inclusions
+	# WARNING Hardcoded "ub_import_param" required, do NOT overwrite automatically!
+	
+	
+	# WARNING: Part of a system considered too unstable for production or end-user . May not be maintained.
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_interface_debug_atom
+	
+	##### - END - Critical PATH Inclusions
+}
+
+
+
+#####Program
+
+#Typically launches an application - ie. through virtualized container.
+_launch() {
+	_arduino "$@"
+}
+
+#Typically gathers command/variable scripts from other (ie. yaml) file types (ie. AppImage recipes).
+_collect() {
+	false
+}
+
+#Typical program entry point, absent any instancing support.
+_enter() {
+	_launch "$@"
+}
+
+#Typical program entry point.
+_main() {
+	_start
+	
+	_collect
+	
+	_enter "$@"
+	
+	_stop
+}
+
+_here_gdbinit_debug() {
+cat << CZXWXcRMTo8EmM8i4d
+#####Config
+#search path
+#	/arduino/sketch
+
+#####Startup
+
+file "$au_arduinoFirmware_sym"
+#file "$au_arduinoFirmware_elf"
+
+#set substitute-path /arduino/_build/sketch /arduino/sketch
+#set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
+
+#####Remote
+
+set \$au_remotePort=$au_remotePort
+
+eval "target extended-remote localhost:%d", $au_remotePort
+
+monitor reset halt
+
+monitor reset init
+
+CZXWXcRMTo8EmM8i4d
+}
+
+_here_gdbinit_delegate() {
+cat << CZXWXcRMTo8EmM8i4d
+#####Config
+#search path
+#	/arduino/sketch
+
+#####Startup
+
+file "$au_arduinoFirmware_elf"
+
+#set substitute-path /arduino/_build/sketch /arduino/sketch
+#set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
+
+#####Remote
+
+set \$au_remotePort=$au_remotePort
+
+CZXWXcRMTo8EmM8i4d
+}
+
+_interface_debug_gdb_procedure() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	_set_arduino_firmware
+	! [[ -e "$au_arduinoFirmware_elf" ]] && _messagePlain_bad 'fail: missing: firmware elf' && return 1
+	! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' && return 1
+	! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' && return 1
+	
+	#! _check_arduino_debug && _messagePlain_bad 'fail: block: au_remotePort= '"$au_remotePort" && return 1
+	_check_arduino_debug && _arduino_swd_openocd_device
+	
+	_here_gdbinit_debug > "$safeTmp"/.gdbinit
+	#_messagePlain_probe "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
+	"$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
+	
+	#Kill process only if name is openocd.
+	#_messagePlain_probe 'au_openocdPID= '$au_openocdPID
+	kill $(pgrep openocd | grep "$au_openocdPID")
+	
+	cd "$localFunctionEntryPWD"
+}
+
+_debug_gdb() {
+	_interface_debug_gdb_procedure "$@"
+}
+
+# WARNING: Intermittent failures, upstream issues, bad practices, no production use, not officially supported.
+_interface_debug_atom_procedure() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	# WARNING: Bad practice.
+	pkill openocd
+	
+	_set_arduino_firmware
+	! [[ -e "$au_arduinoFirmware_elf" ]] && _messagePlain_bad 'fail: missing: firmware elf' > /dev/tty 2>&1 && return 1
+	! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
+	! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
+	
+	#! _check_arduino_debug && _messagePlain_bad 'fail: block: au_remotePort= '"$au_remotePort" > /dev/tty 2>&1 && return 1
+	_check_arduino_debug && _arduino_swd_openocd_device > /dev/tty 2>&1
+	
+	_here_gdbinit_delegate > "$safeTmp"/.gdbinit
+	#_messagePlain_probe "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@" > /dev/tty
+	"$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
+	
+	#Kill process only if name is openocd.
+	#_messagePlain_probe 'au_openocdPID= '$au_openocdPID > /dev/tty 2>&1
+	kill $(pgrep openocd | grep "$au_openocdPID") > /dev/tty 2>&1
+	
+	cd "$localFunctionEntryPWD"
+}
+
+_interface_debug_atom_sequence() {
+	_start
+	
+	_interface_debug_atom_procedure "$@"
+	
+	_stop
+}
+
+_interface_debug_atom() {
+	"$scriptAbsoluteLocation" _interface_debug_atom_sequence "$@"
+}
+
+
+
+
+_arduino_swd_openocd() {
+	_messagePlain_probe "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
+	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@" &
+	export au_openocdPID="$!"
+}
+
+_arduino_swd_openocd_zero() {
+	_arduino_swd_openocd -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; tcl_port disabled; gdb_port "$au_remotePort "$@"
+}
+
+#Requires bootloader.
+_arduino_upload_swd_openocd_zero() {
+	_arduino_swd_openocd_zero -c "telnet_port disabled; program {""$au_arduinoFirmware_bin""} verify reset 0x00002000; shutdown"
+	wait "$au_openocdPID"
+}
+
+# ATTENTION: Overload with ops!
+_arduino_swd_openocd_device() {
+	_arduino_swd_openocd_zero "$@"
+}
+
+# ATTENTION: Overload with ops!
+#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
+_arduino_serial_bossac_device() {
+	local arduinoSerialPort
+	
+	arduinoSerialPort=ttyACM0
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM1
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM2
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB0
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB1
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB2
+	! [[ -e /dev/"$arduinoSerialPort" ]] && return 1
+	
+	stty --file=/dev/"$arduinoSerialPort" 1200;stty stop x --file=/dev/"$arduinoSerialPort";stty --file=/dev/"$arduinoSerialPort" 1200;stty stop x --file=/dev/"$arduinoSerialPort";
+	sleep 2
+	"$au_arduinoLocal"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port="$arduinoSerialPort" -U true -i -e -w -v "$au_arduinoFirmware_bin" -R
+}
+
+
+# ATTENTION Overload with ops!
+_arduino_ddd_procedure() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	_messagePlain_nominal 'IDE: ddd .'
+	
+	mkdir -p "$shortTmp"/_build
+	
+	_set_arduino_firmware
+	if ! [[ -e "$au_arduinoFirmware_sym" ]]
+	then
+		_messagePlain_warn 'warn: missing: firmware elf' > /dev/tty 2>&1
+		#return 1
+		
+		[[ -e "$au_arduinoFirmware_elf" ]] && cp -n "$au_arduinoFirmware_elf" "$au_arduinoFirmware_sym"
+		! [[ -e "$au_arduinoFirmware_sym" ]] && echo > "$au_arduinoFirmware_sym"
+	fi
+	
+	#! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_warn 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
+	#! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_warn 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
+	
+	#Current directory is generally irrelevant to arduino, and if different from sketchDir, may cause problems.
+	cd "$au_arduinoSketchDir"
+	
+	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
+	_set_arduino_userShortHome
+	
+	! _check_arduino_debug && _messagePlain_bad 'fail: block: au_remotePort= '"$au_remotePort" > /dev/tty 2>&1 && return 1
+	_arduino_swd_openocd_device
+	
+	_here_gdbinit_debug > "$safeTmp"/.gdbinit
+	
+	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$shortTmp"/_build -x "$safeTmp"/.gdbinit
+	ddd --debugger "$au_gdbBin" -d "$shortTmp"/_build -x "$safeTmp"/.gdbinit
+	
+	#Kill process only if name is openocd.
+	kill $(pgrep openocd | grep "$au_openocdPID")
+	
+	cd "$localFunctionEntryPWD"
+}
+
+_arduino_ddd_sequence() {
+	_start
+	
+	if ! _set_arduino_var "$@"
+	then
+		#true
+		_stop 1
+	fi
+	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
+	_prepare_arduino_installation
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	
+	#_arduino_method "$@"
+	#_arduino_executable "$@"
+	
+	_arduino_ddd_procedure "$@"
+	
+	_arduino_deconfigure_method
+	
+	_stop
+}
+
+_arduino_ddd() {
+	"$scriptAbsoluteLocation" _arduino_ddd_sequence "$@"
+}
+
+_ide_ddd() {
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	_arduino_ddd_procedure "$@"
+}
+
+_debug_ddd() {
+	_arduino_run_procedure "$@"
+	_arduino_ddd_procedure "$@"
+}
+
+# ATTENTION Overload with ops!
+_arduino_atom_procedure() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	_messagePlain_nominal 'IDE: atom .'
+	
+	_set_arduino_firmware
+	! [[ -e "$au_arduinoFirmware_elf" ]] && _messagePlain_bad 'fail: missing: firmware elf' > /dev/tty 2>&1 && return 1
+	! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
+	! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
+	
+	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
+	_set_arduino_userShortHome
+	
+	#_set_atomFakeHomeSource
+	#_install_fakeHome_atom
+	#_messagePlain_probe _fakeHome atom --foreground "$@"
+	#_fakeHome atom --foreground "$@"
+	
+	#_atom_user_procedure "$@"
+	
+	_atom_tmp_procedure "$@"
+	
+	#Kill process only if name is openocd.
+	kill $(pgrep openocd | grep "$au_openocdPID") > /dev/null 2>&1
+	
+	cd "$localFunctionEntryPWD"
+}
+
+_arduino_atom_sequence() {
+	_start
+	
+	if ! _set_arduino_var "$@"
+	then
+		#true
+		_stop 1
+	fi
+	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
+	_prepare_arduino_installation
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	
+	#_arduino_method "$@"
+	#_arduino_executable "$@"
+	
+	_arduino_atom_procedure "$@"
+	
+	_arduino_deconfigure_method
+	
+	_stop
+}
+
+_arduino_atom() {
+	"$scriptAbsoluteLocation" _arduino_atom_sequence "$@"
+}
+
+_ide_atom() {
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	_arduino_atom_procedure "$@"
+}
+
+_debug_atom() {
+	_arduino_run_procedure "$@"
+	_arduino_atom_procedure "$@"
+}
+
+_debug() {
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	_debug_ddd "$@"
+}
+
+_arduino_debug() {
+	_arduino_run "$@"
+	_arduino_ddd "$@"
+}
+
+_scope_arduinoide_procedure() {
+	_messagePlain_nominal 'ArduinoIDE.'
+	
+	# TODO: Is this redundant?
+	if ! _set_arduino_var "$ub_specimen"
+	then
+		true
+		#_stop 1
+	fi
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	#Current directory is generally irrelevant to arduino, and if different from sketchDir, may cause problems.
+	cd "$au_arduinoSketchDir"
+	
+	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
+	_set_arduino_userShortHome
+	
+	mkdir -p "$shortTmp"/_build
+	_arduino_method --save-prefs --pref build.path="$shortTmp"/_build
+	
+	_set_arduino_userShortHome
+	_prepare_arduino_board "$@"
+	
+	_set_arduino_userShortHome
+	_messagePlain_probe _fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$au_arduinoSketchDir" "$@"
+	#export arduinoExecutable="$au_arduinoDir"/arduino
+	export arduinoExecutable=
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$au_arduinoSketch" "$@"
+	#_arduino_executable "$@"
+	
+	#_set_arduino_editShortHome
+	_set_arduino_userShortHome
+	_arduino_deconfigure_method
+	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
+}
+
+#No production use.
+_scope_arduinoide_sequence() {
+	_start
+	
+	_scope_arduinoide_procedure "$@"
+	
+	_stop
+}
+
+_scope_arduinoide() {
+	local shiftParam1
+	shiftParam1="$1"
+	shift
+	
+	_scope_prog "$@"
+	_scope "$shiftParam1" "_scope_arduinoide_procedure" "$@"
+}
+
+_scope_ddd_procedure() {
+	_arduino_ddd_procedure "$@"
 }
 
 _set_share_abstractfs() {
@@ -9682,6 +13765,8 @@ _set_arduino_var() {
 	return 0
 }
 
+
+
 _scope_var_here_prog() {
 	cat << CZXWXcRMTo8EmM8i4d
 
@@ -9761,6 +13846,8 @@ _scope_attach() {
 _scope_prog() {
 	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='arduino'
 }
+
+
 
 #virtualized
 _v_arduino() {
@@ -10266,482 +14353,6 @@ _run() {
 	_messagePlain_good 'End.'
 }
 
-
-
-
-
-
-
-
-
-
-_arduino_blink() {
-	_arduino_run "$scriptLib"/Blink
-}
-
-
-_task_scope_arduinoide_blink() {
-	_scope_arduinoide "$scriptLib"/Blink "$@"
-}
-
-
-# ATTENTION: Override with ops!
-_refresh_anchors_task() {
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_scope_arduinoide_blink
-}
-
-#duplicate _anchor
-_refresh_anchors() {
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_konsole
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_dolphin
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_eclipse
-	
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_arduinoide
-	
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino
-	
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide_user
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduinoide_edit
-	
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_compile
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_upload
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_run
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_debug
-	
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_blink
-	
-	_tryExec "_refresh_anchors_task"
-	
-	##### - BEGIN - Critical PATH Inclusions
-	# WARNING Hardcoded "ub_import_param" required, do NOT overwrite automatically!
-	
-	
-	# WARNING: Part of a system considered too unstable for production or end-user . May not be maintained.
-	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_interface_debug_atom
-	
-	##### - END - Critical PATH Inclusions
-}
-
-
-
-#####Program
-
-#Typically launches an application - ie. through virtualized container.
-_launch() {
-	_arduino "$@"
-}
-
-#Typically gathers command/variable scripts from other (ie. yaml) file types (ie. AppImage recipes).
-_collect() {
-	false
-}
-
-#Typical program entry point, absent any instancing support.
-_enter() {
-	_launch "$@"
-}
-
-#Typical program entry point.
-_main() {
-	_start
-	
-	_collect
-	
-	_enter "$@"
-	
-	_stop
-}
-
-_here_gdbinit_debug() {
-cat << CZXWXcRMTo8EmM8i4d
-#####Config
-#search path
-#	/arduino/sketch
-
-#####Startup
-
-file "$au_arduinoFirmware_sym"
-#file "$au_arduinoFirmware_elf"
-
-#set substitute-path /arduino/_build/sketch /arduino/sketch
-#set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
-
-#####Remote
-
-set \$au_remotePort=$au_remotePort
-
-eval "target extended-remote localhost:%d", $au_remotePort
-
-monitor reset halt
-
-monitor reset init
-
-CZXWXcRMTo8EmM8i4d
-}
-
-_here_gdbinit_delegate() {
-cat << CZXWXcRMTo8EmM8i4d
-#####Config
-#search path
-#	/arduino/sketch
-
-#####Startup
-
-file "$au_arduinoFirmware_elf"
-
-#set substitute-path /arduino/_build/sketch /arduino/sketch
-#set substitute-path /arduino/sketch/sketch.ino /arduino/sketch/sketch.ino.cpp
-
-#####Remote
-
-set \$au_remotePort=$au_remotePort
-
-CZXWXcRMTo8EmM8i4d
-}
-
-_interface_debug_gdb_procedure() {
-	local localFunctionEntryPWD
-	localFunctionEntryPWD="$PWD"
-	
-	_set_arduino_firmware
-	! [[ -e "$au_arduinoFirmware_elf" ]] && _messagePlain_bad 'fail: missing: firmware elf' && return 1
-	! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' && return 1
-	! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' && return 1
-	
-	#! _check_arduino_debug && _messagePlain_bad 'fail: block: au_remotePort= '"$au_remotePort" && return 1
-	_check_arduino_debug && _arduino_swd_openocd_device
-	
-	_here_gdbinit_debug > "$safeTmp"/.gdbinit
-	#_messagePlain_probe "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
-	"$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
-	
-	#Kill process only if name is openocd.
-	#_messagePlain_probe 'au_openocdPID= '$au_openocdPID
-	kill $(pgrep openocd | grep "$au_openocdPID")
-	
-	cd "$localFunctionEntryPWD"
-}
-
-_debug_gdb() {
-	_interface_debug_gdb_procedure "$@"
-}
-
-# WARNING: Intermittent failures, upstream issues, bad practices, no production use, not officially supported.
-_interface_debug_atom_procedure() {
-	local localFunctionEntryPWD
-	localFunctionEntryPWD="$PWD"
-	
-	# WARNING: Bad practice.
-	pkill openocd
-	
-	_set_arduino_firmware
-	! [[ -e "$au_arduinoFirmware_elf" ]] && _messagePlain_bad 'fail: missing: firmware elf' > /dev/tty 2>&1 && return 1
-	! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
-	! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
-	
-	#! _check_arduino_debug && _messagePlain_bad 'fail: block: au_remotePort= '"$au_remotePort" > /dev/tty 2>&1 && return 1
-	_check_arduino_debug && _arduino_swd_openocd_device > /dev/tty 2>&1
-	
-	_here_gdbinit_delegate > "$safeTmp"/.gdbinit
-	#_messagePlain_probe "$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@" > /dev/tty
-	"$au_gdbBin" -d "$au_arduinoFirmware" -x "$safeTmp"/.gdbinit "$@"
-	
-	#Kill process only if name is openocd.
-	#_messagePlain_probe 'au_openocdPID= '$au_openocdPID > /dev/tty 2>&1
-	kill $(pgrep openocd | grep "$au_openocdPID") > /dev/tty 2>&1
-	
-	cd "$localFunctionEntryPWD"
-}
-
-_interface_debug_atom_sequence() {
-	_start
-	
-	_interface_debug_atom_procedure "$@"
-	
-	_stop
-}
-
-_interface_debug_atom() {
-	"$scriptAbsoluteLocation" _interface_debug_atom_sequence "$@"
-}
-
-
-
-
-_arduino_swd_openocd() {
-	_messagePlain_probe "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
-	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@" &
-	export au_openocdPID="$!"
-}
-
-_arduino_swd_openocd_zero() {
-	_arduino_swd_openocd -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; tcl_port disabled; gdb_port "$au_remotePort "$@"
-}
-
-#Requires bootloader.
-_arduino_upload_swd_openocd_zero() {
-	_arduino_swd_openocd_zero -c "telnet_port disabled; program {""$au_arduinoFirmware_bin""} verify reset 0x00002000; shutdown"
-	wait "$au_openocdPID"
-}
-
-# ATTENTION: Overload with ops!
-_arduino_swd_openocd_device() {
-	_arduino_swd_openocd_zero "$@"
-}
-
-# ATTENTION: Overload with ops!
-#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
-_arduino_serial_bossac_device() {
-	local arduinoSerialPort
-	
-	arduinoSerialPort=ttyACM0
-	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM1
-	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM2
-	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB0
-	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB1
-	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB2
-	! [[ -e /dev/"$arduinoSerialPort" ]] && return 1
-	
-	stty --file=/dev/"$arduinoSerialPort" 1200;stty stop x --file=/dev/"$arduinoSerialPort";stty --file=/dev/"$arduinoSerialPort" 1200;stty stop x --file=/dev/"$arduinoSerialPort";
-	sleep 2
-	"$au_arduinoLocal"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port="$arduinoSerialPort" -U true -i -e -w -v "$au_arduinoFirmware_bin" -R
-}
-
-
-# ATTENTION Overload with ops!
-_arduino_ddd_procedure() {
-	local localFunctionEntryPWD
-	localFunctionEntryPWD="$PWD"
-	
-	_messagePlain_nominal 'IDE: ddd .'
-	
-	mkdir -p "$shortTmp"/_build
-	
-	_set_arduino_firmware
-	if ! [[ -e "$au_arduinoFirmware_sym" ]]
-	then
-		_messagePlain_warn 'warn: missing: firmware elf' > /dev/tty 2>&1
-		#return 1
-		
-		[[ -e "$au_arduinoFirmware_elf" ]] && cp -n "$au_arduinoFirmware_elf" "$au_arduinoFirmware_sym"
-		! [[ -e "$au_arduinoFirmware_sym" ]] && echo > "$au_arduinoFirmware_sym"
-	fi
-	
-	#! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_warn 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
-	#! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_warn 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
-	
-	#Current directory is generally irrelevant to arduino, and if different from sketchDir, may cause problems.
-	cd "$au_arduinoSketchDir"
-	
-	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
-	_set_arduino_userShortHome
-	
-	! _check_arduino_debug && _messagePlain_bad 'fail: block: au_remotePort= '"$au_remotePort" > /dev/tty 2>&1 && return 1
-	_arduino_swd_openocd_device
-	
-	_here_gdbinit_debug > "$safeTmp"/.gdbinit
-	
-	_messagePlain_probe ddd --debugger "$au_gdbBin" -d "$shortTmp"/_build -x "$safeTmp"/.gdbinit
-	ddd --debugger "$au_gdbBin" -d "$shortTmp"/_build -x "$safeTmp"/.gdbinit
-	
-	#Kill process only if name is openocd.
-	kill $(pgrep openocd | grep "$au_openocdPID")
-	
-	cd "$localFunctionEntryPWD"
-}
-
-_arduino_ddd_sequence() {
-	_start
-	
-	if ! _set_arduino_var "$@"
-	then
-		#true
-		_stop 1
-	fi
-	
-	_import_ops_sketch
-	_ops_arduino_sketch
-	
-	#_set_arduino_editShortHome
-	_set_arduino_userShortHome
-	_prepare_arduino_installation
-	#export arduinoExecutable="$au_arduinoDir"/arduino
-	export arduinoExecutable=
-	
-	#_arduino_method "$@"
-	#_arduino_executable "$@"
-	
-	_arduino_ddd_procedure "$@"
-	
-	_arduino_deconfigure_method
-	
-	_stop
-}
-
-_arduino_ddd() {
-	"$scriptAbsoluteLocation" _arduino_ddd_sequence "$@"
-}
-
-_ide_ddd() {
-	_import_ops_sketch
-	_ops_arduino_sketch
-	
-	_arduino_ddd_procedure "$@"
-}
-
-_debug_ddd() {
-	_arduino_run_procedure "$@"
-	_arduino_ddd_procedure "$@"
-}
-
-# ATTENTION Overload with ops!
-_arduino_atom_procedure() {
-	local localFunctionEntryPWD
-	localFunctionEntryPWD="$PWD"
-	
-	_messagePlain_nominal 'IDE: atom .'
-	
-	_set_arduino_firmware
-	! [[ -e "$au_arduinoFirmware_elf" ]] && _messagePlain_bad 'fail: missing: firmware elf' > /dev/tty 2>&1 && return 1
-	! [[ -e "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
-	! [[ -d "$au_arduinoFirmware" ]] && _messagePlain_bad 'fail: missing: firmware dir' > /dev/tty 2>&1 && return 1
-	
-	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
-	_set_arduino_userShortHome
-	
-	#_set_atomFakeHomeSource
-	#_install_fakeHome_atom
-	#_messagePlain_probe _fakeHome atom --foreground "$@"
-	#_fakeHome atom --foreground "$@"
-	
-	#_atom_user_procedure "$@"
-	
-	_atom_tmp_procedure "$@"
-	
-	#Kill process only if name is openocd.
-	kill $(pgrep openocd | grep "$au_openocdPID") > /dev/null 2>&1
-	
-	cd "$localFunctionEntryPWD"
-}
-
-_arduino_atom_sequence() {
-	_start
-	
-	if ! _set_arduino_var "$@"
-	then
-		#true
-		_stop 1
-	fi
-	
-	_import_ops_sketch
-	_ops_arduino_sketch
-	
-	#_set_arduino_editShortHome
-	_set_arduino_userShortHome
-	_prepare_arduino_installation
-	#export arduinoExecutable="$au_arduinoDir"/arduino
-	export arduinoExecutable=
-	
-	#_arduino_method "$@"
-	#_arduino_executable "$@"
-	
-	_arduino_atom_procedure "$@"
-	
-	_arduino_deconfigure_method
-	
-	_stop
-}
-
-_arduino_atom() {
-	"$scriptAbsoluteLocation" _arduino_atom_sequence "$@"
-}
-
-_ide_atom() {
-	_import_ops_sketch
-	_ops_arduino_sketch
-	
-	_arduino_atom_procedure "$@"
-}
-
-_debug_atom() {
-	_arduino_run_procedure "$@"
-	_arduino_atom_procedure "$@"
-}
-
-_debug() {
-	_import_ops_sketch
-	_ops_arduino_sketch
-	
-	_debug_ddd "$@"
-}
-
-_arduino_debug() {
-	_arduino_run "$@"
-	_arduino_ddd "$@"
-}
-
-_scope_arduinoide_procedure() {
-	_messagePlain_nominal 'ArduinoIDE.'
-	
-	# TODO: Is this redundant?
-	if ! _set_arduino_var "$ub_specimen"
-	then
-		true
-		#_stop 1
-	fi
-	_import_ops_sketch
-	_ops_arduino_sketch
-	
-	#Current directory is generally irrelevant to arduino, and if different from sketchDir, may cause problems.
-	cd "$au_arduinoSketchDir"
-	
-	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
-	_set_arduino_userShortHome
-	
-	mkdir -p "$shortTmp"/_build
-	_arduino_method --save-prefs --pref build.path="$shortTmp"/_build
-	
-	_set_arduino_userShortHome
-	_prepare_arduino_board "$@"
-	
-	_set_arduino_userShortHome
-	_messagePlain_probe _fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$au_arduinoSketchDir" "$@"
-	#export arduinoExecutable="$au_arduinoDir"/arduino
-	export arduinoExecutable=
-	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_executable "$au_arduinoSketch" "$@"
-	#_arduino_executable "$@"
-	
-	#_set_arduino_editShortHome
-	_set_arduino_userShortHome
-	_arduino_deconfigure_method
-	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
-}
-
-#No production use.
-_scope_arduinoide_sequence() {
-	_start
-	
-	_scope_arduinoide_procedure "$@"
-	
-	_stop
-}
-
-_scope_arduinoide() {
-	local shiftParam1
-	shiftParam1="$1"
-	shift
-	
-	_scope_prog "$@"
-	_scope "$shiftParam1" "_scope_arduinoide_procedure" "$@"
-}
-
-_scope_ddd_procedure() {
-	_arduino_ddd_procedure "$@"
-}
-
 #matchingReversePorts=""
 #matchingEMBEDDED=""
 
@@ -10796,6 +14407,44 @@ export reversePorts=("${matchingReversePorts[@]}")
 export EMBEDDED="$matchingEMBEDDED"
 
 export keepKeys_SSH='true'
+
+_deps_metaengine() {
+# 	#_deps_notLean
+	_deps_dev
+	
+	export enUb_metaengine="true"
+} 
+
+_compile_bash_metaengine() {
+	export includeScriptList
+	
+	#[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine"/undefined.sh )
+}
+
+_compile_bash_vars_metaengine() {
+	export includeScriptList
+	
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/"/metaengine.sh )
+	
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/env"/metaengine_diag.sh )
+	
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/env"/metaengine_here.sh )
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/env"/metaengine_vars.sh )
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/env"/metaengine_parm.sh )
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/env"/metaengine_local.sh )
+	
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/example"/example_metaengine_chain.sh )
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/example"/example_metaengine_object.sh )
+	
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/typical"/typical_metaengine_chain.sh )
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/typical"/typical_metaengine_object.sh )
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/typical"/typical_metaengine_vars.sh )
+	
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/typical"/typical_metaengine_divert.sh )
+	
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/typical"/typical_metaengine_buffer.sh )
+	[[ "$enUb_metaengine" == "true" ]] && includeScriptList+=( "metaengine/typical"/typical_metaengine_page.sh )
+}
 
 _findUbiquitous() {
 	export ubiquitiousLibDir="$scriptAbsoluteFolder"
@@ -10857,8 +14506,25 @@ _init_deps() {
 	export enUb_enUb_x220t=""
 	
 	export enUb_user=""
+	
+	export enUb_metaengine=""
+	
+	export enUb_stopwatch=""
 }
 
+_deps_dev() {
+	export enUb_dev="true"
+}
+
+_deps_dev_heavy() {
+	_deps_notLean
+	export enUb_dev_heavy="true"
+}
+
+_deps_mount() {
+	_deps_notLean
+	export enUb_mount="true"
+}
 
 _deps_machineinfo() {
 	export enUb_machineinfo="true"
@@ -10876,6 +14542,10 @@ _deps_notLean() {
 	_deps_git
 	_deps_bup
 	export enUb_notLean="true"
+}
+
+_deps_distro() {
+	export enUb_distro="true"
 }
 
 _deps_build() {
@@ -10923,35 +14593,44 @@ _deps_image() {
 	export enUb_image="true"
 }
 
-_deps_virt() {
+_deps_virt_thick() {
+	_deps_distro
 	_deps_build
 	_deps_notLean
-	_deps_machineinfo
 	_deps_image
+	export enUb_virt_thick="true"
+}
+
+_deps_virt() {
+	_deps_machineinfo
 	export enUb_virt="true"
 }
 
 _deps_chroot() {
 	_deps_notLean
 	_deps_virt
+	_deps_virt_thick
 	export enUb_ChRoot="true"
 }
 
 _deps_qemu() {
 	_deps_notLean
 	_deps_virt
+	_deps_virt_thick
 	export enUb_QEMU="true"
 }
 
 _deps_vbox() {
 	_deps_notLean
 	_deps_virt
+	_deps_virt_thick
 	export enUb_vbox="true"
 }
 
 _deps_docker() {
 	_deps_notLean
 	_deps_virt
+	_deps_virt_thick
 	export enUb_docker="true"
 }
 
@@ -10970,6 +14649,7 @@ _deps_dosbox() {
 _deps_msw() {
 	_deps_notLean
 	_deps_virt
+	_deps_virt_thick
 	_deps_qemu
 	_deps_vbox
 	_deps_wine
@@ -10983,7 +14663,8 @@ _deps_fakehome() {
 }
 
 _deps_abstractfs() {
-	_deps_notLean
+	_deps_git
+	_deps_bup
 	_deps_virt
 	export enUb_abstractfs="true"
 }
@@ -11017,6 +14698,21 @@ _deps_user() {
 	export enUb_user="true"
 }
 
+_deps_channel() {
+	export enUb_channel="true"
+}
+
+_deps_stopwatch() {
+	export enUb_stopwatch="true"
+}
+
+#placeholder, define under "metaengine/build"
+#_deps_metaengine() {
+#	_deps_notLean
+#	
+#	export enUb_metaengine="true"
+#}
+
 
 _generate_bash() {
 	
@@ -11039,7 +14735,9 @@ _generate_bash() {
 	
 	_compile_bash_vars_global
 	
+	_compile_bash_extension
 	_compile_bash_selfHost
+	_compile_bash_selfHost_prog
 	
 	_compile_bash_overrides
 	
@@ -11114,23 +14812,60 @@ _compile_bash_deps() {
 		_deps_proxy
 		_deps_proxy_special
 		
+		_deps_channel
+		
 		_deps_git
 		_deps_bup
 		
 		_deps_command
 		_deps_synergy
 		
+		_deps_stopwatch
+		
+		return 0
+	fi
+	
+	if [[ "$1" == "processor" ]]
+	then
+		
+		_deps_dev
+		
+		_deps_channel
+		
+		_deps_metaengine
+		
+		return 0
+	fi
+	
+	if [[ "$1" == "abstract" ]]
+	then
+		_deps_dev
+		
+		_deps_channel
+		
+		_deps_metaengine
+		
+		_deps_abstractfs
+		
 		return 0
 	fi
 	
 	if [[ "$1" == "core" ]]
 	then
+		_deps_dev_heavy
+		_deps_dev
+		
+		_deps_mount
+		
 		_deps_notLean
 		_deps_os_x11
 		
 		_deps_x11
 		_deps_image
+		
 		_deps_virt
+		_deps_virt_thick
+		
 		_deps_chroot
 		_deps_qemu
 		_deps_vbox
@@ -11141,8 +14876,14 @@ _compile_bash_deps() {
 		_deps_fakehome
 		_deps_abstractfs
 		
+		_deps_channel
+		
+		_deps_metaengine
+		
 		_deps_git
 		_deps_bup
+		
+		_deps_distro
 		
 		#_deps_blockchain
 		
@@ -11167,12 +14908,20 @@ _compile_bash_deps() {
 	
 	if [[ "$1" == "" ]] || [[ "$1" == "ubiquitous_bash" ]] || [[ "$1" == "ubiquitous_bash.sh" ]] || [[ "$1" == "complete" ]]
 	then
+		_deps_dev_heavy
+		_deps_dev
+		
+		_deps_mount
+		
 		_deps_notLean
 		_deps_os_x11
 		
 		_deps_x11
 		_deps_image
+		
 		_deps_virt
+		_deps_virt_thick
+		
 		_deps_chroot
 		_deps_qemu
 		_deps_vbox
@@ -11183,8 +14932,14 @@ _compile_bash_deps() {
 		_deps_fakehome
 		_deps_abstractfs
 		
+		_deps_channel
+		
+		_deps_metaengine
+		
 		_deps_git
 		_deps_bup
+		
+		_deps_distro
 		
 		_deps_blockchain
 		
@@ -11228,6 +14983,8 @@ _compile_bash_header() {
 	
 	includeScriptList+=( "os/override"/override.sh )
 	includeScriptList+=( "os/override"/override_prog.sh )
+	
+	includeScriptList+=( "os/override"/override_cygwin.sh )
 }
 
 _compile_bash_header_program() {
@@ -11243,12 +15000,15 @@ _compile_bash_essential_utilities() {
 	includeScriptList+=( "labels"/utilitiesLabel.sh )
 	includeScriptList+=( "generic/filesystem"/absolutepaths.sh )
 	includeScriptList+=( "generic/filesystem"/safedelete.sh )
+	includeScriptList+=( "generic/filesystem"/allLogic.sh )
 	includeScriptList+=( "generic/process"/timeout.sh )
 	includeScriptList+=( "generic/process"/terminate.sh )
 	includeScriptList+=( "generic"/uid.sh )
 	includeScriptList+=( "generic/filesystem/permissions"/checkpermissions.sh )
 	includeScriptList+=( "generic"/findInfrastructure.sh )
 	includeScriptList+=( "generic"/gather.sh )
+	
+	includeScriptList+=( "generic/process"/priority.sh )
 	
 	includeScriptList+=( "generic/filesystem"/internal.sh )
 	
@@ -11257,6 +15017,7 @@ _compile_bash_essential_utilities() {
 	includeScriptList+=( "generic"/config/mustcarry.sh )
 	
 	[[ "$enUb_buildBash" == "true" ]] && includeScriptList+=( "build/bash"/include_bash.sh )
+	[[ "$enUb_buildBash" == "true" ]] && includeScriptList+=( "build/bash"/include_bash_prog.sh )
 }
 
 _compile_bash_utilities() {
@@ -11271,11 +15032,13 @@ _compile_bash_utilities() {
 	
 	includeScriptList+=( "generic/filesystem"/relink.sh )
 	
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "generic/filesystem/mounts"/bindmountmanager.sh )
+	[[ "$enUb_mount" == "true" ]] && includeScriptList+=( "generic/filesystem/mounts"/bindmountmanager.sh )
 	
-	includeScriptList+=( "generic/filesystem/mounts"/waitumount.sh )
+	[[ "$enUb_mount" == "true" ]] && includeScriptList+=( "generic/filesystem/mounts"/waitumount.sh )
 	
-	includeScriptList+=( "generic/filesystem/mounts"/mountchecks.sh )
+	[[ "$enUb_mount" == "true" ]] && includeScriptList+=( "generic/filesystem/mounts"/mountchecks.sh )
+	
+	[[ "$enUb_channel" == "true" ]] && includeScriptList+=( "generic/process/"channel.sh )
 	
 	includeScriptList+=( "generic/process"/waitforprocess.sh )
 	
@@ -11298,6 +15061,10 @@ _compile_bash_utilities() {
 	[[ "$enUb_proxy" == "true" ]] && includeScriptList+=( "generic/net/proxy/ssh"/ssh.sh )
 	[[ "$enUb_proxy" == "true" ]] && includeScriptList+=( "generic/net/proxy/ssh"/autossh.sh )
 	
+	[[ "$enUb_proxy" == "true" ]] && includeScriptList+=( "generic/net/proxy/vnc"/vnc_vncserver_operations.sh )
+	[[ "$enUb_proxy" == "true" ]] && includeScriptList+=( "generic/net/proxy/vnc"/vnc_vncviewer_operations.sh )
+	[[ "$enUb_proxy" == "true" ]] && includeScriptList+=( "generic/net/proxy/vnc"/vnc_x11vnc_operations.sh )
+	
 	[[ "$enUb_proxy" == "true" ]] && includeScriptList+=( "generic/net/proxy/proxyrouter"/here_proxyrouter.sh )
 	[[ "$enUb_proxy" == "true" ]] && includeScriptList+=( "generic/net/proxy/proxyrouter"/proxyrouter.sh )
 	
@@ -11317,22 +15084,24 @@ _compile_bash_utilities() {
 	includeScriptList+=( "special"/mustberoot.sh )
 	includeScriptList+=( "special"/mustgetsudo.sh )
 	
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "special/gosu"/gosu.sh )
-	
 	includeScriptList+=( "special"/uuid.sh )
 	
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "instrumentation"/bashdb/bashdb.sh )
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "instrumentation"/profiling/stopwatch.sh )
+	[[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "instrumentation"/bashdb/bashdb.sh )
+	([[ "$enUb_notLean" == "true" ]] || [[ "$enUb_stopwatch" == "true" ]]) && includeScriptList+=( "instrumentation"/profiling/stopwatch.sh )
 }
 
 _compile_bash_utilities_virtualization() {
 	export includeScriptList
 	
+	# ATTENTION: Although the only known requirement for gosu is virtualization, it may be necessary wherever sudo is not sufficient to drop privileges.
+	[[ "$enUb_virt_thick" == "true" ]] && includeScriptList+=( "special/gosu"/gosu.sh )
+	
 	[[ "$enUb_virt" == "true" ]] && includeScriptList+=( "virtualization"/virtenv.sh )
 	
 	[[ "$enUb_virt" == "true" ]] && includeScriptList+=( "virtualization"/findInfrastructure_virt.sh )
 	
-	[[ "$enUb_virt" == "true" ]] && includeScriptList+=( "virtualization"/osTranslation.sh )
+	# Any script managing MSW from UNIX may need basic file parameter translation without needing complete remapping. Example: "_vncviewer_operations" .
+	( [[ "$enUb_virt" == "true" ]] || [[ "$enUb_proxy" == "true" ]] ) && includeScriptList+=( "virtualization"/osTranslation.sh )
 	[[ "$enUb_virt" == "true" ]] && includeScriptList+=( "virtualization"/localPathTranslation.sh )
 	
 	[[ "$enUb_abstractfs" == "true" ]] && includeScriptList+=( "virtualization/abstractfs"/abstractfs.sh )
@@ -11391,17 +15160,19 @@ _compile_bash_shortcuts() {
 	
 	includeScriptList+=( "shortcuts/prompt"/visualPrompt.sh )
 	
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev"/devsearch.sh )
+	[[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev"/devsearch.sh )
 	
-	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devemacs.sh )
-	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devatom.sh )
-	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_abstractfs" == "true" ]] && [[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/deveclipse.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devemacs.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devatom.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_abstractfs" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/deveclipse.sh )
 	
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/scope"/devscope.sh )
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/scope"/devscope_here.sh )
+	includeScriptList+=( "shortcuts/dev/query"/devquery.sh )
+	
+	[[ "$enUb_dev" == "true" ]] && includeScriptList+=( "shortcuts/dev/scope"/devscope.sh )
+	[[ "$enUb_dev" == "true" ]] && includeScriptList+=( "shortcuts/dev/scope"/devscope_here.sh )
 	
 	# WARNING: Some apps may have specific dependencies (eg. fakeHome, abstractfs, eclipse, atom).
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/dev/scope"/devscope_app.sh )
+	[[ "$enUb_dev" == "true" ]] && includeScriptList+=( "shortcuts/dev/scope"/devscope_app.sh )
 	
 	[[ "$enUb_git" == "true" ]] && includeScriptList+=( "shortcuts/git"/git.sh )
 	[[ "$enUb_git" == "true" ]] && includeScriptList+=( "shortcuts/git"/gitBare.sh )
@@ -11411,12 +15182,12 @@ _compile_bash_shortcuts() {
 	[[ "$enUb_image" == "true" ]] && includeScriptList+=( "shortcuts/mkboot"/here_mkboot.sh )
 	[[ "$enUb_image" == "true" ]] && includeScriptList+=( "shortcuts/mkboot"/mkboot.sh )
 	
-	[[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "shortcuts/distro"/distro.sh )
+	[[ "$enUb_notLean" == "true" ]] && [[ "$enUb_distro" == "true" ]] && includeScriptList+=( "shortcuts/distro"/distro.sh )
 	
-	[[ "$enUb_QEMU" == "true" ]] && includeScriptList+=( "shortcuts/distro/debian"/createDebian.sh )
-	[[ "$enUb_image" == "true" ]] && includeScriptList+=( "shortcuts/distro/raspbian"/createRaspbian.sh )
+	[[ "$enUb_QEMU" == "true" ]] && [[ "$enUb_distro" == "true" ]] && includeScriptList+=( "shortcuts/distro/debian"/createDebian.sh )
+	[[ "$enUb_image" == "true" ]] && [[ "$enUb_distro" == "true" ]] && includeScriptList+=( "shortcuts/distro/raspbian"/createRaspbian.sh )
 	
-	[[ "$enUb_msw" == "true" ]] && includeScriptList+=( "shortcuts/distro/msw"/msw.sh )
+	[[ "$enUb_msw" == "true" ]] && [[ "$enUb_distro" == "true" ]] && includeScriptList+=( "shortcuts/distro/msw"/msw.sh )
 	
 	[[ "$enUb_x11" == "true" ]] && includeScriptList+=( "shortcuts/x11"/testx11.sh )
 	[[ "$enUb_x11" == "true" ]] && includeScriptList+=( "shortcuts/x11"/xinput.sh )
@@ -11443,6 +15214,12 @@ _compile_bash_shortcuts_setup() {
 	
 	includeScriptList+=( "shortcuts"/setupUbiquitous_here.sh )
 	includeScriptList+=( "shortcuts"/setupUbiquitous.sh )
+}
+
+_compile_bash_shortcuts_os() {
+	export includeScriptList
+	
+	includeScriptList+=( "shortcuts/os/unix/nice"/renice.sh )
 }
 
 _compile_bash_bundled() {
@@ -11482,6 +15259,10 @@ _compile_bash_vars_basic() {
 _compile_bash_vars_global() {
 	export includeScriptList
 	
+	includeScriptList+=( "structure"/resetvars.sh )
+	
+	#Optional, rarely used, intended for overload.
+	includeScriptList+=( "structure"/prefixvars.sh )
 	
 	#####Global variables.
 	includeScriptList+=( "structure"/globalvars.sh )
@@ -11528,7 +15309,9 @@ _compile_bash_buildin() {
 	export includeScriptList
 	
 	[[ "$enUb_build" == "true" ]] && includeScriptList+=( "generic/hello"/hello.sh )
-	[[ "$enUb_build" == "true" ]] && [[ "$enUb_notLean" == "true" ]] && includeScriptList+=( "generic/process"/idle.sh )
+	
+	# ATTENTION: Running while X11 session is idle is a common requirement for a daemon.
+	[[ "$enUb_build" == "true" ]] && [[ "$enUb_x11" == "true" ]] && includeScriptList+=( "generic/process"/idle.sh )
 	
 	[[ "$enUb_build" == "true" ]] && includeScriptList+=( "structure"/build.sh )
 }
@@ -11540,6 +15323,7 @@ _compile_bash_environment() {
 	includeScriptList+=( "structure"/localfs.sh )
 	
 	includeScriptList+=( "structure"/localenv.sh )
+	includeScriptList+=( "structure"/localenv_prog.sh )
 }
 
 _compile_bash_installation() {
@@ -11563,7 +15347,7 @@ _compile_bash_config() {
 	
 	
 	#####Hardcoded
-	includeScriptList+=( netvars.sh )
+	includeScriptList+=( "_config"/netvars.sh )
 }
 
 _compile_bash_selfHost() {
@@ -11594,6 +15378,23 @@ _compile_bash_entry() {
 	
 	includeScriptList+=( "structure"/entry.sh )
 }
+
+_compile_bash_extension() {
+	export includeScriptList
+	
+	[[ "$enUb_buildBashUbiquitous" == "true" ]] && includeScriptList+=( "metaengine/build"/deps_meta.sh )
+	[[ "$enUb_buildBashUbiquitous" == "true" ]] && includeScriptList+=( "metaengine/build"/compile_meta.sh )
+}
+
+#placehoder, define under "metaengine/build"
+#_compile_bash_metaengine() {
+#	true
+#}
+
+#placeholder, define under "metaengine/build"
+#_compile_bash_vars_metaengine() {
+#	true
+#}
 
 #Ubiquitous Bash compile script. Override with "ops", "_config", or "_prog" directives through "compile_bash_prog.sh" to compile other work products through similar scripting.
 # "$1" == configuration
@@ -11637,6 +15438,8 @@ _compile_bash() {
 	_compile_bash_shortcuts_setup
 	_compile_bash_shortcuts_setup_prog
 	
+	_compile_bash_shortcuts_os
+	
 	_compile_bash_bundled
 	_compile_bash_bundled_prog
 	
@@ -11645,6 +15448,8 @@ _compile_bash() {
 	_compile_bash_user
 	
 	_compile_bash_hardware
+	
+	_tryExec _compile_bash_metaengine
 	
 	_compile_bash_vars_basic
 	_compile_bash_vars_basic_prog
@@ -11660,6 +15465,8 @@ _compile_bash() {
 	_compile_bash_vars_virtualization_prog
 	_compile_bash_vars_bundled
 	_compile_bash_vars_bundled_prog
+	
+	_tryExec _compile_bash_vars_metaengine
 	
 	_compile_bash_buildin
 	_compile_bash_buildin_prog
@@ -11678,6 +15485,7 @@ _compile_bash() {
 	_compile_bash_config
 	_compile_bash_config_prog
 	
+	_compile_bash_extension
 	_compile_bash_selfHost
 	_compile_bash_selfHost_prog
 	
@@ -11821,6 +15629,10 @@ _compile_bash_program_prog() {
 	includeScriptList+=( core_external.sh )
 	
 	includeScriptList+=( core_scope.sh )
+	
+	includeScriptList+=( core_arduino_env.sh )
+	includeScriptList+=( core_arduino_scope.sh )
+	includeScriptList+=( core_arduino.sh )
 }
 
 _compile_bash_config_prog() {	
@@ -11850,7 +15662,18 @@ _compile_bash_entry_prog() {
 #May allow traps to work properly in simple scripts which do not include more comprehensive "_stop" or "_stop_emergency" implementations.
 if ! type _stop > /dev/null 2>&1
 then
+	# ATTENTION: Consider carefully, override with "ops".
+	# WARNING: Unfortunate, but apparently necessary, workaround for script termintaing while "sleep" or similar run under background.
+	_stop_stty_echo() {
+		#true
+		
+		stty echo --file=/dev/tty > /dev/null 2>&1
+		
+		#[[ "$ubFoundEchoStatus" != "" ]] && stty --file=/dev/tty "$ubFoundEchoStatus" 2> /dev/null
+	}
 	_stop() {
+		_stop_stty_echo
+		
 		if [[ "$1" != "" ]]
 		then
 			exit "$1"
@@ -11930,6 +15753,10 @@ _false() {
 }
 _echo() {
 	echo "$@"
+}
+
+_diag() {
+	echo "$sessionid"
 }
 
 #Stop if script is imported, parameter not specified, and command not given.
