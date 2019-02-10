@@ -112,6 +112,10 @@ _compile_bash_program_prog() {
 	includeScriptList+=( core_external.sh )
 	
 	includeScriptList+=( core_scope.sh )
+	
+	includeScriptList+=( core_arduino_env.sh )
+	includeScriptList+=( core_arduino_scope.sh )
+	includeScriptList+=( core_arduino.sh )
 }
 
 _compile_bash_config_prog() {	
