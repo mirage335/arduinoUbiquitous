@@ -1,4 +1,3 @@
-
 # ATTENTION Overload with ops!
 _arduino_ddd_procedure() {
 	local localFunctionEntryPWD

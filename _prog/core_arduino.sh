@@ -353,8 +353,8 @@ _arduino_bootloader_sequence() {
 	
 	if ! _set_arduino_var "$@"
 	then
-		 #true
-		 _stop 1
+		#true
+		_stop 1
 	fi
 	
 	_import_ops_sketch
@@ -364,6 +364,7 @@ _arduino_bootloader_sequence() {
 	
 	_stop
 }
+
 
 _arduino_bootloader() {
 	"$scriptAbsoluteLocation" _arduino_bootloader_sequence "$@"
@@ -454,9 +455,9 @@ _arduino_upload_swd_procedure() {
 	swdUploadStatus=$?
 	export au_remotePort="$au_remotePort_orig"
 	
-	if [[ "$swdUploadStatus" != 0 ]]	 #SWD upload failed.
+	if [[ "$swdUploadStatus" != 0 ]]	#SWD upload failed.
 	then
-		 _arduino_upload_serial_bossac_device
+		_arduino_upload_serial_bossac_device
 	fi
 	
 	_arduino_serial_wait
@@ -487,23 +488,23 @@ _arduino_upload_avrisp_procedure() {
 	avrispUploadStatus=$?
 	export au_remotePort="$au_remotePort_orig"
 	
-	if [[ "$avrispUploadStatus" != 0 ]]     #AVRISP upload failed.
+	if [[ "$avrispUploadStatus" != 0 ]]	#AVRISP upload failed.
 	then
 		
-		 # TODO
-		 #_arduino_upload_serial_bossac_device
+		# TODO
+		#_arduino_upload_serial_bossac_device
 		
 	fi
 	
 	_arduino_serial_wait
 	
-	 cd "$localFunctionEntryPWD"
- }
+	cd "$localFunctionEntryPWD"
+}
 
 # ATTENTION Overload with ops!
 _arduino_upload_procedure() {
-	 _arduino_upload_swd_procedure "$@"
-	 #_arduino_upload_procedure_zero "$@"
+	_arduino_upload_swd_procedure "$@"
+	#_arduino_upload_procedure_zero "$@"
 }
 
 _arduino_upload_sequence() {
