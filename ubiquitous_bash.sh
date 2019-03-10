@@ -14355,6 +14355,7 @@ _arduino_upload_avrisp_procedure() {
 	export au_remotePort=disabled
 	
 	# TODO
+	false
 	#_arduino_upload_swd_openocd_device
 	
 	avrispUploadStatus=$?
@@ -14364,6 +14365,7 @@ _arduino_upload_avrisp_procedure() {
 	then
 		
 		# TODO
+		false
 		#_arduino_upload_serial_bossac_device
 		
 	fi
