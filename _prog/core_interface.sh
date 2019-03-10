@@ -131,13 +131,16 @@ _arduino_upload_swd_openocd_zero() {
 }
 
 # ATTENTION: Overload with ops!
+_arduino_upload_swd_openocd_device() {
+	_arduino_upload_swd_openocd_zero "$@"
+}
+
+# ATTENTION: Overload with ops!
 _arduino_swd_openocd_device() {
 	_arduino_swd_openocd_zero "$@"
 }
 
-# ATTENTION: Overload with ops!
-#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
-_arduino_serial_bossac_device() {
+_arduino_upload_serial_bossac_zero() {
 	local arduinoSerialPort
 	
 	arduinoSerialPort=ttyACM0
@@ -152,3 +155,20 @@ _arduino_serial_bossac_device() {
 	sleep 2
 	"$au_arduinoLocal"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port="$arduinoSerialPort" -U true -i -e -w -v "$au_arduinoFirmware_bin" -R
 }
+
+# ATTENTION: Overload with ops!
+#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
+_arduino_upload_serial_bossac_device() {
+	_arduino_upload_serial_bossac_zero "$@"
+}
+
+_arduino_serial_wait() {
+	sleep 2
+	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
+	sleep 3
+	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
+	sleep 9
+	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
+	return 1
+}
+

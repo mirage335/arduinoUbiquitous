@@ -37,6 +37,9 @@ _refresh_anchors() {
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_blink
 	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader_zero
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader_m0
+	
 	_tryExec "_refresh_anchors_task"
 	
 	##### - BEGIN - Critical PATH Inclusions

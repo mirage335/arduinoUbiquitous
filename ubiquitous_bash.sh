@@ -13171,6 +13171,9 @@ _refresh_anchors() {
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_blink
 	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader_zero
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_bootloader_m0
+	
 	_tryExec "_refresh_anchors_task"
 	
 	##### - BEGIN - Critical PATH Inclusions
@@ -13346,13 +13349,16 @@ _arduino_upload_swd_openocd_zero() {
 }
 
 # ATTENTION: Overload with ops!
+_arduino_upload_swd_openocd_device() {
+	_arduino_upload_swd_openocd_zero "$@"
+}
+
+# ATTENTION: Overload with ops!
 _arduino_swd_openocd_device() {
 	_arduino_swd_openocd_zero "$@"
 }
 
-# ATTENTION: Overload with ops!
-#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
-_arduino_serial_bossac_device() {
+_arduino_upload_serial_bossac_zero() {
 	local arduinoSerialPort
 	
 	arduinoSerialPort=ttyACM0
@@ -13366,6 +13372,22 @@ _arduino_serial_bossac_device() {
 	stty --file=/dev/"$arduinoSerialPort" 1200;stty stop x --file=/dev/"$arduinoSerialPort";stty --file=/dev/"$arduinoSerialPort" 1200;stty stop x --file=/dev/"$arduinoSerialPort";
 	sleep 2
 	"$au_arduinoLocal"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port="$arduinoSerialPort" -U true -i -e -w -v "$au_arduinoFirmware_bin" -R
+}
+
+# ATTENTION: Overload with ops!
+#Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
+_arduino_upload_serial_bossac_device() {
+	_arduino_upload_serial_bossac_zero "$@"
+}
+
+_arduino_serial_wait() {
+	sleep 2
+	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
+	sleep 3
+	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
+	sleep 9
+	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
+	return 1
 }
 
 
@@ -14171,25 +14193,53 @@ _compile() {
 }
 
 # WARNING: No production use. Obsolete hardware, upstream bugs in development tools. Recommend programming as zero.
-_arduino_bootloader_m0() {
+_arduino_bootloader_m0_procedure() {
 	export au_remotePort_orig="$au_remotePort"
 	export au_remotePort=disabled
 	_arduino_swd_openocd_zero -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {""$scriptLib""/ArduinoCore-samd/bootloaders/mzero/Bootloader_D21_M0_150515.hex} verify reset; shutdown"
 	wait "$au_openocdPID"
 	export au_remotePort="$au_remotePort_orig"
 }
+_arduino_bootloader_m0() {
+	_arduino_bootloader_m0_procedure "$@"
+}
 
-_arduino_bootloader_zero() {
+_arduino_bootloader_zero_procedure() {
 	export au_remotePort_orig="$au_remotePort"
 	export au_remotePort=disabled
 	_arduino_swd_openocd_zero -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {""$scriptLib""/ArduinoCore-samd/bootloaders/zero/samd21_sam_ba.bin} verify reset; shutdown"
 	wait "$au_openocdPID"
 	export au_remotePort="$au_remotePort_orig"
 }
+_arduino_bootloader_zero() {
+	_arduino_bootloader_zero_procedure "$@"
+}
 
 # ATTENTION: Overload with ops!
+_arduino_bootloader_procedure() {
+	_arduino_bootloader_zero_procedure "$@"
+}
+
+_arduino_bootloader_sequence() {
+	_start
+	
+	if ! _set_arduino_var "$@"
+	then
+		#true
+		_stop 1
+	fi
+	
+	_import_ops_sketch
+	_ops_arduino_sketch
+	
+	_arduino_bootloader_procedure "$@"
+	
+	_stop
+}
+
+
 _arduino_bootloader() {
-	_arduino_bootloader_zero "$@"
+	"$scriptAbsoluteLocation" _arduino_bootloader_sequence "$@"
 	_messagePlain_probe "done: _arduino_bootloader"
 }
 
@@ -14197,7 +14247,7 @@ _bootloader() {
 	_import_ops_sketch
 	_ops_arduino_sketch
 	
-	_arduino_bootloader "$@"
+	_arduino_bootloader_procedure "$@"
 	_messagePlain_good 'End.'
 }
 
@@ -14250,23 +14300,83 @@ _arduino_upload_procedure_zero() {
 	
 	if [[ "$swdUploadStatus" != 0 ]]	#SWD upload failed.
 	then
-		_arduino_serial_bossac_device
+		_arduino_upload_serial_bossac_zero
 	fi
 	
-	sleep 1
-	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
-	sleep 3
-	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
-	sleep 9
-	( [[ -e "/dev/ttyACM0" ]] || [[ -e "/dev/ttyACM1" ]] || [[ -e "/dev/ttyACM2" ]] || [[ -e "/dev/ttyUSB0" ]] || [[ -e "/dev/ttyUSB1" ]] || [[ -e "/dev/ttyUSB2" ]] ) && return 0
-	return 1
+	_arduino_serial_wait
+	
+	cd "$localFunctionEntryPWD"
+}
+
+_arduino_upload_swd_procedure() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	_messagePlain_nominal 'Upload.'
+	
+	_set_arduino_firmware
+	
+	! [[ -e "$au_arduinoFirmware_bin" ]] && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
+	
+	local swdUploadStatus
+	
+	#Upload over SWD debugger.
+	export au_remotePort_orig="$au_remotePort"
+	export au_remotePort=disabled
+	_arduino_upload_swd_openocd_device
+	swdUploadStatus=$?
+	export au_remotePort="$au_remotePort_orig"
+	
+	if [[ "$swdUploadStatus" != 0 ]]	#SWD upload failed.
+	then
+		_arduino_upload_serial_bossac_device
+	fi
+	
+	_arduino_serial_wait
+	
+	cd "$localFunctionEntryPWD"
+}
+
+# TODO: Placeholder for AVR.
+_arduino_upload_avrisp_procedure() {
+	local localFunctionEntryPWD
+	localFunctionEntryPWD="$PWD"
+	
+	_messagePlain_nominal 'Upload.'
+	
+	_set_arduino_firmware
+	
+	! [[ -e "$au_arduinoFirmware_bin" ]] && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
+	
+	local avrispUploadStatus
+	
+	#Upload over SWD debugger.
+	export au_remotePort_orig="$au_remotePort"
+	export au_remotePort=disabled
+	
+	# TODO
+	#_arduino_upload_swd_openocd_device
+	
+	avrispUploadStatus=$?
+	export au_remotePort="$au_remotePort_orig"
+	
+	if [[ "$avrispUploadStatus" != 0 ]]	#AVRISP upload failed.
+	then
+		
+		# TODO
+		#_arduino_upload_serial_bossac_device
+		
+	fi
+	
+	_arduino_serial_wait
 	
 	cd "$localFunctionEntryPWD"
 }
 
 # ATTENTION Overload with ops!
 _arduino_upload_procedure() {
-	_arduino_upload_procedure_zero "$@"
+	_arduino_upload_swd_procedure "$@"
+	#_arduino_upload_procedure_zero "$@"
 }
 
 _arduino_upload_sequence() {
