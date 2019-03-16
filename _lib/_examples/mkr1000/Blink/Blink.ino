@@ -30,8 +30,10 @@ void setup() {
 
 // the loop function runs over and over again forever
 void loop() {
-  PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
+  //PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
+  digitalWrite(LED_BUILTIN, HIGH);
   delay(15);                       // wait for a second
-  PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
+  //PORT->Group[PORTA].OUTTGL.reg = (1ul << 17);
+  digitalWrite(LED_BUILTIN, LOW);
   delay(15);                       // wait for a second
 }
