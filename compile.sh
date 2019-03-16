@@ -3968,6 +3968,12 @@ _compile_bash_program_prog() {
 	includeScriptList+=( core_arduino_env.sh )
 	includeScriptList+=( core_arduino_scope.sh )
 	includeScriptList+=( core_arduino.sh )
+	
+	includeScriptList+=( core_interface.sh )
+	
+	includeScriptList+=( _variant.sh )
+	
+	includeScriptList+=( _variant_custom.sh )
 }
 
 _compile_bash_config_prog() {	

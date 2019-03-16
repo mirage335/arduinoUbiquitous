@@ -1,31 +1,37 @@
-# "core_arduino.sh"
+###
+### variant set/prepare kept at "_variant.sh"
+###
 _prepare_arduino_board() {
 	_set_arduino_board_mkr1000
 }
 
-# "core_interface.sh"
-_arduino_upload_swd_openocd_device() {
-	_arduino_upload_swd_openocd_mkr1000 "$@"
-}
-
-# "core_interface.sh"
-_arduino_upload_serial_bossac_device() {
-	_arduino_upload_serial_bossac_mkr1000 "$@"
-}
-
-# "core_arduino.sh
+###
+### variant upload kept at "_variant.sh"
+###
 _arduino_upload_procedure() {
 	_arduino_upload_swd_procedure "$@"
 	#_arduino_upload_procedure_zero "$@"
 }
 
-# "core_interface.sh"
-_arduino_swd_openocd_device() {
-	_arduino_swd_openocd_zero "$@"
-}
-
-# "core_arduino.sh"
+###
+### variant bootloader kept at "_variant.sh"
+###
 _arduino_bootloader_procedure() {
 	_arduino_bootloader_mkr1000_procedure "$@"
 }
 
+
+###
+### variant upload interface kept at "_variant.sh"
+###
+_arduino_upload_swd_openocd_device() {
+	_arduino_upload_swd_openocd_mkr1000 "$@"
+}
+
+_arduino_swd_openocd_device() {
+	_arduino_swd_openocd_zero "$@"
+}
+
+_arduino_upload_serial_bossac_device() {
+	_arduino_upload_serial_bossac_mkr1000 "$@"
+}
