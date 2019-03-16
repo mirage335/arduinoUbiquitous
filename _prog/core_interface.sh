@@ -120,23 +120,35 @@ _arduino_swd_openocd() {
 	export au_openocdPID="$!"
 }
 
+# Arduino Zero
 _arduino_swd_openocd_zero() {
 	_arduino_swd_openocd -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; tcl_port disabled; gdb_port "$au_remotePort "$@"
 }
-
 #Requires bootloader.
 _arduino_upload_swd_openocd_zero() {
 	_arduino_swd_openocd_zero -c "telnet_port disabled; program {""$au_arduinoFirmware_bin""} verify reset 0x00002000; shutdown"
 	wait "$au_openocdPID"
 }
 
+# Arduino mkr1000
+_arduino_swd_openocd_mkr1000() {
+	_arduino_swd_openocd -f "$scriptLib"/ArduinoCore-samd/variants/mkr1000/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; tcl_port disabled; gdb_port "$au_remotePort "$@"
+}
+#Requires bootloader.
+_arduino_upload_swd_openocd_mkr1000() {
+	_arduino_swd_openocd_mkr1000 -c "telnet_port disabled; program {""$au_arduinoFirmware_bin""} verify reset 0x00002000; shutdown"
+	wait "$au_openocdPID"
+}
+
 # ATTENTION: Overload with ops!
 _arduino_upload_swd_openocd_device() {
+	#_arduino_upload_swd_openocd_mkr1000 "$@"
 	_arduino_upload_swd_openocd_zero "$@"
 }
 
 # ATTENTION: Overload with ops!
 _arduino_swd_openocd_device() {
+	#_arduino_swd_openocd_mkr1000 "$@"
 	_arduino_swd_openocd_zero "$@"
 }
 
@@ -156,9 +168,14 @@ _arduino_upload_serial_bossac_zero() {
 	"$au_arduinoLocal"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port="$arduinoSerialPort" -U true -i -e -w -v "$au_arduinoFirmware_bin" -R
 }
 
+_arduino_upload_serial_bossac_mkr1000() {
+	_arduino_upload_serial_bossac_zero "$@"
+}
+
 # ATTENTION: Overload with ops!
 #Upload over serial COM. Crude, hardcoded serial port expected. Consider adding code to upload to specific Arduinos if needed. Recommend "ops" file overload.
 _arduino_upload_serial_bossac_device() {
+	#_arduino_upload_serial_bossac_mkr1000 "$@"
 	_arduino_upload_serial_bossac_zero "$@"
 }
 

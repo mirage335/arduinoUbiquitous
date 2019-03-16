@@ -235,6 +235,11 @@ _arduinoide() {
 	"$scriptAbsoluteLocation" _arduino_edit "$@"
 }
 
+_set_arduino_board_mkr1000() {
+	_messagePlain_nominal 'aU: set: board'
+	_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_platform=samd --pref board=mkr1000
+}
+
 _set_arduino_board_zero_native() {
 	_messagePlain_nominal 'aU: set: board'
 	_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_platform=samd --pref board=arduino_zero_native
@@ -245,6 +250,7 @@ _prepare_arduino_board() {
 	#_messagePlain_nominal 'aU: set: board'
 	#_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_platform=samd --pref board=arduino_zero_native
 	_set_arduino_board_zero_native
+	#_set_arduino_board_mkr1000
 }
 
 _set_arduino_compile() {
@@ -332,6 +338,7 @@ _arduino_bootloader_m0() {
 	_arduino_bootloader_m0_procedure "$@"
 }
 
+# Arduino Zero
 _arduino_bootloader_zero_procedure() {
 	export au_remotePort_orig="$au_remotePort"
 	export au_remotePort=disabled
@@ -343,8 +350,22 @@ _arduino_bootloader_zero() {
 	_arduino_bootloader_zero_procedure "$@"
 }
 
+# Arduino mkr1000
+_arduino_bootloader_mkr1000_procedure() {
+	export au_remotePort_orig="$au_remotePort"
+	export au_remotePort=disabled
+	_arduino_swd_openocd_mkr1000 -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {""$scriptLib""/ArduinoCore-samd/bootloaders/mkr1000/samd21_sam_ba_arduino_mkr1000.bin} verify reset; shutdown"
+	#_arduino_swd_openocd_mkr1000 -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {""$scriptLib""/ArduinoCore-samd/bootloaders/mkr1000/samd21_sam_ba_genuino_mkr1000.bin} verify reset; shutdown"
+	wait "$au_openocdPID"
+	export au_remotePort="$au_remotePort_orig"
+}
+_arduino_bootloader_mkr1000() {
+	_arduino_bootloader_mkr1000_procedure "$@"
+}
+
 # ATTENTION: Overload with ops!
 _arduino_bootloader_procedure() {
+	#_arduino_bootloader_mkr1000_procedure "$@"
 	_arduino_bootloader_zero_procedure "$@"
 }
 
