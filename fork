@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+
+#Consider creating specialized git repositories as follows.
+
+workingDir="$PWD"
+
+# ATTENTION: Configure "$variantName".
+export variantName=default
+mkdir -p "$workingDir"/"$variantName"
+cd "$workingDir"/"$variantName"
+
+mkdir ./_lib
+mkdir ./_prog
+
+git init
+
+# ATTENTION: Configure source.
+git submodule add git@github.com:mirage335/arduinoUbiquitous.git ./_lib/arduinoUbiquitous
+
+#Parent derivative of ubiquitous_bash.
+cd ./_lib/arduinoUbiquitous
+git submodule update --init ./_lib/ubiquitous_bash
+cd "$workingDir"/"$variantName"
+
+git submodule update --init --recursive
+
+
+cp ./_lib/arduinoUbiquitous/ubiquitous_bash.sh ./
+cp ./_lib/arduinoUbiquitous/compile.sh ./
+cp ./_lib/arduinoUbiquitous/README.md ./
+cp ./_lib/arduinoUbiquitous/license.txt ./
+cp ./_lib/arduinoUbiquitous/_anchor ./
+
+cp ./_lib/arduinoUbiquitous/.gitignore ./
+
+##### Hardcoded Configuration
+mkdir -p ./_config
+cp -a ./_lib/arduinoUbiquitous/_config/. ./_config
+
+##### Parent Derivative Scripts
+mkdir -p ./_prog
+cp -a ./_lib/arduinoUbiquitous/_prog/. ./_prog
+
+##### Runtime Configuration
+mkdir -p ./_local
+
+#Parent derivative of ubiquitous_bash.
+
+
+cp -a ./_lib/arduinoUbiquitous/_local ./
+
+#Binaries.
+cp -a ./_lib/arduinoUbiquitous/_bin ./
+
+#App configuration.
+cp -a ./_lib/arduinoUbiquitous/_lib/app ./_lib/
+
+#Examples.
+cp -a ./_lib/arduinoUbiquitous/_lib/_examples ./_lib/
+cp -a ./_lib/arduinoUbiquitous/_lib/Blink ./_lib/
+
+##### Specialized project scripts.
+cp ./_lib/arduinoUbiquitous/upgrade ./
+
+
+./compile.sh
+./ubiquitous_bash.sh _anchor
+
+#Linked libraries.
+./ubiquitous_bash.sh _relink_relative ./_lib/arduinoUbiquitous/_lib/atom-dbg ./_lib/atom-dbg
+./ubiquitous_bash.sh _relink_relative ./_lib/arduinoUbiquitous/_lib/atom-dbg-gdb ./_lib/atom-dbg-gdb
+
+./ubiquitous_bash.sh _relink_relative ./_lib/arduinoUbiquitous/_lib/openocd-static ./_lib/openocd-static
+
+./ubiquitous_bash.sh _relink_relative ./_lib/arduinoUbiquitous/_lib/ArduinoCore-samd ./_lib/ArduinoCore-samd
+
+git add .
+git commit -a -m "first commit"

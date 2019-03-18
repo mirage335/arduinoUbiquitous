@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+
+#Critical prerequsites.
+_getAbsolute_criticalDep() {
+	! type realpath > /dev/null 2>&1 && return 1
+	! type readlink > /dev/null 2>&1 && return 1
+	! type dirname > /dev/null 2>&1 && return 1
+	
+	#Known issue on Mac. See https://github.com/mirage335/ubiquitous_bash/issues/1 .
+	! realpath -L . > /dev/null 2>&1 && return 1
+	
+	return 0
+}
+! _getAbsolute_criticalDep && exit 1
+
+! type basename > /dev/null 2>&1 && exit 1
+
+#Retrieves absolute path of current script, while maintaining symlinks, even when "./" would translate with "readlink -f" into something disregarding symlinked components in $PWD.
+#However, will dereference symlinks IF the script location itself is a symlink. This is to allow symlinking to scripts to function normally.
+#Suitable for allowing scripts to find other scripts they depend on. May look like an ugly hack, but it has proven reliable over the years.
+_getScriptAbsoluteLocation() {
+	local absoluteLocation
+	if [[ (-e $PWD\/$0) && ($0 != "") ]] && [[ "$1" != "/"* ]]
+			then
+	absoluteLocation="$PWD"\/"$0"
+	absoluteLocation=$(realpath -L -s "$absoluteLocation")
+			else
+	absoluteLocation=$(realpath -L "$0")
+	fi
+
+	if [[ -h "$absoluteLocation" ]]
+			then
+	absoluteLocation=$(readlink -f "$absoluteLocation")
+	absoluteLocation=$(realpath -L "$absoluteLocation")
+	fi
+	echo $absoluteLocation
+}
+alias getScriptAbsoluteLocation=_getScriptAbsoluteLocation
+
+#Retrieves absolute path of current script, while maintaining symlinks, even when "./" would translate with "readlink -f" into something disregarding symlinked components in $PWD.
+#Suitable for allowing scripts to find other scripts they depend on.
+_getScriptAbsoluteFolder() {
+	dirname "$(_getScriptAbsoluteLocation)"
+}
+alias getScriptAbsoluteFolder=_getScriptAbsoluteFolder
+
+#Retrieves absolute path of parameter, while maintaining symlinks, even when "./" would translate with "readlink -f" into something disregarding symlinked components in $PWD.
+#Suitable for finding absolute paths, when it is desirable not to interfere with symlink specified folder structure.
+_getAbsoluteLocation() {
+	if [[ "$1" == "" ]]
+	then
+		echo
+		return
+	fi
+	
+	local absoluteLocation
+	if [[ (-e $PWD\/$1) && ($1 != "") ]] && [[ "$1" != "/"* ]]
+			then
+	absoluteLocation="$PWD"\/"$1"
+	absoluteLocation=$(realpath -L -s "$absoluteLocation")
+			else
+	absoluteLocation=$(realpath -L "$1")
+	fi
+	echo $absoluteLocation
+}
+alias getAbsoluteLocation=_getAbsoluteLocation
+
+#Retrieves absolute path of parameter, while maintaining symlinks, even when "./" would translate with "readlink -f" into something disregarding symlinked components in $PWD.
+#Suitable for finding absolute paths, when it is desirable not to interfere with symlink specified folder structure.
+_getAbsoluteFolder() {
+	local absoluteLocation=$(_getAbsoluteLocation "$1")
+	dirname "$absoluteLocation"
+}
+alias getAbsoluteLocation=_getAbsoluteLocation
+
+export scriptLocation="$(_getScriptAbsoluteFolder)"
+
+#Purple. User must do something manually to proceed. NOT to be used for dependency installation requests - use probe, bad, and fail statements for that.
+_messagePlain_request() {
+	echo -e -n '\E[0;35m '
+	echo -n "$@"
+	echo -e -n ' \E[0m'
+	echo
+	return 0
+}
+
+_upgrade_ub() {
+	! [[ -e "$scriptLocation"/_lib/ubiquitous_bash ]] && return 1
+	
+	cd "$scriptLocation"/_lib/ubiquitous_bash
+	git pull
+	git submodule update
+}
+
+_upgrade_arduinoUbiquitous() {
+	! [[ -e "$scriptLocation"/_lib/arduinoUbiquitous ]] && return 1
+	
+	cd "$scriptLocation"/_lib/arduinoUbiquitous
+	git pull
+	git submodule update
+	
+	! [[ -e "$scriptLocation"/_lib/arduinoUbiquitous/_lib/ubiquitous_bash ]] && return 1
+	
+	cd "$scriptLocation"/_lib/arduinoUbiquitous/_lib/ubiquitous_bash
+	git submodule update
+	
+	#git submodule update --recursive
+}
+
+_upgrade_derive() {
+	! [[ -e "$scriptLocation"/_lib/arduinoUbiquitous ]] && return 1
+	
+	cd "$scriptLocation"
+	cp -a ./_lib/arduinoUbiquitous/_prog ./
+	
+	#Binaries.
+	cp -a ./_lib/arduinoUbiquitous/_bin ./
+
+	#App configuration.
+	cp -a ./_lib/arduinoUbiquitous/_lib/app ./_lib/
+
+	#Examples.
+	cp -a ./_lib/arduinoUbiquitous/_lib/_examples ./_lib/
+	cp -a ./_lib/arduinoUbiquitous/_lib/Blink ./_lib/
+
+	#cp -d --preserve=all ./_lib/arduinoUbiquitous/ubiquitous_bash ./
+	cp -d --preserve=all ./_lib/arduinoUbiquitous/compile.sh ./
+
+	cp -d --preserve=all ./_lib/arduinoUbiquitous/upgrade ./
+}
+
+_upgrade_variant() {
+	cd "$scriptLocation"
+	if ! git diff-index --quiet HEAD --
+	then
+		echo 'CONFLICT'
+		exit 1
+	fi
+	git pull
+
+	_upgrade_ub "$@"
+
+	_upgrade_arduinoUbiquitous "$@"
+
+	_upgrade_derive "$@"
+
+	cd "$scriptLocation"
+	./compile.sh
+}
+
+_upgrade_variant "$@"
+
+_messagePlain_request "Consider linked '_lib' subobjects as listed."
+find ./_lib -maxdepth 1 -type l
+
