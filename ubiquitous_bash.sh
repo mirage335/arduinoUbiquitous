@@ -6952,6 +6952,7 @@ _set_instance_vbox_features() {
 
 _set_instance_vbox_features_app() {
 	true
+	#[[ "$vboxOStype" == *"Win"*"XP"* ]] && vboxChipset="piix3"
 	#VBoxManage modifyvm "$sessionid" --usbxhci on
 }
 
@@ -9303,6 +9304,8 @@ _setupUbiquitous() {
 	
 	mkdir -p "$ubHome"/bin/
 	ln -sf "$ubcoreUBfile" "$ubHome"/bin/ubiquitous_bash.sh
+	ln -sf "$ubcoreUBfile" "$ubHome"/bin/_winehere
+	ln -sf "$ubcoreUBfile" "$ubHome"/bin/_winecfghere
 	
 	_setupUbiquitous_here > "$ubcoreFile"
 	! [[ -e "$ubcoreFile" ]] && _messagePlain_bad 'missing: ubcoreFile= '"$ubcoreFile" && _messageFAIL && return 1
@@ -9840,13 +9843,31 @@ export keepFakeHome="true"
 _vars_vmMemoryAllocationDefault() {
 	export vmMemoryAllocationDefault=96
 	
+	
+	# Invalid.
+	[[ "$hostMemoryQuantity" -lt "64000" ]] && return 1
+	! [[ "$hostMemoryQuantity" -ge "64000" ]] && return 1
+	
+	
+	# Embedded host typical.
 	[[ "$hostMemoryQuantity" -lt "500000" ]] && export vmMemoryAllocationDefault=256 && return 1
 	
+	# Obsolete hardware or guest typical.
 	[[ "$hostMemoryQuantity" -lt "1256000" ]] && export vmMemoryAllocationDefault=512 && return 0
 	[[ "$hostMemoryQuantity" -lt "1768000" ]] && export vmMemoryAllocationDefault=1024 && return 0
-	[[ "$hostMemoryQuantity" -lt "8000000" ]] && export vmMemoryAllocationDefault=1512 && return 0
+	[[ "$hostMemoryQuantity" -lt "6000000" ]] && export vmMemoryAllocationDefault=1512 && return 0
 	
-	[[ "$hostMemoryQuantity" -ge "14000000" ]] && export vmMemoryAllocationDefault=1512 && return 0
+	# Modern host typical.
+	[[ "$hostMemoryQuantity" -lt "7000000" ]] && export vmMemoryAllocationDefault=2048 && return 0
+	[[ "$hostMemoryQuantity" -lt "18000000" ]] && export vmMemoryAllocationDefault=2560 && return 0
+	[[ "$hostMemoryQuantity" -lt "34000000" ]] && export vmMemoryAllocationDefault=3072 && return 0
+	
+	# Workstation typical.
+	[[ "$hostMemoryQuantity" -lt "72000000" ]] && export vmMemoryAllocationDefault=4096 && return 0
+	[[ "$hostMemoryQuantity" -lt "132000000" ]] && export vmMemoryAllocationDefault=4096 && return 0
+	
+	# Atypical host.
+	export vmMemoryAllocationDefault=4096 && return 0
 	
 	return 1
 }
@@ -13334,7 +13355,19 @@ _interface_debug_atom() {
 
 
 _arduino_swd_openocd() {
-	_messagePlain_probe "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
+	
+	#https://stackoverflow.com/questions/1668649/how-to-keep-quotes-in-bash-arguments
+	
+	local currentCommandStringPunctuated
+	local currentCommandStringParameter
+	for currentCommandStringParameter in "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"; do 
+		currentCommandStringParameter="${currentCommandStringParameter//\\/\\\\}"
+		currentCommandStringPunctuated="$currentCommandStringPunctuated \"${currentCommandStringParameter//\"/\\\"}\""
+	done
+	_messagePlain_probe "$currentCommandStringPunctuated"
+	#echo "$currentCommandStringPunctuated"
+	#_messagePlain_probe "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
+	
 	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@" &
 	export au_openocdPID="$!"
 }

@@ -115,7 +115,19 @@ _interface_debug_atom() {
 
 
 _arduino_swd_openocd() {
-	_messagePlain_probe "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
+	
+	#https://stackoverflow.com/questions/1668649/how-to-keep-quotes-in-bash-arguments
+	
+	local currentCommandStringPunctuated
+	local currentCommandStringParameter
+	for currentCommandStringParameter in "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"; do 
+		currentCommandStringParameter="${currentCommandStringParameter//\\/\\\\}"
+		currentCommandStringPunctuated="$currentCommandStringPunctuated \"${currentCommandStringParameter//\"/\\\"}\""
+	done
+	_messagePlain_probe "$currentCommandStringPunctuated"
+	#echo "$currentCommandStringPunctuated"
+	#_messagePlain_probe "$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@"
+	
 	"$au_openocdStaticBin" -d2 -s "$au_openocdStaticScript" "$@" &
 	export au_openocdPID="$!"
 }
