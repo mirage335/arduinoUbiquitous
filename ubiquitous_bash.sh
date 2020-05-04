@@ -138,6 +138,7 @@ else	#FAIL, implies [[ "$ub_import" == "true" ]]
 fi
 
 #Override.
+# DANGER: Recursion hazard. Do not create overrides without checking that alternate exists.
 
 # WARNING: Only partially compatible.
 if ! type md5sum > /dev/null 2>&1 && type md5 > /dev/null 2>&1
@@ -155,6 +156,30 @@ fi
 #		md5sum "$@"
 #	}
 #fi
+
+
+# WARNING: DANGER: Compatibility may not be guaranteed!
+if ! type unionfs-fuse > /dev/null 2>&1 && type unionfs > /dev/null 2>&1 && man unionfs | grep 'unionfs-fuse - A userspace unionfs implementation' > /dev/null 2>&1
+then
+	unionfs-fuse() {
+		unionfs "$@"
+	}
+fi
+
+if ! type qemu-arm-static > /dev/null 2>&1 && type qemu-arm > /dev/null 2>&1
+then
+	qemu-arm-static() {
+		qemu-arm "$@"
+	}
+fi
+
+if ! type qemu-armeb-static > /dev/null 2>&1 && type qemu-armeb > /dev/null 2>&1
+then
+	qemu-armeb-static() {
+		qemu-armeb "$@"
+	}
+fi
+
 
 #Override (Program).
 
@@ -995,6 +1020,14 @@ _terminateAll() {
 	done < "$processListFile"
 	
 	rm "$processListFile"
+}
+
+_condition_lines_zero() {
+	local currentLineCount
+	currentLineCount=$(wc -l)
+	
+	[[ "$currentLineCount" == 0 ]] && return 0
+	return 1
 }
 
 #Generates random alphanumeric characters, default length 18.
@@ -2464,6 +2497,9 @@ _checkPort_sequence() {
 	do
 		grep -m1 'open' "$safeTmp"/_showPort_ipv4 > /dev/null 2>&1 && _stop
 		grep -m1 'open' "$safeTmp"/_showPort_ipv6 > /dev/null 2>&1 && _stop
+		
+		! [[ $(jobs | wc -c) -gt '0' ]] && ! grep -m1 'open' "$safeTmp"/_showPort_ipv4 && grep -m1 'open' "$safeTmp"/_showPort_ipv6 > /dev/null 2>&1 && _stop 1
+		
 		let currentTimer="$currentTimer"+1
 		sleep 1
 	done
@@ -2852,6 +2888,15 @@ _apt-file() {
 	_timeout 750 "$scriptAbsoluteLocation" _apt-file_sequence "$@"
 }
 
+
+
+
+
+
+
+
+
+
 _fetchDep_debianStretch_special() {
 	if [[ "$1" == *"wine"* ]] && ! dpkg --print-foreign-architectures | grep i386 > /dev/null 2>&1
 	then
@@ -2923,7 +2968,7 @@ _fetchDep_debianStretch_special() {
 		wget -q https://www.virtualbox.org/download/oracle_vbox.asc -O- | sudo -n apt-key add -
 		
 		sudo -n apt-get update
-		sudo -n apt-get install --install-recommends -y dkms virtualbox-6.0
+		sudo -n apt-get install --install-recommends -y dkms virtualbox-6.1
 		
 		echo "WARNING: Recommend manual system configuration after install. See https://www.virtualbox.org/wiki/Downloads ."
 		
@@ -2982,7 +3027,7 @@ _fetchDep_debianStretch_special() {
 	
 	if [[ "$1" == "docker" ]]
 	then
-		sudo apt-get install --install-recommends -y apt-transport-https ca-certificates curl gnupg2 software-properties-common
+		sudo -n apt-get install --install-recommends -y apt-transport-https ca-certificates curl gnupg2 software-properties-common
 		
 		"$scriptAbsoluteLocation" _getDep curl
 		! _wantDep curl && return 1
@@ -3050,8 +3095,8 @@ _fetchDep_debianStretch_special() {
 		
 		echo "Requires manual installation. See https://www.lulzbot.com/learn/tutorials/cura-lulzbot-edition-installation-debian ."
 cat << 'CZXWXcRMTo8EmM8i4d'
-wget -qO - https://download.alephobjects.com/ao/aodeb/aokey.pub | sudo apt-key add -
-sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak && sudo sed -i '$a deb http://download.alephobjects.com/ao/aodeb jessie main' /etc/apt/sources.list && sudo apt-get update && sudo apt-get install cura-lulzbot
+wget -qO - https://download.alephobjects.com/ao/aodeb/aokey.pub | sudo -n apt-key add -
+sudo -n cp /etc/apt/sources.list /etc/apt/sources.list.bak && sudo -n sed -i '$a deb http://download.alephobjects.com/ao/aodeb jessie main' /etc/apt/sources.list && sudo -n apt-get update && sudo -n apt-get install cura-lulzbot
 CZXWXcRMTo8EmM8i4d
 		echo "(typical)"
 		_stop 1
@@ -3142,10 +3187,346 @@ _fetchDep_debianStretch() {
 	"$scriptAbsoluteLocation" _fetchDep_debianStretch_sequence "$@"
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_fetchDep_debianBuster_special() {
+	if [[ "$1" == *"wine"* ]] && ! dpkg --print-foreign-architectures | grep i386 > /dev/null 2>&1
+	then
+		sudo -n dpkg --add-architecture i386
+		sudo -n apt-get update
+		sudo -n apt-get install --install-recommends -y wine wine32 wine64 libwine libwine:i386 fonts-wine
+		return 0
+	fi
+	
+	if [[ "$1" == "realpath" ]] || [[ "$1" == "readlink" ]] || [[ "$1" == "dirname" ]] || [[ "$1" == "basename" ]] || [[ "$1" == "sha512sum" ]] || [[ "$1" == "sha256sum" ]] || [[ "$1" == "head" ]] || [[ "$1" == "tail" ]] || [[ "$1" == "sleep" ]] || [[ "$1" == "env" ]] || [[ "$1" == "cat" ]] || [[ "$1" == "mkdir" ]] || [[ "$1" == "dd" ]] || [[ "$1" == "rm" ]] || [[ "$1" == "ln" ]] || [[ "$1" == "ls" ]] || [[ "$1" == "test" ]] || [[ "$1" == "true" ]] || [[ "$1" == "false" ]]
+	then
+		sudo -n apt-get install --install-recommends -y coreutils
+		return 0
+	fi
+	
+	if [[ "$1" == "mount" ]] || [[ "$1" == "umount" ]] || [[ "$1" == "losetup" ]]
+	then
+		sudo -n apt-get install --install-recommends -y mount
+		return 0
+	fi
+	
+	if [[ "$1" == "mountpoint" ]] || [[ "$1" == "mkfs" ]]
+	then
+		sudo -n apt-get install --install-recommends -y util-linux
+		return 0
+	fi
+	
+	if [[ "$1" == "mkfs.ext4" ]]
+	then
+		sudo -n apt-get install --install-recommends -y e2fsprogs
+		return 0
+	fi
+	
+	if [[ "$1" == "parted" ]] || [[ "$1" == "partprobe" ]]
+	then
+		sudo -n apt-get install --install-recommends -y parted
+		return 0
+	fi
+	
+	if [[ "$1" == "qemu-arm-static" ]] || [[ "$1" == "qemu-armeb-static" ]]
+	then
+		sudo -n apt-get install --install-recommends -y qemu qemu-user-static binfmt-support
+		#update-binfmts --display
+		return 0
+	fi
+	
+	if [[ "$1" == "qemu-system-x86_64" ]]
+	then
+		sudo -n apt-get install --install-recommends -y qemu-system-x86
+		return 0
+	fi
+	
+	if [[ "$1" == "qemu-img" ]]
+	then
+		sudo -n apt-get install --install-recommends -y qemu-utils
+		return 0
+	fi
+	
+	if [[ "$1" == "VirtualBox" ]] || [[ "$1" == "VBoxSDL" ]] || [[ "$1" == "VBoxManage" ]] || [[ "$1" == "VBoxHeadless" ]]
+	then
+		sudo -n mkdir -p /etc/apt/sources.list.d
+		echo 'deb http://download.virtualbox.org/virtualbox/debian buster contrib' | sudo -n tee /etc/apt/sources.list.d/vbox.list > /dev/null 2>&1
+		
+		"$scriptAbsoluteLocation" _getDep wget
+		! _wantDep wget && return 1
+		
+		# TODO Check key fingerprints match "B9F8 D658 297A F3EF C18D  5CDF A2F6 83C5 2980 AECF" and "7B0F AB3A 13B9 0743 5925  D9C9 5442 2A4B 98AB 5139" respectively.
+		wget -q https://www.virtualbox.org/download/oracle_vbox_2016.asc -O- | sudo -n apt-key add -
+		wget -q https://www.virtualbox.org/download/oracle_vbox.asc -O- | sudo -n apt-key add -
+		
+		sudo -n apt-get update
+		sudo -n apt-get install --install-recommends -y dkms virtualbox-6.1
+		
+		echo "WARNING: Recommend manual system configuration after install. See https://www.virtualbox.org/wiki/Downloads ."
+		
+		return 0
+	fi
+	
+	if [[ "$1" == "gpg" ]]
+	then
+		sudo -n apt-get install --install-recommends -y gnupg
+		return 0
+	fi
+	
+	#Unlikely scenario for hosts.
+	if [[ "$1" == "grub-install" ]]
+	then
+		sudo -n apt-get install --install-recommends -y grub2
+		#sudo -n apt-get install --install-recommends -y grub-legacy
+		return 0
+	fi
+	
+	if [[ "$1" == "MAKEDEV" ]]
+	then
+		sudo -n apt-get install --install-recommends -y makedev
+		return 0
+	fi
+	
+	if [[ "$1" == "fgrep" ]]
+	then
+		sudo -n apt-get install --install-recommends -y grep
+		return 0
+	fi
+	
+	if [[ "$1" == "fgrep" ]]
+	then
+		sudo -n apt-get install --install-recommends -y grep
+		return 0
+	fi
+	
+	if [[ "$1" == "awk" ]]
+	then
+		sudo -n apt-get install --install-recommends -y mawk
+		return 0
+	fi
+	
+	if [[ "$1" == "kill" ]] || [[ "$1" == "ps" ]]
+	then
+		sudo -n apt-get install --install-recommends -y procps
+		return 0
+	fi
+	
+	if [[ "$1" == "find" ]]
+	then
+		sudo -n apt-get install --install-recommends -y findutils
+		return 0
+	fi
+	
+	if [[ "$1" == "docker" ]]
+	then
+		sudo -n update-alternatives --set iptables /usr/sbin/iptables-legacy
+		sudo -n update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+		#sudo -n systemctl restart docker
+		
+		sudo -n apt-get install --install-recommends -y apt-transport-https ca-certificates curl gnupg2 software-properties-common
+		
+		"$scriptAbsoluteLocation" _getDep curl
+		! _wantDep curl && return 1
+		
+		curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg | sudo -n apt-key add -
+		local aptKeyFingerprint
+		aptKeyFingerprint=$(sudo -n apt-key fingerprint 0EBFCD88 2> /dev/null)
+		[[ "$aptKeyFingerprint" == "" ]] && return 1
+		
+		sudo -n add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") $(lsb_release -cs) stable"
+		
+		sudo -n apt-get update
+		
+		sudo -n apt-get remove -y docker docker-engine docker.io docker-ce docker
+		sudo -n apt-get install --install-recommends -y docker-ce
+		
+		sudo -n usermod -a -G docker "$USER"
+		
+		return 0
+	fi
+	
+	if [[ "$1" == "smbd" ]]
+	then
+		sudo -n apt-get install --install-recommends -y samba
+		return 0
+	fi
+	
+	if [[ "$1" == "atom" ]]
+	then
+		curl -L https://packagecloud.io/AtomEditor/atom/gpgkey | sudo -n apt-key add -
+		sudo -n sh -c 'echo "deb [arch=amd64] https://packagecloud.io/AtomEditor/atom/any/ any main" > /etc/apt/sources.list.d/atom.list'
+		
+		sudo -n apt-get update
+		
+		sudo -n apt-get install --install-recommends -y atom
+		
+		return 0
+	fi
+	
+	if [[ "$1" == "GL/gl.h" ]] || [[ "$1" == "GL/glext.h" ]] || [[ "$1" == "GL/glx.h" ]] || [[ "$1" == "GL/glxext.h" ]] || [[ "$1" == "GL/dri_interface.h" ]] || [[ "$1" == "x86_64-linux-gnu/pkgconfig/dri.pc" ]]
+	then
+		sudo -n apt-get install --install-recommends -y mesa-common-dev
+		
+		return 0
+	fi
+	
+	if [[ "$1" == "go" ]]
+	then
+		sudo -n apt-get install --install-recommends -y golang-go
+		
+		return 0
+	fi
+	
+	if [[ "$1" == "php" ]]
+	then
+		sudo -n apt-get install --no-install-recommends -y php
+		
+		return 0
+	fi
+	
+	if [[ "$1" == "cura-lulzbot" ]]
+	then
+		#Testing/Sid only as of Stretch release cycle.
+		#sudo -n apt-get install --install-recommends -y rustc cargo
+		
+		echo "Requires manual installation. See https://www.lulzbot.com/learn/tutorials/cura-lulzbot-edition-installation-debian ."
+cat << 'CZXWXcRMTo8EmM8i4d'
+wget -qO - https://download.alephobjects.com/ao/aodeb/aokey.pub | sudo -n apt-key add -
+sudo -n cp /etc/apt/sources.list /etc/apt/sources.list.bak && sudo -n sed -i '$a deb http://download.alephobjects.com/ao/aodeb jessie main' /etc/apt/sources.list && sudo -n apt-get update && sudo -n apt-get install cura-lulzbot
+CZXWXcRMTo8EmM8i4d
+		echo "(typical)"
+		_stop 1
+	fi
+	
+	if [[ "$1" =~ "FlashPrint" ]]
+	then
+		#Testing/Sid only as of Stretch release cycle.
+		#sudo -n apt-get install --install-recommends -y rustc cargo
+		
+		echo "Requires manual installation. See http://www.flashforge.com/support-center/flashprint-support/ ."
+		_stop 1
+	fi
+	
+	if [[ "$1" == "cargo" ]] || [[ "$1" == "rustc" ]]
+	then
+		#Testing/Sid only as of Stretch release cycle.
+		#sudo -n apt-get install --install-recommends -y rustc cargo
+		
+		echo "Requires manual installation."
+cat << 'CZXWXcRMTo8EmM8i4d'
+curl https://sh.rustup.rs -sSf | sh
+echo '[[ -e "$HOME"/.cargo/bin ]] && export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+CZXWXcRMTo8EmM8i4d
+		echo "(typical)"
+		_stop 1
+	fi
+	
+	if [[ "$1" == "firejail" ]]
+	then
+		echo "WARNING: Recommend manual system configuration after install. See https://firejail.wordpress.com/download-2/ ."
+		echo "WARNING: Desktop override symlinks may cause problems, especially preventing proxy host jumping by CoreAutoSSH!"
+		return 1
+	fi
+	
+	
+	return 1
+}
+
+_fetchDep_debianBuster_sequence() {
+	_start
+	
+	_mustGetSudo
+	
+	_wantDep "$1" && _stop 0
+	
+	_fetchDep_debianBuster_special "$@" && _wantDep "$1" && _stop 0
+	
+	sudo -n apt-get install --install-recommends -y "$1" && _wantDep "$1" && _stop 0
+	
+	_apt-file search "$1" > "$safeTmp"/pkgsOut 2> "$safeTmp"/pkgsErr
+	
+	local sysPathAll
+	sysPathAll=$(sudo -n bash -c "echo \$PATH")
+	sysPathAll="$PATH":"$sysPathAll"
+	local sysPathArray
+	IFS=':' read -r -a sysPathArray <<< "$sysPathAll"
+	
+	local currentSysPath
+	local matchingPackageFile
+	local matchingPackagePattern
+	local matchingPackage
+	for currentSysPath in "${sysPathArray[@]}"
+	do
+		matchingPackageFile=""
+		matchingPackagePath=""
+		matchingPackage=""
+		matchingPackagePattern="$currentSysPath"/"$1"
+		matchingPackageFile=$(grep ': '$matchingPackagePattern'$' "$safeTmp"/pkgsOut | cut -f2- -d' ')
+		matchingPackage=$(grep ': '$matchingPackagePattern'$' "$safeTmp"/pkgsOut | cut -f1 -d':')
+		if [[ "$matchingPackage" != "" ]]
+		then
+			sudo -n apt-get install --install-recommends -y "$matchingPackage"
+			_wantDep "$1" && _stop 0
+		fi
+	done
+	matchingPackage=""
+	matchingPackage=$(head -n 1 "$safeTmp"/pkgsOut | cut -f1 -d':')
+	sudo -n apt-get install --install-recommends -y "$matchingPackage"
+	_wantDep "$1" && _stop 0
+	
+	_stop 1
+}
+
+_fetchDep_debianBuster() {
+	#Run up to 2 times. On rare occasion, cache will become unusable again by apt-find before an installation can be completed. Overall, apt-find is the single weakest link in the system.
+	"$scriptAbsoluteLocation" _fetchDep_debianBuster_sequence "$@"
+	"$scriptAbsoluteLocation" _fetchDep_debianBuster_sequence "$@"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 _fetchDep_debian() {
+	
+	# WARNING: Obsolete. Declining support. Eventual removal expected approximately one year after two Debian stable releases.
 	if [[ -e /etc/debian_version ]] && cat /etc/debian_version | head -c 1 | grep 9 > /dev/null 2>&1
 	then
 		_fetchDep_debianStretch "$@"
+		return
+	fi
+	
+	if [[ -e /etc/debian_version ]] && cat /etc/debian_version | head -c 2 | grep 10 > /dev/null 2>&1
+	then
+		_fetchDep_debianBuster "$@"
 		return
 	fi
 	
@@ -3206,8 +3587,8 @@ _hook_systemd_shutdown() {
 	! [[ -e /etc/systemd/system ]] && return 0
 	
 	_here_systemd_shutdown | sudo -n tee /etc/systemd/system/"$sessionid".service > /dev/null
-	sudo -n systemctl enable "$sessionid".service 2>&1 | sudo tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
-	sudo -n systemctl start "$sessionid".service 2>&1 | sudo tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
+	sudo -n systemctl enable "$sessionid".service 2>&1 | sudo -n tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
+	sudo -n systemctl start "$sessionid".service 2>&1 | sudo -n tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
 }
 
 _hook_systemd_shutdown_action() {
@@ -3218,8 +3599,8 @@ _hook_systemd_shutdown_action() {
 	! [[ -e /etc/systemd/system ]] && return 0
 	
 	_here_systemd_shutdown_action "$@" | sudo -n tee /etc/systemd/system/"$sessionid".service > /dev/null
-	sudo -n systemctl enable "$sessionid".service 2>&1 | sudo tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
-	sudo -n systemctl start "$sessionid".service 2>&1 | sudo tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
+	sudo -n systemctl enable "$sessionid".service 2>&1 | sudo -n tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
+	sudo -n systemctl start "$sessionid".service 2>&1 | sudo -n tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
 	
 }
 
@@ -3235,11 +3616,11 @@ _unhook_systemd_shutdown() {
 	
 	! [[ -e /etc/systemd/system ]] && return 0
 	
-	[[ "$SYSTEMCTLDISABLE" == "true" ]] && echo SYSTEMCTLDISABLE | sudo tee -a "$permaLog"/gsysd.log > /dev/null 2>&1 && return 0
+	[[ "$SYSTEMCTLDISABLE" == "true" ]] && echo SYSTEMCTLDISABLE | sudo -n tee -a "$permaLog"/gsysd.log > /dev/null 2>&1 && return 0
 	export SYSTEMCTLDISABLE=true
 	
-	sudo -n systemctl disable "$hookSessionid".service 2>&1 | sudo tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
-	sudo -n rm -f /etc/systemd/system/"$hookSessionid".service 2>&1 | sudo tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
+	sudo -n systemctl disable "$hookSessionid".service 2>&1 | sudo -n tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
+	sudo -n rm -f /etc/systemd/system/"$hookSessionid".service 2>&1 | sudo -n tee -a "$permaLog"/gsysd.log > /dev/null 2>&1
 }
 
 #Determines if user is root. If yes, then continue. If not, exits after printing error message.
@@ -3443,7 +3824,7 @@ _buildGosu_sequence() {
 	mkdir -p "$GNUPGHOME"
 	chmod 700 "$shortTmp"/bgosu
 	gpg --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 || _stop 1
-	gpg --armor --export 036A9C25BF357DD4 > "$safeTmp"/gosudev.asc || stop 1
+	gpg --armor --export 036A9C25BF357DD4 > "$safeTmp"/gosudev.asc || _stop 1
 	
 	if [[ "$haveGosuBin" != "true" ]]
 	then
@@ -3562,8 +3943,21 @@ _findInfrastructure_virtImage() {
 	[[ -e "$scriptLocal"/vm.vdi ]] && export ubVirtImageLocal="true" && return 0
 	[[ -e "$scriptLocal"/vmvdiraw.vmdi ]] && export ubVirtImageLocal="true" && return 0
 	
+	# WARNING: Override implies local image.
+	[[ "$ubVirtImageIsRootPartition" != "" ]] && export ubVirtImageLocal="true" && return 0
+	[[ "$ubVirtImageIsDevice" != "" ]] && export ubVirtImageLocal="true" && return 0
+	[[ "$ubVirtImageOverride" != "" ]] && export ubVirtImageLocal="true" && return 0
+	[[ "$ubVirtDeviceOverride" != "" ]] && export ubVirtImageLocal="true" && return 0
+	#[[ "$ubVirtPlatformOverride" != "" ]] && export ubVirtImageLocal="true" && return 0
+	
+	# WARNING: Symlink implies local image (even if non-existent destination).
+	[[ -h "$scriptLocal"/vm.img ]] && export ubVirtImageLocal="true" && return 0
+	[[ -h "$scriptLocal"/vm.vdi ]] && export ubVirtImageLocal="true" && return 0
+	[[ -h "$scriptLocal"/vmvdiraw.vmdi ]] && export ubVirtImageLocal="true" && return 0
+	
 	_checkSpecialLocks && export ubVirtImageLocal="true" && return 0
 	
+	# DANGER: Recursion hazard.
 	_findInfrastructure_virtImage_script "$@"
 }
 
@@ -3903,7 +4297,8 @@ _stop_virtLocal() {
 }
 
 _test_virtLocal_X11() {
-	_getDep xauth
+	! _wantGetDep xauth && echo warn: missing: xauth && return 1
+	return 0
 }
 
 # TODO: Expansion needed.
@@ -4305,6 +4700,8 @@ _test_fakehome() {
 	_getDep mountpoint
 	
 	_getDep rsync
+	
+	_wantGetDep dbus-run-session
 }
 
 #Example. Run similar code under "core.sh" before calling "_fakeHome", "_install_fakeHome", or similar, to set a specific type/location for fakeHome environment - global, instanced, or otherwise.
@@ -4407,7 +4804,8 @@ _umountRAM_fakeHome() {
 }
 
 _begin_fakeHome() {
-	#Recursive fakeHome prohibited. Instead, start new script session, with new sessionid, and keepFakeHome=false. Do not workaround without a clear understanding why this may endanger your application.
+	# WARNING: Recursive fakeHome prohibited. Instead, start new script session, with new sessionid, and keepFakeHome=false. Do not workaround without a clear understanding why this may endanger your application.
+	_resetFakeHomeEnv
 	[[ "$setFakeHome" == "true" ]] && return 1
 	#_resetFakeHomeEnv_nokeep
 	
@@ -4435,6 +4833,7 @@ _begin_fakeHome() {
 #keepFakeHome
 	#default: true
 	#"true" || "false"
+# ATTENTION: WARNING: Do not remove or modify functionality of GUI workarounds without extensive testing!
 _fakeHome() {
 	_begin_fakeHome "$@"
 	local fakeHomeExitStatus
@@ -4444,11 +4843,27 @@ _fakeHome() {
 		export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
 	fi
 	
-	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" sessionid="$sessionid" scriptAbsoluteFolder="$scriptAbsoluteFolder" realSessionID="$realSessionID" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
-	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
-	#dbus-run-session "$@"
-	#"$@"
-	#. "$@"
+	# WARNING: Obviously less reliable than directly stating variable assignments.
+	local fakeHomeENVvars
+	
+	fakeHomeENVvars+=(DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP="$XDG_SESSION_DESKTOP" XDG_CURRENT_DESKTOP="$XDG_SESSION_DESKTOP")
+	fakeHomeENVvars+=(realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome")
+	fakeHomeENVvars+=(TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}")
+	fakeHomeENVvars+=(_JAVA_OPTIONS="${_JAVA_OPTIONS}")
+	fakeHomeENVvars+=(scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder"realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder")
+	fakeHomeENVvars+=(sessionid="$sessionid" realSessionID="$realSessionID" )
+	
+	if type dbus-run-session > /dev/null 2>&1
+	then
+		fakeHomeENVvars+=(dbus-run-session)
+	fi
+	
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP='KDE' XDG_CURRENT_DESKTOP='KDE' realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" sessionid="$sessionid" scriptAbsoluteFolder="$scriptAbsoluteFolder" realSessionID="$realSessionID" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
+	##env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP='KDE' XDG_CURRENT_DESKTOP='KDE' realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
+	##dbus-run-session "$@"
+	##"$@"
+	##. "$@"
+	env -i "${fakeHomeENVvars[@]}" "$@"
 	fakeHomeExitStatus=$?
 	
 	#_unmakeFakeHome > /dev/null 2>&1
@@ -4459,6 +4874,7 @@ _fakeHome() {
 }
 
 #Do NOT keep parent session under fakeHome environment. Do NOT regain parent session if "~/.ubcore/.ubcorerc" is imported (typically upon shell launch).
+# ATTENTION: WARNING: Do not remove or modify functionality of GUI workarounds without extensive testing!
 _fakeHome_specific() {
 	_begin_fakeHome "$@"
 	local fakeHomeExitStatus
@@ -4468,11 +4884,27 @@ _fakeHome_specific() {
 		export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
 	fi
 	
-	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
-	env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}dbus-run-session "$@"
-	#dbus-run-session "$@"
-	#"$@"
-	#. "$@"
+	# WARNING: Obviously less reliable than directly stating variable assignments.
+	local fakeHomeENVvars
+	
+	fakeHomeENVvars+=(DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP="$XDG_SESSION_DESKTOP" XDG_CURRENT_DESKTOP="$XDG_SESSION_DESKTOP")
+	fakeHomeENVvars+=(realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome")
+	fakeHomeENVvars+=(TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}")
+	fakeHomeENVvars+=(_JAVA_OPTIONS="${_JAVA_OPTIONS}")
+	#fakeHomeENVvars+=(scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder"realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder")
+	#fakeHomeENVvars+=(sessionid="$sessionid" realSessionID="$realSessionID" )
+	
+	if type dbus-run-session > /dev/null 2>&1
+	then
+		fakeHomeENVvars+=(dbus-run-session)
+	fi
+	
+	##env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP='KDE' XDG_CURRENT_DESKTOP='KDE' realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP='KDE' XDG_CURRENT_DESKTOP='KDE' realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}dbus-run-session "$@"
+	##dbus-run-session "$@"
+	##"$@"
+	##. "$@"
+	env -i "${fakeHomeENVvars[@]}" "$@"
 	fakeHomeExitStatus=$?
 	
 	#_unmakeFakeHome > /dev/null 2>&1
@@ -4493,8 +4925,8 @@ _fakeHome_embedded() {
 		export _JAVA_OPTIONS=-Duser.home="$HOME"' '"$_JAVA_OPTIONS"
 	fi
 	
-	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
-	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP='KDE' XDG_CURRENT_DESKTOP='KDE' realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
+	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP='KDE' XDG_CURRENT_DESKTOP='KDE' realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
 	#dbus-run-session "$@"
 	#"$@"
 	. "$@"
@@ -4649,6 +5081,188 @@ _test_image() {
 	#_getDep partprobe
 }
 
+
+# ATTENTION: WARNING: TODO: UNCOMMENT SAFE/EMPTY CONFIGURATION VARIABLES HERE IF NEEDED TO RESET ENVIRONMENT!
+
+
+###
+
+# ATTENTION: Override with 'ops', env, or similar.
+# DANGER: NOT respected (and possibly not needed) by some virtualization backends.
+# DANGER: Root image/device/partiton must be correct!
+# WARNING: Root/Image/Device override implies 'true' "ubVirtImageLocal" .
+
+# WARNING: Implies blank "ubVirtImagePartition" .
+#export ubVirtImageIsRootPartition='true'
+
+#export ubVirtImageIsDevice='true'
+#export ubVirtImageOverride='/dev/disk/by-id/identifier-part'
+
+# ATTENTION: Path pointing to full disk device or image, including partition table, for full booting.
+# Will take precedence over "ubVirtImageOverride" with virtualization backends capable of full booting.
+# vbox , qemu
+#export ubVirtDiskOverride='/dev/disk/by-id/identifier'
+
+
+# ATTENTION: Explicitly override platform. Not all backends support all platforms.
+# chroot , qemu
+# x64-bios , raspbian , x64-efi
+#export ubVirtPlatformOverride='x64-bios'
+
+###
+
+
+
+###
+
+# ATTENTION: Override with 'ops' or similar.
+# WARNING: Do not override unnecessarily. Default rules are expected to accommodate typical requirements.
+
+# WARNING: Only applies to imagedev (text) loopback device.
+# x64 bios , raspbian , x64 efi (respectively)
+#export ubVirtImagePartition='p1'
+#export ubVirtImagePartition='p2'
+#export ubVirtImagePartition='p3'
+
+###
+
+
+
+# ATTENTION: Override with 'ops' or similar.
+# WARNING: Prefer to avoid override in favor of overriding other relevant variables or functions.
+# DANGER: Required for safety mechanisms which may also be used by some other virtualization backends!
+# WARNING: Dependency: Should run _loopImage_imagefilename .
+# "$1" == imagedev
+# "$2" == default (if any)
+_determine_rawFileRootPartition() {
+	# DANGER: REQUIRES image/device including ONLY root partition!
+	if [[ "$ubVirtImageIsRootPartition" == 'true' ]]
+	then
+		export ubVirtImagePartition=''
+		echo "$1"
+		return 0
+	fi
+	
+	if [[ "$ubVirtImagePartition" != "" ]]
+	then
+		echo "$1""$ubVirtImagePartition"
+		return 0
+	fi
+	
+	if [[ "$2" != "" ]]
+	then
+		export ubVirtImagePartition="$2"
+		echo "$1""$2"
+		return 0
+	fi
+	
+	#Platform defaults.
+	export ubVirtImagePartition=""
+	[[ "$ubVirtPlatform" == "x64-bios" ]] && export ubVirtImagePartition=p1
+	[[ "$ubVirtPlatform" == "x64-efi" ]] && export ubVirtImagePartition=p3
+	[[ "$ubVirtPlatform" == "raspbian" ]] && export ubVirtImagePartition=p2
+	
+	#Default.
+	# DANGER: Do NOT set blank.
+	[[ "$ubVirtImagePartition" == "" ]] && export ubVirtImagePartition=p1
+	
+	echo "$1""$ubVirtImagePartition"
+	
+	return 0
+}
+
+
+
+# ATTENTION: Override with 'ops' or similar.
+# WARNING: Uncommenting will cause losetup not to be used for 'vm.img' and similar even if symlinked to '/dev'. This will break 'ubVirtImagePartition' .
+# DANGER: Unnecessarily linking 'vm.img' or similar to device file strongly discouraged. May allow some virtualization backends to attempt to perform unsupported operations (ie. rm -f) on device file.
+_detect_deviceAsVirtImage_symlinks() {
+	#[[ -h "$scriptLocal"/vm.img ]] && readlink "$scriptLocal"/vm.img | grep ^\/dev\/\.\* > /dev/null 2>&1 && return 0
+	#[[ -h "$scriptLocal"/vm-x64.img ]] && readlink "$scriptLocal"/vm-x64.img | grep ^\/dev\/\.\* > /dev/null 2>&1 && return 0
+	#[[ -h "$scriptLocal"/vm-raspbian.img ]] && readlink "$scriptLocal"/vm-raspbian.img | grep ^\/dev\/\.\* > /dev/null 2>&1 && return 0
+	
+	# WARNING: Symlinks to locations outside a home subfolder (including relative symlinks) will be presumed to be device files if uncommented.
+	#[[ -h "$scriptLocal"/vm.img ]] && ! readlink "$scriptLocal"/vm.img | grep ^\/home\/\.\* > /dev/null 2>&1 && return 0
+	#[[ -h "$scriptLocal"/vm-x64.img ]] && ! readlink "$scriptLocal"/vm-x64.img | grep ^\/home\/\.\* > /dev/null 2>&1 && return 0
+	#[[ -h "$scriptLocal"/vm-raspbian.img ]] && ! readlink "$scriptLocal"/vm-raspbian.img | grep ^\/home\/\.\* > /dev/null 2>&1 && return 0
+	
+	return 1
+}
+
+
+# DANGER: Required for safety mechanisms which may also be used by some other virtualization backends!
+# DANGER: Multiple 'vm.img' variants (eg. 'vm-x64.img') available simultaneously is NOT deliberately supported and NOT safe!
+# DANGER: Multiple symlinks or other conditions may confuse this safety mechanism. Only intended to prevent casual misuse.
+# image
+# chroot
+# vbox
+# qemu
+# "$1" == imagefilename
+_detect_deviceAsVirtImage() {
+	[[ "$ubVirtImageIsDevice" != "" ]] && return 0
+	[[ "$ubVirtImageOverride" == '/dev/'* ]] && return 0
+	
+	[[ "$1" == '/dev/'* ]] && return 0
+	
+	
+	[[ "$1" != "" ]] && [[ -h "$1" ]] && ! readlink "$1" | grep ^\/dev\/\.\* > /dev/null 2>&1 && return 1
+	[[ "$1" != "" ]] && [[ -e "$1" ]] && return 1
+	_detect_deviceAsVirtImage_symlinks "$1" && return 0
+	
+	return 1
+}
+
+# ATTENTION: Override with 'ops' or similar.
+# WARNING: Prefer to avoid override in favor of overriding other relevant variables or functions.
+# DANGER: Required for safety mechanisms which may also be used by some other virtualization backends!
+# "$1" == imagedev
+# "$2" == imagepart
+_determine_rawIsRootPartition() {
+	[[ "$ubVirtImageIsRootPartition" == 'true' ]] && return 0
+	[[ "$1" == "$2" ]] && return 0
+	return 1
+}
+
+
+# DANGER: Required for safety mechanisms which may also be used by some other virtualization backends!
+# DANGER: Exact values of 'ubVirtPlatform' and other variables may be required by other virtualization backends!
+_loopImage_imagefilename() {
+	local current_imagefilename
+	[[ -e "$scriptLocal"/vm-raspbian.img ]] && current_imagefilename="$scriptLocal"/vm-raspbian.img && export ubVirtPlatform=raspbian
+	[[ -e "$scriptLocal"/vm-x64.img ]] && current_imagefilename="$scriptLocal"/vm-x64.img && export ubVirtPlatform=x64-bios
+	[[ -e "$scriptLocal"/vm.img ]] && current_imagefilename="$scriptLocal"/vm.img && export ubVirtPlatform=x64-bios
+	[[ "$ubVirtImageOverride" != "" ]] && current_imagefilename="$ubVirtImageOverride"
+	
+	
+	[[ "$ubVirtPlatform" == "" ]] && export ubVirtPlatform=x64-bios
+	[[ "$ubVirtPlatformOverride" != "" ]] && export ubVirtPlatform="$ubVirtPlatformOverride"
+	
+	echo "$current_imagefilename"
+}
+
+
+# "$1" == imagefilename
+# "$2" == imagedev (text)
+_loopImage_procedure_losetup() {
+	if _detect_deviceAsVirtImage "$1"
+	then
+		! [[ -e "$1" ]] || _stop 1
+		echo "$1" > "$safeTmp"/imagedev
+		sudo -n partprobe > /dev/null 2>&1
+		
+		cp -n "$safeTmp"/imagedev "$2" > /dev/null 2>&1 || _stop 1
+		return 0
+	fi
+	
+	sudo -n losetup -f -P --show "$1" > "$safeTmp"/imagedev 2> /dev/null || _stop 1
+	sudo -n partprobe > /dev/null 2>&1
+	
+	cp -n "$safeTmp"/imagedev "$2" > /dev/null 2>&1 || _stop 1
+	return 0
+}
+
+# DANGER: Optional parameter intended only for virtualization backends using only loopback devices without filesystem mounting (vbox) .
+# "$1" == imagedev (text)
 _loopImage_sequence() {
 	_mustGetSudo
 	
@@ -4656,95 +5270,247 @@ _loopImage_sequence() {
 	
 	mkdir -p "$globalVirtFS"
 	
-	[[ -e "$scriptLocal"/imagedev ]] && _stop 1
+	local current_imagedev_text
+	current_imagedev_text="$1"
+	[[ "$current_imagedev_text" == "" ]] && current_imagedev_text="$scriptLocal"/imagedev
 	
-	local imagefilename
-	#[[ -e "$scriptLocal"/vm-x64.img ]] && imagefilename="$scriptLocal"/vm-x64.img
-	[[ -e "$scriptLocal"/vm.img ]] && imagefilename="$scriptLocal"/vm.img
+	[[ -e "$current_imagedev_text" ]] && _stop 1
 	
-	sudo -n losetup -f -P --show "$imagefilename" > "$safeTmp"/imagedev 2> /dev/null || _stop 1
-	sudo -n partprobe > /dev/null 2>&1
+	local current_imagefilename
+	current_imagefilename=$(_loopImage_imagefilename)
 	
-	cp -n "$safeTmp"/imagedev "$scriptLocal"/imagedev > /dev/null 2>&1 || _stop 1
+	_loopImage_procedure_losetup "$current_imagefilename" "$current_imagedev_text"
 	
 	_stop 0
 }
 
 _loopImage() {
-	"$scriptAbsoluteLocation" _loopImage_sequence
+	if "$scriptAbsoluteLocation" _loopImage_sequence "$@"
+	then
+		return 0
+	fi
+	return 1
 }
 
+# DANGER: Only use with backends supporting full disk booting!
+# "$1" == imagedev (text)
+_loopFull_procedure() {
+	if [[ "$ubVirtDiskOverride" == "" ]]
+	then
+		! _loopImage "$1" && _stop 1
+	else
+		! _loopImage_procedure_losetup "$ubVirtDiskOverride" "$1" && _stop 1
+	fi
+	return 0
+}
+
+# "$1" == imagedev (text)
+_loopFull_sequence() {
+	_start
+	
+	if ! _loopFull_procedure "$@"
+	then
+		_stop 1
+	fi
+	
+	_stop 0
+}
+
+# "$1" == imagedev (text)
+_loopFull() {
+	if "$scriptAbsoluteLocation" _loopFull_sequence "$@"
+	then
+		return 0
+	fi
+	
+	# Typically requires "_stop 1" .
+	return 1
+}
+
+
+# ATTENTION: Override with 'ops' or similar.
+# DANGER: Allowing types other than 'ext4' (eg. fat), may allow mounting of filesystems other than an UNIX-like userspace root.
+_mountImageFS_procedure_blkid_fstype() {
+	! [[ "$1" == "ext4" ]] && _stop 1
+	return 0
+}
+
+# "$1" == imagedev
+# "$2" == imagepart
+# "$3" == dirVirtFS (RESERVED)
+_mountImageFS_procedure_blkid() {
+	local loopdevfs
+	
+	# DANGER: Must ignore/reject 'PTTYPE' field if given.
+	#if _determine_rawIsRootPartition "$1" "$2"
+	#then
+		#loopdevfs=$(eval $(sudo -n blkid "$2" | tr -dc 'a-zA-Z0-9\=\"\ \:\/\-' | awk ' { print $4 } '); echo $TYPE)
+	#else
+		#loopdevfs=$(eval $(sudo -n blkid "$2" | tr -dc 'a-zA-Z0-9\=\"\ \:\/\-' | awk ' { print $3 } '); echo $TYPE)
+	#fi
+	loopdevfs=$(sudo -n blkid -s TYPE -o value "$2" | tr -dc 'a-zA-Z0-9')
+	
+	! _mountImageFS_procedure_blkid_fstype "$loopdevfs" && _stop 1
+	
+	return 0
+}
+
+# "$1" == destinationDir (default: "$globalVirtFS")
 _mountImageFS_sequence() {
 	_mustGetSudo
 	
 	_start
 	
+	local currentDestinationDir
+	currentDestinationDir="$1"
+	[[ "$currentDestinationDir" == "" ]] && currentDestinationDir="$globalVirtFS"
+	
 	mkdir -p "$globalVirtFS"
 	
-	"$scriptAbsoluteLocation" _checkForMounts "$globalVirtFS" && _stop 1
+	"$scriptAbsoluteLocation" _checkForMounts "$currentDestinationDir" && _stop 1
 	
-	local imagedev
-	imagedev=$(cat "$scriptLocal"/imagedev)
+	# Include platform determination code for correct determination of partition and mounts.
+	_loopImage_imagefilename > /dev/null 2>&1
 	
-	local imagepart
-	#imagepart="$imagedev"p2
-	imagepart="$imagedev"p1
+	local current_imagedev
+	current_imagedev=$(cat "$scriptLocal"/imagedev)
 	
-	local loopdevfs
-	loopdevfs=$(eval $(sudo -n blkid "$imagepart" | awk ' { print $3 } '); echo $TYPE)
+	local current_imagepart
+	current_imagepart=$(_determine_rawFileRootPartition "$current_imagedev")
+	#current_imagepart=$(_determine_rawFileRootPartition "$current_imagedev" "x64-bios")
 	
-	! [[ "$loopdevfs" == "ext4" ]] && _stop 1
 	
-	sudo -n mount "$imagepart" "$globalVirtFS" || _stop 1
+	_mountImageFS_procedure_blkid "$current_imagedev" "$current_imagepart" "$currentDestinationDir" || _stop 1
 	
-	mountpoint "$globalVirtFS" > /dev/null 2>&1 || _stop 1
+	
+	sudo -n mount "$current_imagepart" "$currentDestinationDir" || _stop 1
+	
+	mountpoint "$currentDestinationDir" > /dev/null 2>&1 || _stop 1
 	
 	_stop 0
 }
 
 _mountImageFS() {
-	"$scriptAbsoluteLocation" _mountImageFS_sequence
+	if "$scriptAbsoluteLocation" _mountImageFS_sequence
+	then
+		return 0
+	fi
+	return 1
 }
 
 _mountImage() {
-	"$scriptAbsoluteLocation" _loopImage_sequence 
-	"$scriptAbsoluteLocation" _mountImageFS_sequence
+	# Include platform determination code for correct determination of partition and mounts.
+	_loopImage_imagefilename > /dev/null 2>&1
+	
+	! _loopImage && _stop 1
+	! _mountImageFS "$1" && _stop 1
+	
+	return 0
 }
 
+# "$1" == imagedev
+# "$2" == imagedev (text)
+# "$3" == imagefilename
+_unmountLoop_losetup() {
+	#if _detect_deviceAsVirtImage "$3" || [[ "$1" == '/dev/loop'* ]]
+	if _detect_deviceAsVirtImage "$3"
+	then
+		! [[ -e "$1" ]] || return 1
+		! [[ -e "$2" ]] || return 1
+		! [[ -e "$3" ]] || return 1
+		sudo -n partprobe > /dev/null 2>&1
+		
+		rm -f "$2" || return 1
+		return 0
+	fi
+	
+	# DANGER: Should never happen.
+	[[ "$1" == '/dev/loop'* ]] || return 1
+	
+	# WARNING: Should never happen.
+	[[ -e "$3" ]] || return 1
+	
+	sudo -n losetup -d "$1" > /dev/null 2>&1 || return 1
+	sudo -n partprobe > /dev/null 2>&1
+	
+	rm -f "$2" || return 1
+	return 0
+}
+
+# DANGER: Optional parameter intended only for virtualization backends using only loopback devices without filesystem mounting (vbox) .
+# "$1" == imagedev (text)
 _umountLoop() {
 	_mustGetSudo || return 1
 	
-	local imagedev
-	imagedev=$(cat "$scriptLocal"/imagedev)
+	local current_imagedev_text
+	current_imagedev_text="$1"
+	[[ "$current_imagedev_text" == "" ]] && current_imagedev_text="$scriptLocal"/imagedev
 	
-	sudo -n losetup -d "$imagedev" > /dev/null 2>&1 || return 1
-	sudo -n partprobe > /dev/null 2>&1
+	[[ -e "$current_imagedev_text" ]] || return 1
+	local current_imagedev
+	current_imagedev=$(cat "$current_imagedev_text" 2>/dev/null)
 	
-	rm -f "$scriptLocal"/imagedev || return 1
+	
+	# WARNING: Consistent rules required to select correct imagefilename for both _umountLoop and _loopImage regardless of VM backend or 'ops' overrides.
+	local current_imagefilename
+	current_imagefilename=$(_loopImage_imagefilename)
+	
+	_unmountLoop_losetup "$current_imagedev" "$current_imagedev_text" "$current_imagefilename" || return 1
 	
 	rm -f "$lock_quicktmp" > /dev/null 2>&1
 	
 	return 0
 }
 
-# TODO Duplicates some code from _umountLoop. Test, and remove.
+# DANGER: Only use with backends supporting full disk booting!
+# "$1" == imagedev (text)
+_umountFull_procedure() {
+	if [[ "$ubVirtDiskOverride" == "" ]]
+	then
+		! _umountLoop "$1" && _stop 1
+	else
+		! _unmountLoop_losetup "$ubVirtDiskOverride" "$1" "$ubVirtDiskOverride" && _stop 1
+	fi
+	return 0
+}
+
+_umountFull_sequence() {
+	_start
+	
+	if ! _umountFull_procedure "$@"
+	then
+		_stop 1
+	fi
+	
+	_stop 0
+}
+
+_umountFull() {
+	if "$scriptAbsoluteLocation" _umountFull_sequence "$@"
+	then
+		return 0
+	fi
+	
+	# Typically requires "_stop 1" .
+	return 1
+}
+
+# "$1" == destinationDir (default: "$globalVirtFS")
 _umountImage() {
 	_mustGetSudo || return 1
 	
-	sudo -n umount "$globalVirtFS" > /dev/null 2>&1
+	local currentDestinationDir
+	currentDestinationDir="$1"
+	[[ "$currentDestinationDir" == "" ]] && currentDestinationDir="$globalVirtFS"
+	
+	sudo -n umount "$currentDestinationDir" > /dev/null 2>&1
 	
 	#Uniquely, it is desirable to allow unmounting to proceed a little further if the filesystem was not mounted to begin with. Enables manual intervention.
-	_readyImage "$globalVirtFS" && return 1
 	
-	local imagedev
-	imagedev=$(cat "$scriptLocal"/imagedev)
+	#Filesystem must be unmounted before proceeding.
+	_readyImage "$currentDestinationDir" && return 1
 	
-	sudo -n losetup -d "$imagedev" > /dev/null 2>&1 || return 1
-	sudo -n partprobe > /dev/null 2>&1
-	
-	rm -f "$scriptLocal"/imagedev || return 1
-	
-	rm -f "$lock_quicktmp" > /dev/null 2>&1
+	! _umountLoop && return 1
 	
 	return 0
 }
@@ -4956,7 +5722,7 @@ _createFS_sequence() {
 	imagepart="$imagedev"p1
 	
 	local loopdevfs
-	loopdevfs=$(eval $(sudo -n blkid "$imagepart" | awk ' { print $3 } '); echo $TYPE)
+	loopdevfs=$(sudo -n blkid -s TYPE -o value "$imagepart" | tr -dc 'a-zA-Z0-9')
 	[[ "$loopdevfs" == "ext4" ]] && _stop 1
 	sudo -n mkfs.ext4 "$imagepart" > /dev/null 2>&1 || _stop 1
 	
@@ -5515,6 +6281,17 @@ _stopChRoot() {
 	
 }
 
+
+# May override with 'ops.sh' or similar. Future development intended. Currently, creating an image of a physical device is strongly recommended instead.
+_detect_deviceAsChRootImage() {
+	false
+	
+	# TODO: Determine if "$ubVirtImageOverride" or "$scriptLocal" points to a device file (typically under '/dev').
+	# TODO: Should call separate function _detect_deviceAsVirtImage .
+	# DANGER: Functions under 'mountimage.sh' must also respect this.
+}
+
+
 #"$1" == ChRoot Dir
 _mountChRoot() {
 	_mustGetSudo
@@ -5565,13 +6342,15 @@ _mountChRoot() {
 	
 	if ! grep '8\.8\.8\.8' "$absolute1"/etc/resolv.conf > /dev/null 2>&1
 	then
-		echo 'nameserver 8.8.8.8' | sudo tee -a "$absolute1"/etc/resolv.conf > /dev/null 2>&1
+		echo 'nameserver 8.8.8.8' | sudo -n tee -a "$absolute1"/etc/resolv.conf > /dev/null 2>&1
 	fi
 	
 	if ! grep '2001\:4860\:4860\:\:8888' "$absolute1"/etc/resolv.conf > /dev/null 2>&1
 	then
-		echo 'nameserver 2001:4860:4860::8888' | sudo tee -a "$absolute1"/etc/resolv.conf > /dev/null 2>&1
+		echo 'nameserver 2001:4860:4860::8888' | sudo -n tee -a "$absolute1"/etc/resolv.conf > /dev/null 2>&1
 	fi
+	
+	return 0
 }
 
 #"$1" == ChRoot Dir
@@ -5598,8 +6377,8 @@ _umountChRoot() {
 	
 	_wait_umount "$absolute1"/dev
 	
-	_wait_umount "$absolute1" >/dev/null 2>&1
-	
+	# Full umount of chroot directory may be done by standard '_umountImage'.
+	#_wait_umount "$absolute1" >/dev/null 2>&1
 }
 
 _readyChRoot() {
@@ -5638,51 +6417,25 @@ _mountChRoot_image_raspbian() {
 	
 	"$scriptAbsoluteLocation" _checkForMounts "$chrootDir" && _stop 1
 	
-	if sudo -n losetup -f -P --show "$scriptLocal"/vm-raspbian.img > "$safeTmp"/imagedev 2> /dev/null
-	then
-		#Preemptively declare device open to prevent potentially dangerous multiple mount attempts.
-		#Should now be redundant with use of lock_opening .
-		#_createLocked "$lock_open" || _stop 1
-		
-		sudo -n partprobe > /dev/null 2>&1
-		
-		cp -n "$safeTmp"/imagedev "$scriptLocal"/imagedev > /dev/null 2>&1 || _stop 1
-		
-		local chrootimagedev
-		chrootimagedev=$(cat "$safeTmp"/imagedev)
-		
-		local chrootimagepart
-		chrootimagepart="$chrootimagedev"p2
-		
-		#local chrootloopdevfs
-		#chrootloopdevfs=$(eval $(sudo -n blkid "$chrootimagepart" | awk ' { print $3 } '); echo $TYPE)
-		#if [[ "$chrootloopdevfs" == "ext4" ]]
-		
-		if sudo -n blkid "$chrootimagepart" | grep 'ext4' > /dev/null 2>&1
-		then
-			
-			sudo -n mount "$chrootimagepart" "$chrootDir" || _stop 1
-			
-			mountpoint "$chrootDir" > /dev/null 2>&1 || _stop 1
-			
-			_mountChRoot "$chrootDir"
-			
-			_readyChRoot "$chrootDir" || _stop 1
-			
-			sudo -n cp /usr/bin/qemu-arm-static "$chrootDir"/usr/bin/
-			sudo -n cp /usr/bin/qemu-armeb-static "$chrootDir"/usr/bin/
-			
-			sudo -n cp -n "$chrootDir"/etc/ld.so.preload "$chrootDir"/etc/ld.so.preload.orig
-			echo | sudo -n tee "$chrootDir"/etc/ld.so.preload > /dev/null 2>&1
-			
-			! _mountChRoot_image_raspbian_prog "$chrootimagedev" && _stop 1
-			
-			_stop 0
-		fi
-		
-	fi
 	
-	_stop 1
+	! _mountImage "$chrootDir" && _stop 1
+	
+	
+	
+	_mountChRoot "$chrootDir"
+	
+	_readyChRoot "$chrootDir" || _stop 1
+	
+	sudo -n cp /usr/bin/qemu-arm-static "$chrootDir"/usr/bin/
+	sudo -n cp /usr/bin/qemu-armeb-static "$chrootDir"/usr/bin/
+	
+	sudo -n cp -n "$chrootDir"/etc/ld.so.preload "$chrootDir"/etc/ld.so.preload.orig
+	echo | sudo -n tee "$chrootDir"/etc/ld.so.preload > /dev/null 2>&1
+	
+	! _mountChRoot_image_raspbian_prog && _stop 1
+	
+	
+	return 0
 }
 
 _umountChRoot_directory_raspbian() {
@@ -5695,6 +6448,7 @@ _umountChRoot_directory_raspbian() {
 	
 }
 
+# ATTENTION: Mounts image containing only root partiton.
 _mountChRoot_image_x64() {
 	_mustGetSudo
 	
@@ -5704,36 +6458,16 @@ _mountChRoot_image_x64() {
 	
 	"$scriptAbsoluteLocation" _checkForMounts "$chrootDir" && _stop 1
 	
-	local chrootvmimage
-	[[ -e "$scriptLocal"/vm-x64.img ]] && chrootvmimage="$scriptLocal"/vm-x64.img
-	[[ -e "$scriptLocal"/vm.img ]] && chrootvmimage="$scriptLocal"/vm.img
 	
-	sudo -n losetup -f -P --show "$chrootvmimage" > "$safeTmp"/imagedev 2> /dev/null || _stop 1
-	sudo -n partprobe > /dev/null 2>&1
+	! _mountImage "$chrootDir" && _stop 1
 	
-	cp -n "$safeTmp"/imagedev "$scriptLocal"/imagedev > /dev/null 2>&1 || _stop 1
 	
-	local chrootimagedev
-	chrootimagedev=$(cat "$safeTmp"/imagedev)
-	
-	local chrootimagepart
-	#chrootimagepart="$chrootimagedev"p2
-	chrootimagepart="$chrootimagedev"p1
-	
-	local chrootloopdevfs
-	chrootloopdevfs=$(eval $(sudo -n blkid "$chrootimagepart" | awk ' { print $3 } '); echo $TYPE)
-	
-	! [[ "$chrootloopdevfs" == "ext4" ]] && _stop 1
-	
-	sudo -n mount "$chrootimagepart" "$chrootDir" || _stop 1
-	
-	mountpoint "$chrootDir" > /dev/null 2>&1 || _stop 1
 	
 	_mountChRoot "$chrootDir"
 	
 	_readyChRoot "$chrootDir" || _stop 1
 	
-	_stop 0
+	return 0
 }
 
 _umountChRoot_directory_x64() {
@@ -5745,42 +6479,58 @@ _umountChRoot_directory_x64() {
 _mountChRoot_image() {
 	_tryExecFull _hook_systemd_shutdown_action "_closeChRoot_emergency" "$sessionid"
 	
-	if [[ -e "$scriptLocal"/vm-raspbian.img ]]
+	# Include platform determination code for correct determination of partition and mounts.
+	_loopImage_imagefilename > /dev/null 2>&1
+	
+	if [[ "$ubVirtPlatform" == "raspbian" ]]
 	then
-		"$scriptAbsoluteLocation" _mountChRoot_image_raspbian
+		_mountChRoot_image_raspbian
 		return "$?"
 	fi
 	
-	if [[ -e "$scriptLocal"/vm-x64.img ]]
+	if [[ "$ubVirtPlatform" == "x64"* ]]
 	then
-		"$scriptAbsoluteLocation" _mountChRoot_image_x64
+		_mountChRoot_image_x64
 		return "$?"
 	fi
 	
-	#Default "vm.img" will be operated on as x64 image.
+	#Default x64 .
 	"$scriptAbsoluteLocation" _mountChRoot_image_x64
 	return "$?"
 }
 
-_umountChRoot_directory() {
-	if [[ -e "$scriptLocal"/vm-raspbian.img ]]
+_umountChRoot_directory_platform() {
+	# Include platform determination code for correct determination of partition and mounts.
+	_loopImage_imagefilename > /dev/null 2>&1
+	
+	if [[ "$ubVirtPlatform" == "raspbian" ]]
 	then
-		"$scriptAbsoluteLocation" _umountChRoot_directory_raspbian || return "$?"
+		"$scriptAbsoluteLocation" _umountChRoot_directory_raspbian
+		return "$?"
 	fi
 	
-	if [[ -e "$scriptLocal"/vm-x64.img ]]
+	if [[ "$ubVirtPlatform" == "x64"* ]]
 	then
-		"$scriptAbsoluteLocation" _umountChRoot_directory_x64 || return "$?"
+		"$scriptAbsoluteLocation" _umountChRoot_directory_x64
+		return "$?"
 	fi
 	
 	#Default "vm.img" will be operated on as x64 image.
-	"$scriptAbsoluteLocation" _umountChRoot_directory_x64 || return "$?"
+	"$scriptAbsoluteLocation" _umountChRoot_directory_x64
+	return "$?"
+}
+
+_umountChRoot_directory() {
+	! _umountChRoot_directory_platform && return 1
 	
 	_stopChRoot "$1"
 	_umountChRoot "$1"
-	mountpoint "$1" > /dev/null 2>&1 && sudo -n umount "$1"
 	
-	"$scriptAbsoluteLocation" _checkForMounts "$1" && return 1
+	# Full umount of chroot directory may be done by standard '_umountImage'.
+	#mountpoint "$1" > /dev/null 2>&1 && sudo -n umount "$1"
+	#"$scriptAbsoluteLocation" _checkForMounts "$1" && return 1
+	
+	return 0
 }
 
 # ATTENTION: Override with "core.sh" or similar.
@@ -5792,21 +6542,16 @@ _umountChRoot_image_prog() {
 _umountChRoot_image() {
 	_mustGetSudo || return 1
 	
-	_umountChRoot_directory "$chrootDir" && return 1
+	! _umountChRoot_directory "$chrootDir" && return 1
 	
 	! _umountChRoot_image_prog && return 1
 	
-	[[ -d "$globalVirtFS"/../boot ]] && mountpoint "$globalVirtFS"/../boot >/dev/null 2>&1 && sudo -n umount "$globalVirtFS"/../boot
+	[[ -d "$globalVirtFS"/../boot ]] && mountpoint "$globalVirtFS"/../boot >/dev/null 2>&1 && sudo -n umount "$globalVirtFS"/../boot >/dev/null 2>&1
 	
-	local chrootimagedev
-	chrootimagedev=$(cat "$scriptLocal"/imagedev)
 	
-	sudo -n losetup -d "$chrootimagedev" > /dev/null 2>&1 || return 1
-	sudo -n partprobe > /dev/null 2>&1
+	_umountImage "$chrootDir"
 	
-	rm -f "$scriptLocal"/imagedev || return 1
 	
-	rm -f "$lock_quicktmp" > /dev/null 2>&1
 	
 	rm -f "$permaLog"/gsysd.log > /dev/null 2>&1
 	
@@ -5968,9 +6713,9 @@ _mountChRoot_userAndHome() {
 	
 	# TODO Device Mapper snapshot ChRoot instancing alternative. Disadvantage of not allowing the root filesystem to be simultaneously mounted read-write.
 	# TODO Develop a function to automatically select whatever unionfs equivalent may be supported by the host.
-	#sudo /bin/mount -t unionfs -o dirs="$instancedVirtTmp":"$globalVirtFS"=ro unionfs "$instancedVirtFS"
+	#sudo -n /bin/mount -t unionfs -o dirs="$instancedVirtTmp":"$globalVirtFS"=ro unionfs "$instancedVirtFS"
 	sudo -n unionfs-fuse -o cow,allow_other,use_ino,suid,dev "$instancedVirtTmp"=RW:"$globalVirtFS"=RO "$instancedVirtFS"
-	#sudo unionfs -o dirs="$instancedVirtTmp":"$globalVirtFS"=ro "$instancedVirtFS"
+	#sudo -n unionfs -o dirs="$instancedVirtTmp":"$globalVirtFS"=ro "$instancedVirtFS"
 	sudo -n chown "$USER":"$USER" "$instancedVirtFS"
 	
 	#unionfs-fuse -o cow,max_files=32768 -o allow_other,use_ino,suid,dev,nonempty /u/host/etc=RW:/u/group/etc=RO:/u/common/etc=RO /u/union/etc
@@ -6293,7 +7038,7 @@ _dropChRoot() {
 	# Change to localPWD or home.
 	cd "$localPWD"
 	
-	"$scriptAbsoluteLocation" _gosuExecVirt cp -r /etc/skel/. "$virtGuestHomeDrop"
+	"$scriptAbsoluteLocation" _gosuExecVirt cp -r /etc/skel/. "$virtGuestHomeDrop" > /dev/null 2>&1
 	
 	"$scriptAbsoluteLocation" _gosuExecVirt "$scriptAbsoluteLocation" _setupUbiquitous_nonet > /dev/null 2>&1
 	
@@ -6344,13 +7089,16 @@ _testQEMU_x64-raspi() {
 	
 	! _testQEMU_hostArch_x64-raspi && echo "warn: not checking x64 translation" && return 0
 	
-	if ! sudo -n /usr/sbin/update-binfmts --display | grep qemu > /dev/null 2>&1
+	
+	
+	
+	if ! sudo -n cat /proc/sys/fs/binfmt_misc/* 2> /dev/null | grep qemu | grep 'arm$\|arm-static$' > /dev/null 2>&1
 	then
 		echo 'binfmts does not mention qemu-arm'
 		_stop 1
 	fi
 	
-	if ! sudo -n /usr/sbin/update-binfmts --display | grep qemu-armeb-static > /dev/null 2>&1
+	if ! sudo -n cat /proc/sys/fs/binfmt_misc/* 2> /dev/null | grep qemu | grep 'armeb$\|armeb-static$' > /dev/null 2>&1
 	then
 		echo 'binfmts does not mention qemu-armeb'
 		_stop 1
@@ -6419,8 +7167,34 @@ _qemu_system_aarch64() {
 	qemu-system-aarch64 "$@"
 }
 
+_integratedQemu_imagefilename() {
+	if [[ "$ubVirtDiskOverride" == "" ]]
+	then
+		local current_imagefilename
+		if ! current_imagefilename=$(_loopImage_imagefilename)
+		then
+			_messagePlain_bad 'fail: missing: vm*.img'
+			return 1
+		fi
+	else
+		current_imagefilename="$ubVirtDiskOverride"
+	fi
+	
+	echo "$current_imagefilename"
+	
+	return 0
+}
+
 _integratedQemu_x64() {
 	_messagePlain_nominal 'init: _integratedQemu_x64'
+	
+	
+	local current_imagefilename
+	if ! current_imagefilename=$(_integratedQemu_imagefilename)
+	then
+		_stop 1
+	fi
+	
 	
 	! mkdir -p "$instancedVirtDir" && _messagePlain_bad 'fail: mkdir -p instancedVirtDir= '"$instancedVirtDir" && _stop 1
 	
@@ -6438,16 +7212,35 @@ _integratedQemu_x64() {
 	if _testQEMU_hostArch_x64_nested
 	then
 		_messagePlain_good 'supported: nested x64'
-		qemuArgs+=(-cpu host)
+		
+		# WARNING: Nested virtualization support currently disabled by default. May impose frequent software updates or commonality between host/guest.
+		# Fail for Debian Buster/Stretch host/guest.
+		# Reasonably expected to fail with proprietary guest.
+		# https://bugzilla.redhat.com/show_bug.cgi?id=1565179
+		
+		# ATTENTION: Overload "demandNestKVM" with "ops" or similar.
+		if [[ "$demandNestKVM" == 'true' ]] #|| ( ! [[ "$virtOStype" == 'MSW'* ]] && ! [[ "$virtOStype" == 'Windows'* ]] && ! [[ "$vboxOStype" == 'Windows'* ]] )
+		then
+			[[ "$demandNestKVM" == 'true' ]] && _messagePlain_warn 'force: nested x64'
+			_messagePlain_warn 'warn: set: nested x64'
+			qemuArgs+=(-cpu host)
+		else
+			_messagePlain_good 'unset: nested x64'
+		fi
+		
 	else
-		_messagePlain_warn 'warn: no nested x64'
+		_messagePlain_warn 'missing: nested x64'
 	fi
 	
 	local hostThreadCount=$(cat /proc/cpuinfo | grep MHz | wc -l | tr -dc '0-9')
 	[[ "$hostThreadCount" -ge "4" ]] && [[ "$hostThreadCount" -lt "8" ]] && _messagePlain_probe 'cpu: >4' && qemuArgs+=(-smp 4)
 	[[ "$hostThreadCount" -ge "8" ]] && _messagePlain_probe 'cpu: >6' && qemuArgs+=(-smp 6)
 	
-	qemuUserArgs+=(-drive format=raw,file="$scriptLocal"/vm.img -drive file="$hostToGuestISO",media=cdrom -boot c)
+	#https://superuser.com/questions/342719/how-to-boot-a-physical-windows-partition-with-qemu
+	#qemuUserArgs+=(-drive format=raw,file="$scriptLocal"/vm.img)
+	qemuUserArgs+=(-drive format=raw,file="$current_imagefilename")
+	
+	qemuUserArgs+=(-drive file="$hostToGuestISO",media=cdrom -boot c)
 	
 	[[ "$vmMemoryAllocation" == "" ]] && vmMemoryAllocation="$vmMemoryAllocationDefault"
 	qemuUserArgs+=(-m "$vmMemoryAllocation")
@@ -6494,6 +7287,14 @@ _integratedQemu_x64() {
 _integratedQemu_raspi() {
 	_messagePlain_nominal 'init: _integratedQemu_raspi'
 	
+	
+	local current_imagefilename
+	if ! current_imagefilename=$(_integratedQemu_imagefilename)
+	then
+		_stop 1
+	fi
+	
+	
 	! mkdir -p "$instancedVirtDir" && _messagePlain_bad 'fail: mkdir -p instancedVirtDir= '"$instancedVirtDir" && _stop 1
 	
 	! _commandBootdisc "$@" && _messagePlain_bad 'fail: _commandBootdisc' && _stop 1
@@ -6508,8 +7309,13 @@ _integratedQemu_raspi() {
 	#local hostThreadCount=$(cat /proc/cpuinfo | grep MHz | wc -l | tr -dc '0-9')
 	#[[ "$hostThreadCount" -ge "4" ]] && _messagePlain_probe 'cpu: >4' && qemuArgs+=(-smp 4)
 	
-	qemuUserArgs+=(-drive format=raw,file="$scriptLocal"/vm-raspbian.img)
+	#https://superuser.com/questions/342719/how-to-boot-a-physical-windows-partition-with-qemu
+	#qemuUserArgs+=(-drive format=raw,file="$scriptLocal"/vm-raspbian.img)
+	qemuUserArgs+=(-drive format=raw,file="$current_imagefilename")
+	
+	
 	#qemuUserArgs+=(-drive if=none,id=uas-cdrom,media=cdrom,file="$hostToGuestISO" -device nec-usb-xhci,id=xhci -device usb-uas,id=uas,bus=xhci.0 -device scsi-cd,bus=uas.0,scsi-id=0,lun=5,drive=uas-cdrom)
+	
 	qemuUserArgs+=(-drive file="$hostToGuestISO",media=cdrom -boot c)
 	
 	#[[ "$vmMemoryAllocation" == "" ]] && vmMemoryAllocation="$vmMemoryAllocationDefault"
@@ -6545,20 +7351,27 @@ _integratedQemu_raspi() {
 }
 
 _integratedQemu() {
-	if [[ -e "$scriptLocal"/vm.img ]]
+	# Include platform determination code for correct determination of partition and mounts.
+	_loopImage_imagefilename > /dev/null 2>&1
+	
+	if [[ "$ubVirtPlatform" == "x64-bios" ]]
 	then
-		_integratedQemu_x64 "$@"
-		return 0
+		_integratedQemu_x64
+		return "$?"
 	fi
 	
-	if [[ -e "$scriptLocal"/vm-raspbian.img ]]
+	# TODO: 'efi' .
+	#https://unix.stackexchange.com/questions/52996/how-to-boot-efi-kernel-using-qemu-kvm
+	
+	if [[ "$ubVirtPlatform" == "raspbian" ]]
 	then
-		_integratedQemu_raspi "$@"
-		return 0
+		_integratedQemu_raspi
+		return "$?"
 	fi
 	
-	_messagePlain_bad 'fail: missing: vm*.img'
-	return 1
+	#Default x64 .
+	"$scriptAbsoluteLocation" _integratedQemu_x64
+	return "$?"
 }
 
 #"${qemuSpecialArgs[@]}" == ["-snapshot "]
@@ -6631,6 +7444,8 @@ _testVBox() {
 _checkVBox_raw() {
 	#Use existing VDI image if available.
 	[[ -e "$scriptLocal"/vm.vdi ]] && _messagePlain_bad 'conflict: vm.vdi' && return 1
+	
+	# WARNING: Only 'vm.img' is supported as a raw image file name for vbox virtualization backend.
 	[[ ! -e "$scriptLocal"/vm.img ]] && _messagePlain_bad 'missing: vm.img' && return 1
 	
 	return 0
@@ -6647,7 +7462,6 @@ _create_vbox_raw() {
 	return 0
 }
 
-
 _mountVBox_raw_sequence() {
 	_messagePlain_nominal 'start: _mountVBox_raw_sequence'
 	_start
@@ -6660,13 +7474,7 @@ _mountVBox_raw_sequence() {
 	
 	rm -f "$vboxRaw" > /dev/null 2>&1
 	
-	_messagePlain_nominal 'Creating loopback.'
-	! sudo -n losetup -f -P --show "$scriptLocal"/vm.img > "$safeTmp"/vboxloop 2> /dev/null && _messagePlain_bad 'fail: losetup' && _stop 1
 	
-	! cp -n "$safeTmp"/vboxloop "$scriptLocal"/vboxloop > /dev/null 2>&1 && _messagePlain_bad 'fail: copy vboxloop' && _stop 1
-	
-	local vboximagedev
-	vboximagedev=$(cat "$safeTmp"/vboxloop)
 	
 	if _tryExecFull _hook_systemd_shutdown_action "_closeVBoxRaw" "$sessionid"
 	then
@@ -6675,10 +7483,37 @@ _mountVBox_raw_sequence() {
 		_messagePlain_bad 'fail: _hook_systemd_shutdown_action'
 	fi
 	
-	! sudo -n chown "$USER" "$vboximagedev" && _messagePlain_bad 'chown vboximagedev= '"$vboximagedev" && _stop 1
+	
+	
+	
+	local current_imagefilename
+	current_imagefilename=$(_loopImage_imagefilename)
+	
+	_messagePlain_nominal 'Creating loopback.'
+	
+	# Echo error message.
+	[[ -e "$scriptLocal"/vboxloop ]] && _messagePlain_bad 'fail: copy vboxloop' && _stop 1
+	
+	! _loopFull "$scriptLocal"/vboxloop && _messagePlain_bad 'fail: losetup' && _stop 1
+	
+	
+	
+	local vboximagedev
+	vboximagedev=$(cat "$scriptLocal"/vboxloop)
+	
+	
+	if _detect_deviceAsVirtImage "$current_imagefilename"
+	then
+		_messagePlain_warn 'warn: chown: ignoring device'
+	else
+		! sudo -n chown "$USER" "$vboximagedev" && _messagePlain_bad 'chown vboximagedev= '"$vboximagedev" && _stop 1
+	fi
+	
 	
 	_messagePlain_nominal 'Creating VBoxRaw.'
 	_create_vbox_raw "$vboximagedev"
+	
+	
 	
 	_messagePlain_nominal 'stop: _mountVBox_raw_sequence'
 	_safeRMR "$instancedVirtDir" || _stop 1
@@ -6699,10 +7534,7 @@ _waitVBox_opening() {
 }
 
 _umountVBox_raw() {
-	local vboximagedev
-	vboximagedev=$(cat "$scriptLocal"/vboxloop)
-	
-	sudo -n losetup -d "$vboximagedev" > /dev/null 2>&1 || return 1
+	! _umountFull "$scriptLocal"/vboxloop && _stop 1
 	
 	rm -f "$scriptLocal"/vboxloop > /dev/null 2>&1
 	rm -f "$vboxRaw" > /dev/null 2>&1
@@ -6803,6 +7635,31 @@ _labVBox() {
 	_launch_lab_vbox "$@"
 }
 
+_launch_lab_vbox_manage_sequence() {
+	_start
+	
+	_prepare_lab_vbox || return 1
+	
+	#Directly opening raw images in the VBoxLab environment is not recommended, due to changing VMDK disk identifiers.
+	#Better practice may be to instead programmatically construct the raw image virtual machines before opening VBoxLab environment.
+	#_openVBoxRaw
+	
+	env HOME="$VBOX_USER_HOME_short" VBoxManage "$@"
+	
+	_wait_lab_vbox
+	
+	_stop
+}
+
+_launch_lab_vbox_manage() {	
+	"$scriptAbsoluteLocation" _launch_lab_vbox_manage_sequence "$@"
+}
+
+_labVBoxManage() {
+	_launch_lab_vbox_manage "$@"
+}
+
+
 _vboxlabSSH() {
 	ssh -q -F "$scriptLocal"/vblssh -i "$scriptLocal"/id_rsa "$1"
 }
@@ -6895,9 +7752,10 @@ _vboxGUI() {
 
 _set_instance_vbox_type() {
 	#[[ "$vboxOStype" == "" ]] && export vboxOStype=Debian_64
-	#[[ "$vboxOStype" == "" ]] && export vboxOStype=Gentoo
+	#[[ "$vboxOStype" == "" ]] && export vboxOStype=Gentoo_64
 	#[[ "$vboxOStype" == "" ]] && export vboxOStype=Windows2003
 	#[[ "$vboxOStype" == "" ]] && export vboxOStype=WindowsXP
+	#[[ "$vboxOStype" == "" ]] && export vboxOStype=Windows10_64
 	
 	[[ "$vboxOStype" == "" ]] && _readLocked "$lock_open" && export vboxOStype=Debian_64
 	[[ "$vboxOStype" == "" ]] && export vboxOStype=WindowsXP
@@ -6913,11 +7771,136 @@ _set_instance_vbox_type() {
 	return 1
 }
 
+_set_instance_vbox_cores_more() {
+	[[ "$1" -ge "$vboxCPUs" ]] && _messagePlain_probe 'cpu: >'"$1" && export vboxCPUs="$1"
+}
+
+# ATTENTION: Override, function, or, variables, with "ops" or similar.
+# WARNING: Do not cause use of more than half the number of physical cores (not threads) unless specifically required.
+_set_instance_vbox_cores() {
+	# DANGER: Do not set "vboxCPUs" unless specifically required.
+	# Intended only where specifically necessary to force a specific number of threads (eg. "1").
+	# FAIL if "hostThreadCount" < "vboxCPUs" .
+	# FAIL or DEGRADE if "hostCoreCount" < "vboxCPUs" .
+	# POSSIBLE DEGRADE if nesting AND "vboxCPUs" != "" .
+	[[ "$vboxCPUs" != "" ]] && _messagePlain_warn 'warn: configured: force: vboxCPUs= '"$vboxCPUs" && return 0
+	
+	export vboxCPUs=1
+	
+	local hostCoreCount
+	local hostThreadCount
+	local hostThreadAllowance
+	
+	
+	# Physical Cores.
+	local hostCoreCount=$(grep ^cpu\\scores /proc/cpuinfo | head -n 1 | tr -dc '0-9')
+	
+	# Logical Threads.
+	local hostThreadCount=$(cat /proc/cpuinfo | grep MHz | wc -l | tr -dc '0-9')
+	
+	# Typical stability margin reservation.
+	let hostThreadAllowance="$hostCoreCount"-2
+	
+	_messagePlain_probe_var hostCoreCount
+	_messagePlain_probe_var hostThreadCount
+	
+	# Catch core/thread detection failure.
+	if [[ "$hostCoreCount" -lt "1" ]] || [[ "$hostCoreCount" == "" ]] || [[ "$hostThreadCount" -lt "1" ]] || [[ "$hostThreadCount" == "" ]]
+	then
+		_messagePlain_bad 'fail: hostCoreCount, hostThreadCount'
+		_messagePlain_warn 'missing: smp: force: vboxCPUs= '1
+		
+		# Default, allow single threaded operation if core/thread count was indeterminite.
+		return 0
+	fi
+	
+	# Logical Threads > Physical Cores ('SMT', 'Hyper-Threading', etc)
+	if [[ "$hostThreadCount" -gt "$hostCoreCount" ]]
+	then
+		# Logical Threads Present
+		_messagePlain_good 'detect: logical threads'
+		
+		[[ "$hostCoreCount" -lt "6" ]] && _set_instance_vbox_cores_more "$hostCoreCount"
+		
+		# DANGER: Do not set "vboxCPUsAllowManyThreads" if processor capabilities (eg. Intel Atom) will be uncertain and/or host/guest latencies may be important.
+		# Not recommended for Intel i7-2640M (as found in Lenovo X220) or older hosts.
+		# Nevertheless, power efficiency (eg Intel Atom) may be a good reason to specifically enable this.
+		# https://unix.stackexchange.com/questions/325932/virtualbox-is-it-a-bad-idea-to-assign-more-virtual-cpu-cores-than-number-of-phy
+		# https://en.wikipedia.org/wiki/Hyper-threading
+		if [[ "$vboxCPUsAllowManyThreads" == 'true' ]]
+		then
+			_messagePlain_warn 'warn: configured: vboxCPUsAllowManyThreads'
+			
+			[[ "$hostCoreCount" -lt "4" ]] && _set_instance_vbox_cores_more "$hostThreadCount"
+			
+			let hostThreadAllowance="$hostThreadCount"-2
+			_set_instance_vbox_cores_more "$hostThreadAllowance"
+		fi
+		
+		# WARNING: Do not set "vboxCPUsAllowManyCores" unless it is acceptable for guest to consume (at least nearly) 100% CPU cores/threads/time/resources.
+		if [[ "$vboxCPUsAllowManyCores" == 'true' ]]
+		then
+			_messagePlain_probe 'configured: vboxCPUsAllowManyCores'
+			
+			let hostThreadAllowance="$hostCoreCount"-2
+			_set_instance_vbox_cores_more "$hostThreadAllowance"
+		fi
+		
+		[[ "$hostCoreCount" -ge "32" ]] && _set_instance_vbox_cores_more 20
+		
+		[[ "$hostCoreCount" -lt "32" ]] && [[ "$hostCoreCount" -ge "24" ]] && _set_instance_vbox_cores_more 14
+		[[ "$hostCoreCount" -lt "24" ]] && [[ "$hostCoreCount" -ge "16" ]] && _set_instance_vbox_cores_more 10
+		[[ "$hostCoreCount" -lt "16" ]] && [[ "$hostCoreCount" -ge "12" ]] && _set_instance_vbox_cores_more 8
+		[[ "$hostCoreCount" -lt "12" ]] && [[ "$hostCoreCount" -ge "10" ]] && _set_instance_vbox_cores_more 8
+		[[ "$hostCoreCount" -lt "10" ]] && [[ "$hostCoreCount" -ge "8" ]] && _set_instance_vbox_cores_more 6
+		[[ "$hostCoreCount" -lt "8" ]] && [[ "$hostCoreCount" -ge "6" ]] && _set_instance_vbox_cores_more 4
+		
+		
+	else
+		# Logical Threads Absent
+		_messagePlain_bad 'missing: logical threads'
+		
+		[[ "$hostCoreCount" -lt "4" ]] && _set_instance_vbox_cores_more "$hostCoreCount"
+		
+		# WARNING: Do not set "vboxCPUsAllowManyCores" unless it is acceptable for guest to consume (at least nearly) 100% CPU cores/threads/time/resources.
+		if [[ "$vboxCPUsAllowManyCores" == 'true' ]]
+		then
+			let hostThreadAllowance="$hostCoreCount"-2
+			_set_instance_vbox_cores_more "$hostThreadAllowance"
+		fi
+		
+		[[ "$hostCoreCount" -ge "32" ]] && _set_instance_vbox_cores_more 16
+		
+		[[ "$hostCoreCount" -lt "32" ]] && [[ "$hostCoreCount" -ge "24" ]] && _set_instance_vbox_cores_more 12
+		[[ "$hostCoreCount" -lt "24" ]] && [[ "$hostCoreCount" -ge "16" ]] && _set_instance_vbox_cores_more 8
+		[[ "$hostCoreCount" -lt "16" ]] && [[ "$hostCoreCount" -ge "10" ]] && _set_instance_vbox_cores_more 6
+		[[ "$hostCoreCount" -lt "10" ]] && [[ "$hostCoreCount" -ge "8" ]] && _set_instance_vbox_cores_more 4
+		[[ "$hostCoreCount" -lt "8" ]] && [[ "$hostCoreCount" -ge "4" ]] && _set_instance_vbox_cores_more 4
+	fi
+	
+	# ATTENTION: Do not set "vboxCPUsMax" unless specifically required.
+	if [[ "$vboxCPUsMax" != "" ]]
+	then
+		_messagePlain_warn 'warn: configured: vboxCPUsMax= '"$vboxCPUsMax"
+		[[ "$vboxCPUs" -ge "$vboxCPUsMax" ]] && export vboxCPUs="$vboxCPUsMax"
+	fi
+	
+	_messagePlain_probe_var vboxCPUs
+	return 0
+}
+
 _set_instance_vbox_features() {
 	#VBoxManage modifyvm "$sessionid" --boot1 disk --biosbootmenu disabled --bioslogofadein off --bioslogofadeout off --bioslogodisplaytime 5 --vram 128 --memory 1512 --nic1 nat --nictype1 "82543GC" --clipboard bidirectional --accelerate3d off --accelerate2dvideo off --vrde off --audio pulse --usb on --cpus 1 --ioapic off --acpi on --pae off --chipset piix3
 	
-	[[ "$vboxNic" == "" ]] && vboxNic="nat"
+	! _set_instance_vbox_cores && return 1
+	
+	# WARNING: Do not set "$vmMemoryAllocation" to a high number unless specifically required.
+	[[ "$vmMemoryAllocation" == "" ]] && vmMemoryAllocation="$vmMemoryAllocationDefault"
+	_messagePlain_probe 'vmMemoryAllocation= '"$vmMemoryAllocation"
+	
+	[[ "$vboxNic" == "" ]] && export vboxNic="nat"
 	_messagePlain_probe 'vboxNic= '"$vboxNic"
+	
 	
 	local vboxChipset
 	vboxChipset="ich9"
@@ -6936,24 +7919,70 @@ _set_instance_vbox_features() {
 	[[ "$vboxOStype" == *"Win"*"10"* ]] && vboxAudioController="hda"
 	_messagePlain_probe 'vboxAudioController= '"$vboxAudioController"
 	
-	[[ "$vmMemoryAllocation" == "" ]] && vmMemoryAllocation="$vmMemoryAllocationDefault"
-	_messagePlain_probe 'vmMemoryAllocation= '"$vmMemoryAllocation"
-	
 	_messagePlain_nominal "Setting VBox VM features."
-	if ! VBoxManage modifyvm "$sessionid" --biosbootmenu disabled --bioslogofadein off --bioslogofadeout off --bioslogodisplaytime 1 --vram 128 --memory "$vmMemoryAllocation" --nic1 "$vboxNic" --nictype1 "$vboxNictype" --clipboard bidirectional --accelerate3d off --accelerate2dvideo off --vrde off --audio pulse --usb on --cpus 4 --ioapic on --acpi on --pae on --chipset "$vboxChipset" --audiocontroller="$vboxAudioController"
+	
+	if ! _messagePlain_probe_cmd VBoxManage modifyvm "$sessionid" --biosbootmenu disabled --bioslogofadein off --bioslogofadeout off --bioslogodisplaytime 1 --vram 128 --memory "$vmMemoryAllocation" --nic1 "$vboxNic" --nictype1 "$vboxNictype" --accelerate3d off --accelerate2dvideo off --vrde off --audio null --audioin off --audioout on --usb on --cpus "$vboxCPUs" --ioapic on --acpi on --pae on --chipset "$vboxChipset" --audiocontroller="$vboxAudioController"
 	then
-		_messagePlain_probe VBoxManage modifyvm "$sessionid" --biosbootmenu disabled --bioslogofadein off --bioslogofadeout off --bioslogodisplaytime 1 --vram 128 --memory "$vmMemoryAllocation" --nic1 "$vboxNic" --nictype1 "$vboxNictype" --clipboard bidirectional --accelerate3d off --accelerate2dvideo off --vrde off --audio pulse --usb on --cpus 4 --ioapic on --acpi on --pae on --chipset "$vboxChipset" --audiocontroller="$vboxAudioController"
 		_messagePlain_bad 'fail: VBoxManage'
 		return 1
 	fi
+	
+	#_messagePlain_probe_cmd VBoxManage controlvm "$sessionid" clipboard bidirectional
+	
+	# Linux hosts may benefit from 'vboxsvga' instead of 'vmsvga'.
+	#https://wiki.gentoo.org/wiki/VirtualBox
+	#Testing shows this may not be the case, and 3D acceleration reportedly requires vmsvga.
+	if [[ "$vboxOStype" == *"Debian"* ]] || [[ "$vboxOStype" == *"Gentoo"* ]]
+	then
+		# Assuming x64 hosts served by VBox will have at least 'Intel HD Graphics 3000' (as found on X220 laptop/tablet) equivalent. Lesser hardware not recommended.
+		if [[ "$vboxCPUs" -ge "2" ]]
+		then
+			if ! _messagePlain_probe_cmd VBoxManage modifyvm "$sessionid" --graphicscontroller vmsvga --accelerate3d on --accelerate2dvideo off
+			then
+				_messagePlain_warn 'warn: fail: VBoxManage: --graphicscontroller vmsvga --accelerate3d on --accelerate2dvideo off'
+			fi
+		else
+			if ! _messagePlain_probe_cmd VBoxManage modifyvm "$sessionid" --graphicscontroller vmsvga --accelerate3d off --accelerate2dvideo off
+			then
+				_messagePlain_warn 'warn: fail: VBoxManage: --graphicscontroller vboxsvga --accelerate3d off --accelerate2dvideo off'
+			fi
+		fi
+	fi
+	
+	# Assuming x64 hosts served by VBox will have at least 'Intel HD Graphics 3000' (as found on X220 laptop/tablet) equivalent. Lesser hardware not recommended.
+	if [[ "$vboxOStype" == *"Win"*"10"* ]] && [[ "$vboxCPUs" -ge "2" ]]
+	then
+		_messagePlain_probe VBoxManage modifyvm "$sessionid" --graphicscontroller vboxsvga --accelerate3d on --accelerate2dvideo on
+		if ! VBoxManage modifyvm "$sessionid" --graphicscontroller vboxsvga --accelerate3d on --accelerate2dvideo on
+		then
+			_messagePlain_warn 'warn: fail: VBoxManage: --graphicscontroller vboxsvga --accelerate3d on --accelerate2dvideo on'
+		fi
+	fi
+	
 	return 0
 	
 }
 
 _set_instance_vbox_features_app() {
 	true
-	#[[ "$vboxOStype" == *"Win"*"XP"* ]] && vboxChipset="piix3"
-	#VBoxManage modifyvm "$sessionid" --usbxhci on
+	
+	#if [[ "$vboxOStype" == *"Win"*"XP"* ]]
+	#then
+	#	export vboxChipset="piix3"
+	#	! VBoxManage modifyvm "$sessionid" --chipset "$vboxChipset" && return 1
+	#fi
+	
+	#! VBoxManage modifyvm "$sessionid" --usbxhci on && return 1
+}
+
+_set_instance_vbox_features_app_post() {
+	true
+	
+	# WARNING: Change to 'SATA Controller' if appropriate.
+	#if ! _messagePlain_probe_cmd VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 2 --device 0 --type hdd --medium "$scriptLocal"/vm_bulk.vdi --mtype "immutable"
+	#then
+	#	_messagePlain_warn 'fail: vm_bulk.vdi'
+	#fi
 }
 
 _set_instance_vbox_share() {
@@ -6979,32 +8008,7 @@ _set_instance_vbox_command() {
 	return 0
 }
 
-_create_instance_vbox() {
-	
-	#Use existing VDI image if available.
-	if ! [[ -e "$scriptLocal"/vm.vdi ]]
-	then
-		_messagePlain_nominal 'Missing VDI. Attempting to create from IMG.'
-		! _openVBoxRaw && _messageError 'FAIL' && return 1
-	fi
-	
-	_messagePlain_nominal 'Checking VDI file.'
-	export vboxInstanceDiskImage="$scriptLocal"/vm.vdi
-	_readLocked "$lock_open" && vboxInstanceDiskImage="$vboxRaw"
-	! [[ -e "$vboxInstanceDiskImage" ]] && _messagePlain_bad 'missing: vboxInstanceDiskImage= '"$vboxInstanceDiskImage" && return 1
-	
-	_messagePlain_nominal 'Determining OS type.'
-	_set_instance_vbox_type
-	
-	! _set_instance_vbox_features && _messageError 'FAIL' && return 1
-	
-	! _set_instance_vbox_features_app && _messageError 'FAIL: unknown app failure' && return 1
-	
-	_set_instance_vbox_command "$@"
-	
-	_messagePlain_nominal 'Mounting shared filesystems.'
-	_set_instance_vbox_share
-	
+_create_instance_vbox_storageattach_ide() {
 	_messagePlain_nominal 'Attaching local filesystems.'
 	! VBoxManage storagectl "$sessionid" --name "IDE Controller" --add ide --controller PIIX4 && _messagePlain_bad 'fail: VBoxManage... attach ide controller'
 	
@@ -7017,13 +8021,83 @@ _create_instance_vbox() {
 	! VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype" && _messagePlain_bad 'fail: VBoxManage... attach vboxInstanceDiskImage= '"$vboxInstanceDiskImage"
 	
 	[[ -e "$hostToGuestISO" ]] && ! VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 1 --device 0 --type dvddrive --medium "$hostToGuestISO" && _messagePlain_bad 'fail: VBoxManage... attach hostToGuestISO= '"$hostToGuestISO"
+}
+
+_create_instance_vbox_storageattach_sata() {
+	_messagePlain_nominal 'Attaching local filesystems.'
+	! VBoxManage storagectl "$sessionid" --name "SATA Controller" --add sata --controller IntelAHCI --portcount 5 --hostiocache on && _messagePlain_bad 'fail: VBoxManage... attach sata controller'
+	
+	#export vboxDiskMtype="normal"
+	#[[ "$vboxDiskMtype" == "" ]] && export vboxDiskMtype="multiattach"
+	[[ "$vboxDiskMtype" == "" ]] && export vboxDiskMtype="immutable"
+	_messagePlain_probe 'vboxDiskMtype= '"$vboxDiskMtype"
+	
+	_messagePlain_probe VBoxManage storageattach "$sessionid" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype"
+	! VBoxManage storageattach "$sessionid" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype" && _messagePlain_bad 'fail: VBoxManage... attach vboxInstanceDiskImage= '"$vboxInstanceDiskImage"
+	
+	[[ -e "$hostToGuestISO" ]] && ! VBoxManage storageattach "$sessionid" --storagectl "SATA Controller" --port 1 --device 0 --type dvddrive --medium "$hostToGuestISO" && _messagePlain_bad 'fail: VBoxManage... attach hostToGuestISO= '"$hostToGuestISO"
+}
+
+_create_instance_vbox_storageattach() {
+	# IDE Controller found to have some problems with at least Gentoo_64 EFI guests.
+	# WARNING: Do NOT change without consideration for legacy VMs.
+	if [[ "$ubVirtPlatformOverride" == *'efi' ]] || ( [[ "$vboxOStype" != "" ]] && [[ "$vboxOStype" != *"Debian"* ]] && [[ "$vboxOStype" != *"Win"*"XP"* ]] && [[ "$vboxOStype" != *"Win"*"10"* ]] && [[ "$vboxOStype" != *"Win"* ]] )
+	then
+		_create_instance_vbox_storageattach_sata
+		return
+	fi
+	
+	# Legacy default.
+	_create_instance_vbox_storageattach_ide
+	return
+}
+
+_create_instance_vbox() {
+	
+	#Use existing VDI image if available.
+	if ! [[ -e "$scriptLocal"/vm.vdi ]]
+	then
+		# IMG file may be a device file. See 'virtualization/image/mountimage.sh' .
+		_messagePlain_nominal 'Missing VDI. Attempting to open IMG.'
+		! _openVBoxRaw && _messageError 'FAIL' && return 1
+	fi
+	
+	_messagePlain_nominal 'Checking VDI or IMG availability.'
+	export vboxInstanceDiskImage="$scriptLocal"/vm.vdi
+	_readLocked "$lock_open" && vboxInstanceDiskImage="$vboxRaw"
+	! [[ -e "$vboxInstanceDiskImage" ]] && _messagePlain_bad 'missing: vboxInstanceDiskImage= '"$vboxInstanceDiskImage" && return 1
+	
+	_messagePlain_nominal 'Determining OS type.'
+	_set_instance_vbox_type
+	
+	! _set_instance_vbox_features && _messageError 'FAIL' && return 1
+	
+	
+	if [[ "$ubVirtPlatformOverride" == *'efi' ]]
+	then
+		VBoxManage modifyvm "$sessionid" --firmware efi64
+	else
+		# Default.
+		VBoxManage modifyvm "$sessionid" --firmware bios
+	fi
+	
+	! _set_instance_vbox_features_app && _messageError 'FAIL: unknown app failure' && return 1
+	
+	_set_instance_vbox_command "$@"
+	
+	_messagePlain_nominal 'Mounting shared filesystems.'
+	_set_instance_vbox_share
+	
+	_create_instance_vbox_storageattach
+	
+	
 	
 	#VBoxManage showhdinfo "$scriptLocal"/vm.vdi
 
 	#Suppress annoying warnings.
 	! VBoxManage setextradata global GUI/SuppressMessages "remindAboutAutoCapture,remindAboutMouseIntegration,remindAboutMouseIntegrationOn,showRuntimeError.warning.HostAudioNotResponding,remindAboutGoingSeamless,remindAboutInputCapture,remindAboutGoingFullscreen,remindAboutMouseIntegrationOff,confirmGoingSeamless,confirmInputCapture,remindAboutPausedVMInput,confirmVMReset,confirmGoingFullscreen,remindAboutWrongColorDepth" && _messagePlain_warn 'fail: VBoxManage... suppress messages'
 	
-	
+	_set_instance_vbox_features_app_post
 	
 	return 0
 }
@@ -7109,6 +8183,38 @@ _editVBox() {
 	_edit_instance_vbox "$@"
 	_messageNormal 'End: '"$@"
 }
+
+
+
+
+_launch_user_vbox_manage_sequence() {
+	_start
+	
+	_prepare_instance_vbox || _stop 1
+	
+	_readLocked "$vBox_vdi" && return 1
+	
+	_createLocked "$vBox_vdi" || return 1
+	
+	env HOME="$VBOX_USER_HOME_short" VBoxManage "$@"
+	
+	_wait_instance_vbox
+	
+	rm -f "$vBox_vdi" > /dev/null 2>&1
+	
+	_rm_instance_vbox
+	
+	_stop
+}
+
+_launch_user_vbox_manage() {
+	"$scriptAbsoluteLocation" _launch_user_vbox_manage_sequence "$@"
+}
+
+_userVBoxManage() {
+	_launch_user_vbox_manage "$@"
+}
+
 
 
 _here_dosbox_base_conf() {
@@ -7506,10 +8612,18 @@ _wine() {
 #####Shortcuts
 
 _visualPrompt() {
-#+%H:%M:%S\ %Y-%m-%d\ Q%q
-#+%H:%M:%S\ %b\ %d,\ %y
-export PS1='\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]-|\[\033[01;31m\]${?}:${debian_chroot:+($debian_chroot)}\[\033[01;33m\]\u\[\033[01;32m\]@\h\[\033[01;36m\]\[\033[01;34m\])-\[\033[01;36m\]------------------------\[\033[01;34m\]-(\[\033[01;35m\]$(date +%H:%M:%S\ .%d)\[\033[01;34m\])-\[\033[01;36m\]- -|\[\033[00m\]\n\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]-|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]+\[\033[01;34m\]-|\#) \[\033[36m\]>\[\033[00m\] '
-} 
+	#+%H:%M:%S\ %Y-%m-%d\ Q%q
+	#+%H:%M:%S\ %b\ %d,\ %y
+
+	#Long.
+	#export PS1='\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]-|\[\033[01;31m\]${?}:${debian_chroot:+($debian_chroot)}\[\033[01;33m\]\u\[\033[01;32m\]@\h\[\033[01;36m\]\[\033[01;34m\])-\[\033[01;36m\]--\[\033[01;34m\]-(\[\033[01;35m\]$(date +%H:%M:%S\ .%d)\[\033[01;34m\])-\[\033[01;36m\]-|\[\033[00m\]\n\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]-|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]+\[\033[01;34m\]-|\#) \[\033[36m\]>\[\033[00m\] '
+
+	#Short.
+	#export PS1='\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]|\[\033[01;31m\]${?}:${debian_chroot:+($debian_chroot)}\[\033[01;33m\]\u\[\033[01;32m\]@\h\[\033[01;36m\]\[\033[01;34m\])-\[\033[01;36m\]-\[\033[01;34m\]-(\[\033[01;35m\]$(date +%H:%M:%S\ .%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]\n\[\033[01;40m\]\[\033[01;36m\]+\[\033[01;34m\]|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]+\[\033[01;34m\]|\#) \[\033[36m\]>\[\033[00m\] '
+	
+	#Truncated, 40 columns.
+	export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${debian_chroot:+($debian_chroot)}\[\033[01;33m\]\u\[\033[01;32m\]@\h\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-(\[\033[01;35m\]$(date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|\#) \[\033[36m\]>\[\033[00m\] '
+}
 
 #https://stackoverflow.com/questions/15432156/display-filename-before-matching-line-grep
 _grepFileLine() {
@@ -7531,10 +8645,12 @@ _findFunction() {
 }
 
 _test_devemacs() {
-	_getDep emacs
+	_wantGetDep emacs
 	
 	local emacsDetectedVersion=$(emacs --version | head -n 1 | cut -f 3 -d\ | cut -d\. -f1)
-	! [[ "$emacsDetectedVersion" -ge "24" ]] && echo emacs too old && _stop 1
+	! [[ "$emacsDetectedVersion" -ge "24" ]] && echo emacs too old && return 1
+	
+	return 0
 }
 
 _set_emacsFakeHomeSource() {
@@ -7659,12 +8775,14 @@ _ubdb() {
 }
 
 _test_devatom() {
-	_getDep rsync
+	_wantGetDep rsync
 	
-	_getDep atom
+	_wantGetDep atom
 	
 	#local atomDetectedVersion=$(atom --version | head -n 1 | cut -f 2- -d \: | cut -f 2- -d \  | cut -f 2 -d \. )
-	#! [[ "$atomDetectedVersion" -ge "27" ]] && echo atom too old && _stop 1
+	#! [[ "$atomDetectedVersion" -ge "27" ]] && echo atom too old && return 1
+	
+	return 0
 }
 
 _install_fakeHome_atom() {	
@@ -7780,7 +8898,7 @@ _ubide() {
 }
 
 _test_deveclipse() {
-	_getDep eclipse
+	_wantGetDep eclipse
 	
 	! [[ -e /usr/share/eclipse/dropins/cdt ]] && echo 'warn: missing: /usr/share/eclipse/dropins/cdt'
 }
@@ -8093,8 +9211,9 @@ _ops_scope() {
 	_messagePlain_nominal '_ops_scope'
 	
 	#Find/run ops file in project dir.
-	! [[ -e "$ub_specimen"/ops ]] && _messagePlain_warn 'aU: undef: sketch ops'
-	[[ -e "$ub_specimen"/ops ]] && _messagePlain_good 'aU: found: sketch ops' && . "$ub_specimen"/ops
+	! [[ -e "$ub_specimen"/ops ]] && ! [[ -e "$ub_specimen"/ops.sh ]] && _messagePlain_warn 'aU: undef: sketch ops'
+	[[ -e "$ub_specimen"/ops ]] && _messagePlain_good 'aU: found: sketch ops: ops' && . "$ub_specimen"/ops
+	[[ -e "$ub_specimen"/ops.sh ]] && _messagePlain_good 'aU: found: sketch ops: ops.sh' && . "$ub_specimen"/ops.sh
 }
 
 #"$1" == ub_specimen
@@ -8351,7 +9470,7 @@ _scope_dolphin() {
 }
 
 _testGit() {
-	_getDep git
+	_wantGetDep git
 }
 
 #Ignores file modes, suitable for use with possibly broken filesystems like NTFS.
@@ -8655,6 +9774,15 @@ CZXWXcRMTo8EmM8i4d
 
 }
 
+
+_test_mkboot() {
+	! _wantSudo && echo 'warn: no sudo'
+	
+	_wantGetDep grub-install
+	_wantGetDep MAKEDEV
+}
+
+
 #http://nairobi-embedded.org/making_a_qemu_disk_image_bootable_with_grub.html
 _mkboot_sequence() {
 	_start
@@ -8790,29 +9918,23 @@ _mkboot() {
 }
 
 
-_test_mkboot() {
-	_mustGetSudo
-	
-	_getDep grub-install
-	_getDep MAKEDEV
-}
-
 _testDistro() {
-	_getDep sha256sum
-	_getDep sha512sum
-	_getDep axel
+	_wantGetDep sha256sum
+	_wantGetDep sha512sum
+	_wantGetDep axel
 }
 
 #"$1" == storageLocation (optional)
 _test_fetchDebian() {
 	if ! ls /usr/share/keyrings/debian-role-keys.gpg > /dev/null 2>&1
 	then
-		echo 'Debian Keyring missing.'
-		echo 'apt-get install debian-keyring'
-		_mustGetSudo
+		echo 'warn: Debian Keyring missing.'
+		echo 'request: apt-get install debian-keyring'
+		! _wantSudo && echo 'warn: no sudo'
 		sudo -n apt-get install -y debian-keyring
-		! ls /usr/share/keyrings/debian-role-keys.gpg && _stop 1
+		! ls /usr/share/keyrings/debian-role-keys.gpg && return 1
 	fi
+	return 0
 }
 
 _fetch_x64_debianLiteISO_sequence() {
@@ -9045,9 +10167,9 @@ _create_msw() {
 }
 
 _testX11() {
-	_getDep xclip
+	_wantGetDep xclip
 	
-	_getDep xinput
+	_wantGetDep xinput
 }
 
 _report_xi() {
@@ -9090,45 +10212,156 @@ _reset_KDE() {
 	fi
 }
 
+# Also depends on '_labVBoxManage' and '_userVBoxManage' .
 _test_vboxconvert() {
-	_getDep VBoxManage
+	_wantGetDep VBoxManage
 }
 
+#No production use.
+_vdi_get_UUID() {
+	_userVBoxManage showhdinfo "$scriptLocal"/vm.vdi | grep ^UUID | cut -f2- -d\  | tr -dc 'a-zA-Z0-9\-'
+}
+
+#No production use.
+_vdi_write_UUID() {
+	_vdi_get_UUID > "$scriptLocal"/vm.vdi.uuid.quicktmp
+	
+	if [[ -e "$scriptLocal"/vm.vdi.uuid ]] && ! diff "$scriptLocal"/vm.vdi.uuid.quicktmp "$scriptLocal"/vm.vdi.uuid > /dev/null 2>&1
+	then
+		_messagePlain_bad 'conflict: mismatch: existing vdi uuid'
+		_messagePlain_request 'request: rm '"$scriptLocal"/vm.vdi.uuid
+		return 1
+	fi
+	
+	mv "$scriptLocal"/vm.vdi.uuid.quicktmp "$scriptLocal"/vm.vdi.uuid
+	return
+}
+
+#No production use.
+_vdi_read_UUID() {
+	local current_UUID
+	current_UUID=$(cat "$scriptLocal"/vm.vdi.uuid 2>/dev/null | tr -dc 'a-zA-Z0-9\-')
+	
+	[[ "$current_UUID" == "" ]] && return 1
+	echo "$current_UUID"
+	return 0
+}
+
+
 _vdi_to_img() {
-	VBoxManage clonehd "$scriptLocal"/vm.vdi "$scriptLocal"/vm.img --format RAW
+	_messageNormal '_vdi_to_img: init'
+	! [[ -e "$scriptLocal"/vm.vdi ]] && _messagePlain_bad 'fail: missing: in file' && return 1
+	[[ -e "$scriptLocal"/vm.img ]] && _messagePlain_request 'request: rm '"$scriptLocal"/vm.img && return 1
+	
+	_messageNormal '_vdi_to_img: _vdi_write_UUID'
+	# No production use. Only required by other functions, also no production use.
+	if ! _vdi_write_UUID
+	then
+		_messagePlain_bad 'fail: _vdi_write_UUID'
+		return 1
+	fi
+	
+	_messageNormal '_vdi_to_img: clonehd'
+	if _userVBoxManage clonehd "$scriptLocal"/vm.vdi "$scriptLocal"/vm.img --format RAW
+	then
+		#_messageNormal '_vdi_to_img: closemedium'
+		#_userVBoxManage closemedium "$scriptLocal"/vm.img
+		_messagePlain_request 'request: rm '"$scriptLocal"/vm.vdi
+		_messagePlain_good 'End.'
+		return 0
+	fi
+	#_messageNormal '_vdi_to_img: closemedium'
+	#_userVBoxManage closemedium "$scriptLocal"/vm.img
+	
+	_messageFAIL
+	return 1
 }
 
 #No production use. Not recommended except to accommodate MSW hosts.
 _img_to_vdi() {
-	VBoxManage convertdd "$scriptLocal"/vm.vdi "$scriptLocal"/vm.img --format VDI 
+	_messageNormal '_img_to_vdi: init'
+	! [[ -e "$scriptLocal"/vm.img ]] && _messagePlain_bad 'fail: missing: in file' && return 1
+	[[ -e "$scriptLocal"/vm.vdi ]] && _messagePlain_request 'request: rm '"$scriptLocal"/vm.vdi && return 1
+	
+	_messageNormal '_img_to_vdi: convertdd'
+	if _userVBoxManage convertdd "$scriptLocal"/vm.img "$scriptLocal"/vm-c.vdi --format VDI
+	then
+		#_messageNormal '_img_to_vdi: closemedium'
+		#_userVBoxManage closemedium "$scriptLocal"/vm-c.vdi
+		_messageNormal '_img_to_vdi: mv vm-c.vdi vm.vdi'
+		mv -n "$scriptLocal"/vm-c.vdi "$scriptLocal"/vm.vdi
+		_messageNormal '_img_to_vdi: setuuid'
+		VBoxManage internalcommands sethduuid "$scriptLocal"/vm.vdi $(_vdi_read_UUID)
+		_messagePlain_request 'request: rm '"$scriptLocal"/vm.img
+		_messagePlain_good 'End.'
+		return 0
+	fi
+	
+	_messageFAIL
+	return 1
 }
 
-#No production use. Take care to ensure neither "vm.vdi" nor "/dev/nbd0" are not in use.
-_vdi_gparted() {
-	sudo -n modprobe nbd
-	sudo -n qemu-nbd -c /dev/nbd0 "$scriptLocal"/vm.vdi
+
+#No production use. Dependency of functions which also have no production use.
+#https://unix.stackexchange.com/questions/33508/check-which-network-block-devices-are-in-use
+_nbd-available_vbox() {
+	nbd-client -c "$1";
+	[ 1 = $? ] &&
+	python -c 'import os,sys; os.open(sys.argv[1], os.O_EXCL)' "$1" 2>/dev/null;
+}
+
+#No production use. Dependency of functions which also have no production use.
+_check_nbd_vbox() {
+	! _wantSudo && _messagePlain_bad 'fail: _wantSudo' && _messageFAIL
 	
-	sudo -n partprobe
+	sudo -n ! type nbd-client > /dev/null 2>&1 && _messagePlain_bad 'fail: missing: nbd-client' && _messageFAIL
+	! type qemu-nbd > /dev/null 2>&1 && _messagePlain_bad 'fail: missing: qemu nbd' && _messageFAIL
 	
-	kdesudo gparted /dev/nbd0
+	! sudo -n modprobe nbd && _messagePlain_bad 'fail: modprobe nbd' && _messageFAIL
 	
-	sudo -n qemu-nbd -d /dev/nbd0
+	if ! sudo -n "$scriptAbsoluteLocation" _nbd-available_vbox "$@"
+	then
+		_messagePlain_bad 'fail: _nbd-available: '"$@"
+		_messageFAIL
+	fi
 }
 
 #No production use.
+# DANGER: Take care to ensure neither "vm.vdi" nor "/dev/nbd7" are not in use.
+# WARNING: Not recommended. Convert to raw img and use dd/gparted as needed.
+# DANGER: Not tested.
+_vdi_gparted() {
+	! _check_nbd_vbox /dev/nbd7 && _messageFAIL
+	
+	sudo -n qemu-nbd -c /dev/nbd7 "$scriptLocal"/vm.vdi
+	
+	sudo -n partprobe
+	
+	sudo -n gparted /dev/nbd7
+	
+	sudo -n qemu-nbd -d /dev/nbd7
+}
+
+#No production use.
+# DANGER: Take care to ensure neither "vm.vdi", "/dev/nbd6", nor "/dev/nbd7" are not in use.
+# WARNING: Not recommended. Convert to raw img and use dd/gparted as needed.
+# DANGER: Not tested.
 _vdi_resize() {
+	! _check_nbd_vbox /dev/nbd7 && _messageFAIL
+	! _check_nbd_vbox /dev/nbd6 && _messageFAIL
+	
 	mv "$scriptLocal"/vm.vdi "$scriptLocal"/vm-big.vdi
 	
 	#Accommodates 8024MiB.
 	VBoxManage createhd --filename "$scriptLocal"/vm-small.vdi --size 8512
 	
 	sudo -n modprobe nbd max_part=15
-	sudo -n qemu-nbd -c /dev/nbd0 "$scriptLocal"/vm-big.vdi
-	sudo -n qemu-nbd -c /dev/nbd1 "$scriptLocal"/vm-small.vdi
+	sudo -n qemu-nbd -c /dev/nbd7 "$scriptLocal"/vm-big.vdi
+	sudo -n qemu-nbd -c /dev/nbd6 "$scriptLocal"/vm-small.vdi
 	sudo -n partprobe
 	
-	#sudo -n dd if=/dev/nbd0 of=/dev/nbd1 bs=446 count=1
-	sudo -n dd if=/dev/nbd0 of=/dev/nbd1 bs=1M count=8512
+	#sudo -n dd if=/dev/nbd7 of=/dev/nbd6 bs=446 count=1
+	sudo -n dd if=/dev/nbd7 of=/dev/nbd6 bs=1M count=8512
 	sudo -n partprobe
 	
 	
@@ -9137,10 +10370,10 @@ _vdi_resize() {
 	
 	
 	
-	kdesudo gparted /dev/nbd0 /dev/nbd1
+	sudo -n gparted /dev/nbd7 /dev/nbd6
 	
-	sudo -n qemu-nbd -d /dev/nbd0
-	sudo -n qemu-nbd -d /dev/nbd1
+	sudo -n qemu-nbd -d /dev/nbd7
+	sudo -n qemu-nbd -d /dev/nbd6
 	
 	mv "$scriptLocal"/vm-small.vdi "$scriptLocal"/vm.vdi
 	
@@ -9152,22 +10385,64 @@ _vdi_resize() {
 }
 
 _test_gparted() {
-	_getDep gparted
+	_wantGetDep gparted
 }
 
 _gparted_sequence() {
+	_messageNormal 'Launch: gparted'
+	
 	_start
 	
 	_mustGetSudo
 	
-	_openLoop || _stop 1
+	_messagePlain_nominal 'Attempt: _openLoop'
+	! _openLoop && _messageFAIL
+	
+	
+	_messagePlain_nominal 'Launch: gparted'
 	
 	local imagedev
 	imagedev=$(cat "$scriptLocal"/imagedev)
 	
+	_messagePlain_probe 'blkid'
+	sudo -n blkid "$imagedev"
+	local orig_ptuuid
+	orig_ptuuid=$(sudo -n blkid -s PTUUID -o value /dev/loop0)
+	
 	sudo -n gparted "$imagedev"
 	
-	_closeLoop || _stop 1
+	_messagePlain_probe 'blkid'
+	sudo -n blkid "$imagedev"
+	local modified_ptuuid
+	modified_ptuuid=$(sudo -n blkid -s PTUUID -o value /dev/loop0)
+	
+	
+	_messagePlain_nominal 'Attempt: _closeLoop'
+	! _closeLoop && _messageFAIL
+	
+	
+	if [[ -e "$scriptLocal"/vm-raspbian.img ]]
+	then
+		_messageNormal 'Config: raspbian'
+		_messagePlain_probe_var orig_ptuuid
+		_messagePlain_probe_var modified_ptuuid
+		
+		_messagePlain_nominal 'Attempt: _openChRoot'
+		! _openChRoot && _messageFAIL
+		
+		
+		_messagePlain_nominal 'Replace: /boot/cmdline.txt'
+		_messagePlain_probe "$globalVirtFS"/../boot/cmdline.txt
+		sudo -n sed -i 's/'"$orig_ptuuid"'/'"$modified_ptuuid"'/g' "$globalVirtFS"/../boot/cmdline.txt
+		
+		_messagePlain_nominal 'Replace: /etc/fstab'
+		_messagePlain_probe "$globalVirtFS"/../fs/etc/fstab
+		sudo -n sed -i 's/'"$orig_ptuuid"'/'"$modified_ptuuid"'/g' "$globalVirtFS"/../fs/etc/fstab
+		
+		
+		_messagePlain_nominal 'Attempt: _closeChRoot'
+		! _closeChRoot && _messageFAIL
+	fi
 	
 	_stop
 }
@@ -9176,15 +10451,817 @@ _gparted() {
 	"$scriptAbsoluteLocation" _gparted_sequence
 }
 
+_kernelConfig_list_here() {
+	cat << CZXWXcRMTo8EmM8i4d
+
+
+
+CZXWXcRMTo8EmM8i4d
+}
+
+
+
+
+
+_kernelConfig_reject-comments() {
+	grep -v '^\#\|\#'
+}
+
+_kernelConfig_request() {
+	local current_kernelConfig_statement
+	current_kernelConfig_statement=$(cat "$kernelConfig_file" | _kernelConfig_reject-comments | grep "$1"'\=' | tr -dc 'a-zA-Z0-9\=\_')
+	
+	_messagePlain_request 'hazard: '"$1"': '"$current_kernelConfig_statement"
+}
+
+
+_kernelConfig_require-yes() {
+	cat "$kernelConfig_file" | _kernelConfig_reject-comments | grep "$1"'\=y' > /dev/null 2>&1 && return 0
+	return 1
+}
+
+_kernelConfig_require-module-or-yes() {
+	cat "$kernelConfig_file" | _kernelConfig_reject-comments | grep "$1"'\=m' > /dev/null 2>&1 && return 0
+	cat "$kernelConfig_file" | _kernelConfig_reject-comments | grep "$1"'\=y' > /dev/null 2>&1 && return 0
+	return 1
+}
+
+# DANGER: Currently assuming lack of an entry is equivalent to option set as '=n' with make menuconfig or similar.
+_kernelConfig_require-no() {
+	cat "$kernelConfig_file" | _kernelConfig_reject-comments | grep "$1"'\=m' > /dev/null 2>&1 && return 1
+	cat "$kernelConfig_file" | _kernelConfig_reject-comments | grep "$1"'\=y' > /dev/null 2>&1 && return 1
+	return 0
+}
+
+
+_kernelConfig_warn-y__() {
+	_kernelConfig_require-yes "$1" && return 0
+	_messagePlain_warn 'warn: not:    Y: '"$1"
+	export kernelConfig_warn='true'
+	return 1
+}
+
+_kernelConfig_warn-y_m() {
+	_kernelConfig_require-module-or-yes "$1" && return 0
+	_messagePlain_warn 'warn: not:  M/Y: '"$1"
+	export kernelConfig_warn='true'
+	return 1
+}
+
+_kernelConfig_warn-n__() {
+	_kernelConfig_require-no "$1" && return 0
+	_messagePlain_warn 'warn: not:    N: '"$1"
+	export kernelConfig_warn='true'
+	return 1
+}
+
+_kernelConfig_warn-any() {
+	_kernelConfig_warn-y_m "$1"
+	_kernelConfig_warn-n__ "$1"
+}
+
+_kernelConfig__bad-y__() {
+	_kernelConfig_require-yes "$1" && return 0
+	_messagePlain_bad 'bad: not:     Y: '"$1"
+	export kernelConfig_bad='true'
+	return 1
+}
+
+_kernelConfig__bad-y_m() {
+	_kernelConfig_require-module-or-yes "$1" && return 0
+	_messagePlain_bad 'bad: not:   M/Y: '"$1"
+	export kernelConfig_bad='true'
+	return 1
+}
+
+_kernelConfig__bad-n__() {
+	_kernelConfig_require-no "$1" && return 0
+	_messagePlain_bad 'bad: not:     N: '"$1"
+	export kernelConfig_bad='true'
+	return 1
+}
+
+_kernelConfig_require-tradeoff-legacy() {
+	_messagePlain_nominal 'kernelConfig: tradeoff-legacy'
+	_messagePlain_request 'Carefully evaluate '\''tradeoff-legacy'\'' for specific use cases.'
+	export kernelConfig_file="$1"
+	
+	_kernelConfig__bad-n__ LEGACY_VSYSCALL_EMULATE
+}
+
+# WARNING: Risk must be evaluated for specific use cases.
+# WARNING: Insecure.
+# Standalone simulators (eg. flight sim):
+# * May have hard real-time frame latency limits within 10% of the fastest avaialble from a commercially avaialble CPU.
+# * May be severely single-thread CPU constrained.
+# * May have real-time workloads exactly matching those suffering half performance due to security mitigations.
+# * May not require real-time security mitigations.
+# Disabling hardening may as much as double performance for some workloads.
+# https://www.phoronix.com/scan.php?page=article&item=linux-retpoline-benchmarks&num=2
+# https://www.phoronix.com/scan.php?page=article&item=linux-416early-spectremelt&num=4
+_kernelConfig_require-tradeoff-perform() {
+	_messagePlain_nominal 'kernelConfig: tradeoff-perform'
+	_messagePlain_request 'Carefully evaluate '\''tradeoff-perform'\'' for specific use cases.'
+	export kernelConfig_file="$1"
+	
+	_kernelConfig__bad-n__ CONFIG_RETPOLINE
+	_kernelConfig__bad-n__ CONFIG_PAGE_TABLE_ISOLATION
+	_kernelConfig__bad-n__ CONFIG_X86_SMAP
+	
+	_kernelConfig_warn-n__ AMD_MEM_ENCRYPT
+	
+	_kernelConfig__bad-y__ CONFIG_X86_INTEL_TSX_MODE_ON
+}
+
+# WARNING: Risk must be evaluated for specific use cases.
+# WARNING: BREAKS some high-performance real-time applicatons (eg. flight sim, VR, AR).
+# Standalone simulators (eg. flight sim):
+# * May have hard real-time frame latency limits within 10% of the fastest avaialble from a commercially avaialble CPU.
+# * May be severely single-thread CPU constrained.
+# * May have real-time workloads exactly matching those suffering half performance due to security mitigations.
+# * May not require real-time security mitigations.
+# Disabling hardening may as much as double performance for some workloads.
+# https://www.phoronix.com/scan.php?page=article&item=linux-retpoline-benchmarks&num=2
+# https://www.phoronix.com/scan.php?page=article&item=linux-416early-spectremelt&num=4
+_kernelConfig_require-tradeoff-harden() {
+	_messagePlain_nominal 'kernelConfig: tradeoff-harden'
+	_messagePlain_request 'Carefully evaluate '\''tradeoff-harden'\'' for specific use cases.'
+	export kernelConfig_file="$1"
+	
+	_kernelConfig__bad-y__ CONFIG_RETPOLINE
+	_kernelConfig__bad-y__ CONFIG_PAGE_TABLE_ISOLATION
+	_kernelConfig__bad-y__ CONFIG_X86_SMAP
+	
+	# Uncertain.
+	#_kernelConfig_warn-y__ AMD_MEM_ENCRYPT
+	
+	_kernelConfig__bad-y__ CONFIG_X86_INTEL_TSX_MODE_OFF
+}
+
+# ATTENTION: Override with 'ops.sh' or similar.
+_kernelConfig_require-tradeoff() {
+	_kernelConfig_require-tradeoff-legacy "$@"
+	
+	
+	[[ "$kernelConfig_tradeoff_perform" == "" ]] && export kernelConfig_tradeoff_perform='false'
+	
+	if [[ "$kernelConfig_tradeoff_perform" == 'true' ]]
+	then
+		_kernelConfig_require-tradeoff-perform "$@"
+		return
+	fi
+	
+	_kernelConfig_require-tradeoff-harden "$@"
+	return
+}
+
+# Based on kernel config documentation and Debian default config.
+_kernelConfig_require-virtualization-accessory() {
+	_messagePlain_nominal 'kernelConfig: virtualization-accessory'
+	export kernelConfig_file="$1"
+	
+	_kernelConfig_warn-y_m CONFIG_KVM
+	_kernelConfig_warn-y_m CONFIG_KVM_INTEL
+	_kernelConfig_warn-y_m CONFIG_KVM_AMD
+	
+	_kernelConfig_warn-y__ CONFIG_KVM_AMD_SEV
+	
+	_kernelConfig_warn-y_m CONFIG_VHOST_NET
+	_kernelConfig_warn-y_m CONFIG_VHOST_SCSI
+	_kernelConfig_warn-y_m CONFIG_VHOST_VSOCK
+	
+	_kernelConfig__bad-y_m DRM_VMWGFX
+	
+	_kernelConfig__bad-n__ CONFIG_VBOXGUEST
+	_kernelConfig__bad-n__ CONFIG_DRM_VBOXVIDEO
+	
+	_kernelConfig_warn-y__ VIRTIO_MENU
+	_kernelConfig_warn-y__ CONFIG_VIRTIO_PCI
+	_kernelConfig_warn-y__ CONFIG_VIRTIO_PCI_LEGACY
+	_kernelConfig__bad-y_m CONFIG_VIRTIO_BALLOON
+	_kernelConfig__bad-y_m CONFIG_VIRTIO_INPUT
+	_kernelConfig__bad-y_m CONFIG_VIRTIO_MMIO
+	_kernelConfig_warn-y__ CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES
+	
+	_kernelConfig_warn-y_m CONFIG_DRM_VIRTIO_GPU
+	
+	# Uncertain. Apparently new feature.
+	_kernelConfig_warn-y_m CONFIG_VIRTIO_FS
+	
+	_kernelConfig_warn-y_m CONFIG_HYPERV
+	_kernelConfig_warn-y_m CONFIG_HYPERV_UTILS
+	_kernelConfig_warn-y_m CONFIG_HYPERV_BALLOON
+	
+	_kernelConfig_warn-y__ CONFIG_XEN_BALLOON
+	_kernelConfig_warn-y__ CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
+	_kernelConfig_warn-y__ CONFIG_XEN_SCRUB_PAGES_DEFAULT
+	_kernelConfig__bad-y_m CONFIG_XEN_DEV_EVTCHN
+	_kernelConfig_warn-y__ CONFIG_XEN_BACKEND
+	_kernelConfig__bad-y_m CONFIG_XENFS
+	_kernelConfig_warn-y__ CONFIG_XEN_COMPAT_XENFS
+	_kernelConfig_warn-y__ CONFIG_XEN_SYS_HYPERVISOR
+	_kernelConfig__bad-y_m CONFIG_XEN_SYS_HYPERVISOR
+	_kernelConfig__bad-y_m CONFIG_XEN_GRANT_DEV_ALLOC
+	_kernelConfig__bad-y_m CONFIG_XEN_PCIDEV_BACKEND
+	_kernelConfig__bad-y_m CONFIG_XEN_SCSI_BACKEND
+	_kernelConfig__bad-y_m CONFIG_XEN_ACPI_PROCESSOR
+	_kernelConfig_warn-y__ CONFIG_XEN_MCE_LOG
+	_kernelConfig_warn-y__ CONFIG_XEN_SYMS
+	
+	_kernelConfig_warn-y__ CONFIG_DRM_XEN
+	
+	# Uncertain.
+	#_kernelConfig_warn-n__ CONFIG_XEN_SELFBALLOONING
+	#_kernelConfig_warn-n__ CONFIG_IOMMU_DEFAULT_PASSTHROUGH
+	#_kernelConfig_warn-n__ CONFIG_INTEL_IOMMU_DEFAULT_ON
+}
+
+# https://wiki.gentoo.org/wiki/VirtualBox
+_kernelConfig_require-virtualbox() {
+	_messagePlain_nominal 'kernelConfig: virtualbox'
+	export kernelConfig_file="$1"
+	
+	_kernelConfig__bad-y__ CONFIG_X86_SYSFB
+	
+	_kernelConfig__bad-y__ CONFIG_ATA
+	_kernelConfig__bad-y__ CONFIG_SATA_AHCI
+	_kernelConfig__bad-y__ CONFIG_ATA_SFF
+	_kernelConfig__bad-y__ CONFIG_ATA_BMDMA
+	_kernelConfig__bad-y__ CONFIG_ATA_PIIX
+	
+	_kernelConfig__bad-y__ CONFIG_NETDEVICES
+	_kernelConfig__bad-y__ CONFIG_ETHERNET
+	_kernelConfig__bad-y__ CONFIG_NET_VENDOR_INTEL
+	_kernelConfig__bad-y__ CONFIG_E1000
+	
+	_kernelConfig__bad-y__ CONFIG_INPUT_KEYBOARD
+	_kernelConfig__bad-y__ CONFIG_KEYBOARD_ATKBD
+	_kernelConfig__bad-y__ CONFIG_INPUT_MOUSE
+	_kernelConfig__bad-y__ CONFIG_MOUSE_PS2
+	
+	_kernelConfig__bad-y__ CONFIG_DRM
+	_kernelConfig__bad-y__ CONFIG_DRM_FBDEV_EMULATION
+	_kernelConfig__bad-y__ CONFIG_DRM_VIRTIO_GPU
+	
+	_kernelConfig__bad-y__ CONFIG_FB
+	_kernelConfig__bad-y__ CONFIG_FIRMWARE_EDID
+	_kernelConfig__bad-y__ CONFIG_FB_SIMPLE
+	
+	_kernelConfig__bad-y__ CONFIG_FRAMEBUFFER_CONSOLE
+	_kernelConfig__bad-y__ CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
+	
+	_kernelConfig__bad-y__ CONFIG_SOUND
+	_kernelConfig__bad-y__ CONFIG_SND
+	_kernelConfig__bad-y__ CONFIG_SND_PCI
+	_kernelConfig__bad-y__ CONFIG_SND_INTEL8X0
+	
+	_kernelConfig__bad-y__ CONFIG_USB_SUPPORT
+	_kernelConfig__bad-y__ CONFIG_USB_XHCI_HCD
+	_kernelConfig__bad-y__ CONFIG_USB_EHCI_HCD
+}
+
+
+# https://wiki.gentoo.org/wiki/Handbook:AMD64/Full/Installation#Activating_required_options
+_kernelConfig_require-boot() {
+	_messagePlain_nominal 'kernelConfig: boot'
+	export kernelConfig_file="$1"
+	
+	_kernelConfig__bad-y__ CONFIG_FW_LOADER
+	#_kernelConfig__bad-y__ CONFIG_FIRMWARE_IN_KERNEL
+	
+	_kernelConfig__bad-y__ CONFIG_DEVTMPFS
+	_kernelConfig__bad-y__ CONFIG_DEVTMPFS_MOUNT
+	_kernelConfig__bad-y__ CONFIG_BLK_DEV_SD
+	
+	
+	_kernelConfig__bad-y__ CONFIG_EXT4_FS
+	_kernelConfig__bad-y__ CONFIG_EXT4_FS_POSIX_ACL
+	_kernelConfig__bad-y__ CONFIG_EXT4_FS_SECURITY
+	#_kernelConfig__bad-y__ CONFIG_EXT4_ENCRYPTION
+	
+	if ! _kernelConfig_warn-y__ CONFIG_EXT4_USE_FOR_EXT2 > /dev/null 2>&1
+	then
+		_kernelConfig__bad-y__ CONFIG_EXT2_FS
+		_kernelConfig__bad-y__ CONFIG_EXT3_FS
+		_kernelConfig__bad-y__ CONFIG_EXT3_FS_POSIX_ACL
+		_kernelConfig__bad-y__ CONFIG_EXT3_FS_SECURITY
+	else
+		_kernelConfig_warn-y__ CONFIG_EXT4_USE_FOR_EXT2
+	fi
+	
+	_kernelConfig__bad-y__ CONFIG_MSDOS_FS
+	_kernelConfig__bad-y__ CONFIG_VFAT_FS
+	
+	_kernelConfig__bad-y__ CONFIG_PROC_FS
+	_kernelConfig__bad-y__ CONFIG_TMPFS
+	
+	_kernelConfig__bad-y__ CONFIG_PPP
+	_kernelConfig__bad-y__ CONFIG_PPP_ASYNC
+	_kernelConfig__bad-y__ CONFIG_PPP_SYNC_TTY
+	
+	_kernelConfig__bad-y__ CONFIG_SMP
+	
+	# https://wiki.gentoo.org/wiki/Kernel/Gentoo_Kernel_Configuration_Guide
+	# 'Support for Host-side USB'
+	_kernelConfig__bad-y__ CONFIG_USB_SUPPORT
+	_kernelConfig__bad-y__ CONFIG_USB_XHCI_HCD
+	_kernelConfig__bad-y__ CONFIG_USB_EHCI_HCD
+	_kernelConfig__bad-y__ CONFIG_USB_OHCI_HCD
+	
+	_kernelConfig__bad-y__ CONFIG_HID
+	_kernelConfig__bad-y__ CONFIG_HID_GENERIC
+	_kernelConfig__bad-y__ CONFIG_HID_BATTERY_STRENGTH
+	_kernelConfig__bad-y__ CONFIG_USB_HID
+	
+	_kernelConfig__bad-y__ CONFIG_PARTITION_ADVANCED
+	_kernelConfig__bad-y__ CONFIG_EFI_PARTITION
+	
+	_kernelConfig__bad-y__ CONFIG_EFI
+	_kernelConfig__bad-y__ CONFIG_EFI_STUB
+	_kernelConfig__bad-y__ CONFIG_EFI_MIXED
+	
+	_kernelConfig__bad-y__ CONFIG_EFI_VARS
+}
+
+
+_kernelConfig_require-arch-x64() {
+	_messagePlain_nominal 'kernelConfig: arch-x64'
+	export kernelConfig_file="$1"
+	
+	# CRITICAL! Expected to accommodate modern CPUs.
+	_messagePlain_request 'request: -march=sandybridge -mtune=skylake'
+	_messagePlain_request 'export KCFLAGS="-O2 -march=sandybridge -mtune=skylake -pipe"'
+	_messagePlain_request 'export KCPPFLAGS="-O2 -march=sandybridge -mtune=skylake -pipe"'
+	
+	_kernelConfig_warn-n__ CONFIG_GENERIC_CPU
+	
+	_kernelConfig_request MCORE2
+	
+	_kernelConfig_warn-y__ CONFIG_X86_MCE
+	_kernelConfig_warn-y__ CONFIG_X86_MCE_INTEL
+	_kernelConfig_warn-y__ CONFIG_X86_MCE_AMD
+	
+	# Uncertain. May or may not improve performance.
+	_kernelConfig_warn-y__ CONFIG_INTEL_RDT
+	
+	# Maintenance may be easier with this enabled.
+	_kernelConfig_warn-y_m CONFIG_EFIVAR_FS
+	
+	# Presumably mixing entropy may be preferable.
+	_kernelConfig__bad-n__ CONFIG_RANDOM_TRUST_CPU
+	
+	
+	# If possible, it may be desirable to check clocksource defaults.
+	
+	_kernelConfig__bad-y__ X86_TSC
+	
+	_kernelConfig_warn-y__ HPET
+	_kernelConfig_warn-y__ HPET_EMULATE_RTC
+	_kernelConfig_warn-y__ HPET_MMAP
+	_kernelConfig_warn-y__ HPET_MMAP_DEFAULT
+	_kernelConfig_warn-y__ HPET_TIMER
+	
+	
+	_kernelConfig__bad-y__ CONFIG_IA32_EMULATION
+	_kernelConfig_warn-n__ IA32_AOUT
+	_kernelConfig__bad-y__ CONFIG_X86_X32
+	
+	_kernelConfig__bad-y__ CONFIG_BINFMT_ELF
+	_kernelConfig__bad-y_m CONFIG_BINFMT_MISC
+	
+	# May not have been optional under older kernel configurations.
+	_kernelConfig__bad-y__ CONFIG_BINFMT_SCRIPT
+}
+
+_kernelConfig_require-accessory() {
+	_messagePlain_nominal 'kernelConfig: accessory'
+	export kernelConfig_file="$1"
+	
+	# May be critical to 'ss' tool functionality typically expected by Ubiquitous Bash.
+	_kernelConfig_warn-y_m CONFIG_PACKET_DIAG
+	_kernelConfig_warn-y_m CONFIG_UNIX_DIAG
+	_kernelConfig_warn-y_m CONFIG_INET_DIAG
+	_kernelConfig_warn-y_m CONFIG_NETLINK_DIAG
+	
+	# Essential for a wide variety of platforms.
+	_kernelConfig_warn-y_m CONFIG_MOUSE_PS2_TRACKPOINT
+	
+	# Common and useful GPU features.
+	_kernelConfig_warn-y_m CONFIG_DRM_RADEON
+	_kernelConfig_warn-y_m CONFIG_DRM_AMDGPU
+	_kernelConfig_warn-y_m CONFIG_DRM_I915
+	_kernelConfig_warn-y_m CONFIG_DRM_VIA
+	_kernelConfig_warn-y_m CONFIG_DRM_NOUVEAU
+	
+	# Uncertain.
+	#_kernelConfig_warn-y__ CONFIG_IRQ_REMAP
+	
+	# TODO: Accessory features which may become interesting.
+	#ACPI_HMAT
+	#PCIE_BW
+	#ACRN_GUEST
+	#XILINX SDFEC
+}
+
+_kernelConfig_require-build() {
+	_messagePlain_nominal 'kernelConfig: build'
+	export kernelConfig_file="$1"
+	
+	# May cause failure if set incorrectly.
+	if ! cat "$kernelConfig_file" | grep 'CONFIG_SYSTEM_TRUSTED_KEYS\=\"\"' > /dev/null 2>&1 && ! cat "$kernelConfig_file" | grep -v 'CONFIG_SYSTEM_TRUSTED_KEYS' > /dev/null 2>&1
+	then
+		#_messagePlain_bad 'bad: not:    Y: '"$1"
+		 _messagePlain_bad 'bad: not:    _: 'CONFIG_SYSTEM_TRUSTED_KEYS
+	fi
+	
+}
+
+# ATTENTION: As desired, ignore, or override with 'ops.sh' or similar.
+# ATTENTION: Dependency of '_kernelConfig_require-latency' .
+_kernelConfig_require-latency_frequency() {
+	# High HZ rate (ie. HZ 1000) may be preferable for machines directly rendering simulator/VR graphics.
+	# Theoretically graphics VSYNC might prefer HZ 300 or similar, as a multiple of common graphics refresh rates.
+	# 25,~29.97,30,60=300 60,72=360 60,75=300 60,80=240 32,36,64,72=576
+	# Theoretically, a setting of 250 may be beneficial for virtualization where the host kernel may be 1000 .
+	# Typically values: 250,300,1000 .
+	# https://passthroughpo.st/config_hz-how-does-it-affect-kvm/
+	# https://github.com/vmprof/vmprof-python/issues/163
+	[[ "$kernelConfig_frequency" == "" ]] && export kernelConfig_frequency=300
+	
+	
+	if ! cat "$kernelConfig_file" | grep 'HZ='"$kernelConfig_frequency" > /dev/null 2>&1
+	then
+		#_messagePlain_bad  'bad: not:     Y: '"$1"
+		#_messagePlain_warn 'warn: not:    Y: '"$1"
+		 _messagePlain_bad 'bad: not:   '"$kernelConfig_frequency"': 'HZ
+	fi
+	_kernelConfig__bad-y__ HZ_"$kernelConfig_frequency"
+}
+
+_kernelConfig_require-latency() {
+	_messagePlain_nominal 'kernelConfig: latency'
+	export kernelConfig_file="$1"
+	
+	# Uncertain. Default off per Debian config.
+	_kernelConfig_warn-n__ CONFIG_X86_GENERIC
+	
+	# CRITICAL!
+	_kernelConfig__bad-y__ CPU_FREQ_DEFAULT_GOV_ONDEMAND
+	_kernelConfig__bad-y__ CONFIG_CPU_FREQ_GOV_ONDEMAND
+	
+	# CRITICAL!
+	# CONFIG_PREEMPT is significantly more stable and compatible with third party (eg. VirtualBox) modules.
+	# CONFIG_PREEMPT_RT is significantly less likely to incurr noticeable worst-case latency.
+	# Lack of both CONFIG_PREEMPT and CONFIG_PREEMPT_RT may incurr noticeable worst-case latency.
+	_kernelConfig_request CONFIG_PREEMPT
+	_kernelConfig_request CONFIG_PREEMPT_RT
+	if ! _kernelConfig__bad-y__ CONFIG_PREEMPT_RT > /dev/null 2>&1 && ! _kernelConfig__bad-y__ CONFIG_PREEMPT > /dev/null 2>&1 
+	then
+		_kernelConfig__bad-y__ CONFIG_PREEMPT
+		_kernelConfig__bad-y__ CONFIG_PREEMPT_RT
+	fi
+	
+	_kernelConfig_require-latency_frequency "$@"
+	
+	# Dynamic/Tickless kernel *might* be the cause of irregular display updates on some platforms.
+	[[ "$kernelConfig_tickless" == "" ]] && export kernelConfig_tickless='false'
+	if [[ "$kernelConfig_tickless" == 'true' ]]
+	then
+		#_kernelConfig__bad-n__ CONFIG_HZ_PERIODIC
+		#_kernelConfig__bad-y__ CONFIG_NO_HZ
+		#_kernelConfig__bad-y__ CONFIG_NO_HZ_COMMON
+		#_kernelConfig__bad-y__ CONFIG_NO_HZ_FULL
+		_kernelConfig__bad-y__ CONFIG_NO_HZ_IDLE
+		#_kernelConfig__bad-y__ CONFIG_RCU_FAST_NO_HZ
+	else
+		_kernelConfig__bad-y__ CONFIG_HZ_PERIODIC
+		_kernelConfig__bad-n__ CONFIG_NO_HZ
+		_kernelConfig__bad-n__ CONFIG_NO_HZ_COMMON
+		_kernelConfig__bad-n__ CONFIG_NO_HZ_FULL
+		_kernelConfig__bad-n__ CONFIG_NO_HZ_IDLE
+		_kernelConfig__bad-n__ CONFIG_RCU_FAST_NO_HZ
+		
+		_kernelConfig__bad-y__ CPU_IDLE_GOV_MENU
+	fi
+	
+	# Essential.
+	_kernelConfig__bad-y__ CONFIG_LATENCYTOP
+	
+	
+	# CRITICAL!
+	_kernelConfig__bad-y__ CONFIG_CGROUP_SCHED
+	_kernelConfig__bad-y__ FAIR_GROUP_SCHED
+	_kernelConfig__bad-y__ CONFIG_CFS_BANDWIDTH
+	
+	# CRITICAL!
+	# Expected to protect single-thread interactive applications from competing multi-thread workloads.
+	_kernelConfig__bad-y__ CONFIG_SCHED_AUTOGROUP
+	
+	
+	# CRITICAL!
+	# Default cannot be set currently.
+	_messagePlain_request 'request: Set '\''bfq'\'' as default IO scheduler (strongly recommended).'
+	#_kernelConfig__bad-y__ DEFAULT_IOSCHED
+	#_kernelConfig__bad-y__ DEFAULT_BFQ
+	
+	# CRITICAL!
+	# Expected to protect interactive applications from background IO.
+	# https://www.youtube.com/watch?v=ANfqNiJVoVE
+	_kernelConfig__bad-y__ CONFIG_IOSCHED_BFQ
+	_kernelConfig__bad-y__ CONFIG_BFQ_GROUP_IOSCHED
+	
+	
+	# Uncertain.
+	# https://forum.manjaro.org/t/please-enable-writeback-throttling-by-default-linux-4-10/18135/22
+	#_kernelConfig__bad-y__ BLK_WBT
+	#_kernelConfig__bad-y__ BLK_WBT_MQ
+	#_kernelConfig__bad-y__ BLK_WBT_SQ
+	
+	
+	# https://lwn.net/Articles/789304/
+	_kernelConfig__bad-y__ CONFIG_SPARSEMEM
+	
+	
+	_kernelConfig__bad-n__ CONFIG_REFCOUNT_FULL
+	_kernelConfig__bad-n__ CONFIG_DEBUG_NOTIFIERS
+	_kernelConfig_warn-n__ CONFIG_FTRACE
+	
+	_kernelConfig__bad-y__ CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+	
+	# CRITICAL!
+	# Lightweight kernel compression theoretically may significantly accelerate startup from slow disks.
+	_kernelConfig__bad-y__ CONFIG_KERNEL_LZO
+	
+}
+
+_kernelConfig_require-memory() {
+	_messagePlain_nominal 'kernelConfig: memory'
+	export kernelConfig_file="$1"
+	
+	# Uncertain.
+	# https://fa.linux.kernel.narkive.com/CNnVwDlb/hack-bench-regression-with-config-slub-cpu-partial-disabled-info-only
+	_kernelConfig_warn-y__ CONFIG_SLUB_CPU_PARTIAL
+	
+	# Uncertain.
+	_kernelConfig_warn-y__ CONFIG_TRANSPARENT_HUGEPAGE
+	_kernelConfig_warn-y__ CONFIG_CLEANCACHE
+	_kernelConfig_warn-y__ CONFIG_FRONTSWAP
+	_kernelConfig_warn-y__ CONFIG_ZSWAP
+	
+	
+	_kernelConfig__bad-y__ CONFIG_COMPACTION
+	_kernelConfig_warn-y__ CONFIG_BALLOON_COMPACTION
+	
+	# Uncertain.
+	_kernelConfig_warn-y__ CONFIG_MEMORY_FAILURE
+	
+	# CRITICAL!
+	_kernelConfig_warn-y__ CONFIG_KSM
+}
+
+_kernelConfig_require-integration() {
+	_messagePlain_nominal 'kernelConfig: integration'
+	export kernelConfig_file="$1"
+	
+	_kernelConfig__bad-y_m CONFIG_FUSE_FS
+	_kernelConfig__bad-y_m CONFIG_CUSE
+	_kernelConfig__bad-y__ CONFIG_OVERLAY_FS
+	_kernelConfig__bad-y_m CONFIG_NTFS_FS
+	_kernelConfig_request CONFIG_NTFS_RW
+	_kernelConfig__bad-y__ CONFIG_MSDOS_FS
+	_kernelConfig__bad-y__ CONFIG_VFAT_FS
+	_kernelConfig__bad-y__ CONFIG_MSDOS_PARTITION
+	
+	# TODO: LiveCD UnionFS or similar boot requirements.
+	
+	# Gentoo specific. Start with "gentoo-sources" if possible.
+	_kernelConfig_warn-y__ CONFIG_GENTOO_LINUX
+	_kernelConfig_warn-y__ CONFIG_GENTOO_LINUX_UDEV
+	_kernelConfig_warn-y__ CONFIG_GENTOO_LINUX_PORTAGE
+	_kernelConfig_warn-y__ CONFIG_GENTOO_LINUX_INIT_SCRIPT
+	_kernelConfig_warn-y__ CONFIG_GENTOO_LINUX_INIT_SYSTEMD
+}
+
+# Recommended by docker ebuild during installation under Gentoo.
+_kernelConfig_require-investigation_docker() {
+	_messagePlain_nominal 'kernelConfig: investigation: docker'
+	export kernelConfig_file="$1"
+	
+	_kernelConfig_warn-y__ CONFIG_MEMCG_SWAP_ENABLED
+	_kernelConfig_warn-y__ CONFIG_CGROUP_HUGETLB
+	_kernelConfig_warn-y__ CONFIG_RT_GROUP_SCHED
+	
+	true
+}
+
+
+# ATTENTION: Insufficiently investigated stuff to think about. Unknown consequences.
+_kernelConfig_require-investigation() {
+	_messagePlain_nominal 'kernelConfig: investigation'
+	export kernelConfig_file="$1"
+	
+	_kernelConfig_warn-any ACPI_HMAT
+	_kernelConfig_warn-any PCIE_BW
+	
+	_kernelConfig_warn-any CONFIG_UCLAMP_TASK
+	
+	_kernelConfig_warn-any CPU_IDLE_GOV_TEO
+	
+	_kernelConfig_warn-any LOCK_EVENT_COUNTS
+	
+	
+	_kernelConfig_require-investigation_docker "$@"
+	_kernelConfig_require-investigation_prog "$@"
+	true
+}
+
+
+_kernelConfig_require-investigation_prog() {
+	_messagePlain_nominal 'kernelConfig: investigation: prog'
+	export kernelConfig_file="$1"
+	
+	true
+}
+
+
+
+
+
+
+_kernelConfig_request_build() {
+	_messagePlain_request 'request: make menuconfig'
+	
+	_messagePlain_request 'request: make -j $(nproc)'
+	
+	# WARNING: Building debian kernel packages from Gentoo may be complex.
+	#https://forums.gentoo.org/viewtopic-t-1096872-start-0.html
+	#_messagePlain_request 'emerge dpkg fakeroot bc kmod cpio ; touch /var/lib/dpkg/status'
+	
+	_messagePlain_request 'request: make deb-pkg -j $(nproc)'
+}
+
+
+# ATTENTION: As desired, ignore, or override with 'ops.sh' or similar.
+_kernelConfig_panel() {
+	_messageNormal 'kernelConfig: panel'
+	
+	[[ "$kernelConfig_tradeoff_perform" == "" ]] && export kernelConfig_tradeoff_perform='false'
+	[[ "$kernelConfig_frequency" == "" ]] && export kernelConfig_frequency=300
+	[[ "$kernelConfig_tickless" == "" ]] && export kernelConfig_tickless='false'
+	
+	_kernelConfig_require-tradeoff "$@"
+	
+	_kernelConfig_require-virtualization-accessory "$@"
+	
+	_kernelConfig_require-virtualbox "$@"
+	
+	_kernelConfig_require-boot "$@"
+	
+	_kernelConfig_require-arch-x64 "$@"
+	
+	_kernelConfig_require-accessory "$@"
+	
+	_kernelConfig_require-build "$@"
+	
+	_kernelConfig_require-latency "$@"
+	
+	_kernelConfig_require-memory "$@"
+	
+	_kernelConfig_require-integration "$@"
+	
+	_kernelConfig_require-investigation "$@"
+	
+	
+	_kernelConfig_request_build
+}
+
+# ATTENTION: As desired, ignore, or override with 'ops.sh' or similar.
+_kernelConfig_mobile() {
+	_messageNormal 'kernelConfig: mobile'
+	
+	[[ "$kernelConfig_tradeoff_perform" == "" ]] && export kernelConfig_tradeoff_perform='false'
+	[[ "$kernelConfig_frequency" == "" ]] && export kernelConfig_frequency=300
+	[[ "$kernelConfig_tickless" == "" ]] && export kernelConfig_tickless='true'
+	
+	_kernelConfig_require-tradeoff "$@"
+	
+	_kernelConfig_require-virtualization-accessory "$@"
+	
+	_kernelConfig_require-virtualbox "$@"
+	
+	_kernelConfig_require-boot "$@"
+	
+	_kernelConfig_require-arch-x64 "$@"
+	
+	_kernelConfig_require-accessory "$@"
+	
+	_kernelConfig_require-build "$@"
+	
+	_kernelConfig_require-latency "$@"
+	
+	_kernelConfig_require-memory "$@"
+	
+	_kernelConfig_require-integration "$@"
+	
+	_kernelConfig_require-investigation "$@"
+	
+	
+	_kernelConfig_request_build
+}
+
+# ATTENTION: As desired, ignore, or override with 'ops.sh' or similar.
+_kernelConfig_desktop() {
+	_messageNormal 'kernelConfig: desktop'
+	
+	[[ "$kernelConfig_tradeoff_perform" == "" ]] && export kernelConfig_tradeoff_perform='false'
+	[[ "$kernelConfig_frequency" == "" ]] && export kernelConfig_frequency=1000
+	[[ "$kernelConfig_tickless" == "" ]] && export kernelConfig_tickless='false'
+	
+	_kernelConfig_require-tradeoff "$@"
+	
+	_kernelConfig_require-virtualization-accessory "$@"
+	
+	_kernelConfig_require-virtualbox "$@"
+	
+	_kernelConfig_require-boot "$@"
+	
+	_kernelConfig_require-arch-x64 "$@"
+	
+	_kernelConfig_require-accessory "$@"
+	
+	_kernelConfig_require-build "$@"
+	
+	_kernelConfig_require-latency "$@"
+	
+	_kernelConfig_require-memory "$@"
+	
+	_kernelConfig_require-integration "$@"
+	
+	_kernelConfig_require-investigation "$@"
+	
+	
+	_kernelConfig_request_build
+}
+
+
+# "$1" == alternateRootPrefix
+_write_bfq() {
+	_messagePlain_nominal 'write_bfq: init'
+	
+	_mustGetSudo
+	
+	
+	_messagePlain_nominal 'write_bfq: write'
+	
+	sudo -n cat << 'CZXWXcRMTo8EmM8i4d' | sudo tee "$1"'/etc/modules-load.d/bfq-'"$ubiquitiousBashIDshort"'.conf' > /dev/null
+bfq
+
+CZXWXcRMTo8EmM8i4d
+
+
+	cat << 'CZXWXcRMTo8EmM8i4d' | sudo tee "$1"'/etc/udev/rules.d/60-scheduler-'"$ubiquitiousBashIDshort"'.rules' > /dev/null
+ACTION=="add|change", KERNEL=="sd*[!0-9]|sr*", ATTR{queue/scheduler}="bfq"
+ACTION=="add|change", KERNEL=="nvme[0-9]n[0-9]", ATTR{queue/scheduler}="bfq"
+
+CZXWXcRMTo8EmM8i4d
+
+	_messagePlain_good 'write_bfq: success'
+
+}
+
+
+
+
+
 _setupUbiquitous_here() {
 	cat << CZXWXcRMTo8EmM8i4d
-type sudo > /dev/null 2>&1 && groups | grep -E 'wheel|sudo' > /dev/null 2>&1 && sudo -n renice -n -10 -p \$\$ > /dev/null 2>&1
+
+if type sudo > /dev/null 2>&1 && groups | grep -E 'wheel|sudo' > /dev/null 2>&1
+then
+	# Greater or equal, '_priority_critical_pid_root' .
+	sudo -n renice -n -15 -p \$\$ > /dev/null 2>&1
+	sudo -n ionice -c 2 -n 2 -p \$\$ > /dev/null 2>&1
+fi
+# ^
+# Ensures admin user shell startup, including Ubiquitous Bash, is relatively quick under heavy system load.
+# Near-realtime priority may be acceptable, due to reliability of relevant Ubiquitous Bash functions.
+# WARNING: Do NOT prioritize highly enough to interfere with embedded hard realtime processes.
+
 
 export profileScriptLocation="$ubcoreUBdir"/ubiquitous_bash.sh
 export profileScriptFolder="$ubcoreUBdir"
 [[ "\$scriptAbsoluteLocation" != "" ]] && . "\$scriptAbsoluteLocation" --parent _importShortcuts
 [[ "\$scriptAbsoluteLocation" == "" ]] && . "\$profileScriptLocation" --profile _importShortcuts
 
+
+# Returns priority to normal.
+# Greater or equal, '_priority_app_pid_root' .
+#ionice -c 2 -n 3 -p \$\$
+#renice -n -5 -p \$\$ > /dev/null 2>&1
+
+# Returns priority to normal.
+# Greater or equal, '_priority_app_pid' .
+ionice -c 2 -n 4 -p \$\$
 renice -n 0 -p \$\$ > /dev/null 2>&1
 
 true
@@ -9373,6 +11450,77 @@ _anchor() {
 }
 
 
+
+
+_setup_renice() {
+	_messageNormal '_setup_renice'
+	
+	if [[ "$scriptAbsoluteFolder" == *'ubiquitous_bash' ]] && [[ "$1" != '--force' ]]
+	then
+		_messagePlain_bad 'bad: generic ubiquitous_bash installation detected'
+		_messageFAIL
+		_stop 1
+	fi
+	
+	
+	_messagePlain_nominal '_setup_renice: hook: ubcore'
+	local ubHome
+	ubHome="$HOME"
+	export ubcoreDir="$ubHome"/.ubcore
+	export ubcoreFile="$ubcoreDir"/.ubcorerc
+	
+	if ! [[ -e "$ubcoreFile" ]]
+	then
+		_messagePlain_warn 'fail: hook: missing: .ubcorerc'
+		return 1
+	fi
+	
+	if grep 'token_ub_renice' "$ubcoreFile" > /dev/null 2>&1
+	then
+		_messagePlain_good 'good: hook: present: .ubcorerc'
+		return 0
+	fi
+	
+	#echo '# token_ub_renice' >> "$ubcoreFile"
+	cat << CZXWXcRMTo8EmM8i4d >> "$ubcoreFile"
+
+# token_ub_renice
+if [[ "\$__overrideRecursionGuard_make" != 'true' ]] && [[ "\$__overrideKeepPriority_make" != 'true' ]] && type which > /dev/null 2>&1 && which make > /dev/null 2>&1
+then
+	__overrideRecursionGuard_make='true'
+	__override_make=$(which make 2>/dev/null)
+	make() {
+		#Greater or equal, _priority_idle_pid
+		
+ 		ionice -c 2 -n 5 -p \$\$ > /dev/null 2>&1
+		renice -n 3 -p \$\$ > /dev/null 2>&1
+		
+		"\$__override_make" "\$@"
+	}
+fi
+
+CZXWXcRMTo8EmM8i4d
+	
+	if grep 'token_ub_renice' "$ubcoreFile" > /dev/null 2>&1
+	then
+		_messagePlain_good 'good: hook: present: .ubcorerc'
+		#return 0
+	else
+		_messagePlain_bad 'fail: hook: missing: token: .ubcorerc'
+		_messageFAIL
+		return 1
+	fi
+	
+	
+	
+	_messagePlain_nominal '_setup_renice: hook: cron'
+	echo '@reboot '"$scriptAbsoluteLocation"' _unix_renice_execDaemon' | crontab -
+	
+	#echo '*/7 * * * * '"$scriptAbsoluteLocation"' _unix_renice'
+	#echo '*/1 * * * * '"$scriptAbsoluteLocation"' _unix_renice_app'
+}
+
+# WARNING: Recommend, using an independent installation (ie. not '~/core/infrastructure/ubiquitous_bash').
 _unix_renice_execDaemon() {
 	_cmdDaemon "$scriptAbsoluteLocation" _unix_renice_repeat
 }
@@ -9395,29 +11543,39 @@ _unix_renice_daemon() {
 }
 
 _unix_renice_repeat() {
+	# sleep 0.7
+	_unix_renice_app
+	_unix_renice
+	
+	sleep 3
+	_unix_renice_app
+	_unix_renice
+	
+	sleep 9
+	_unix_renice_app
+	_unix_renice
+	
+	sleep 27
+	_unix_renice_app
+	_unix_renice
+	
+	sleep 27
+	_unix_renice_app
+	_unix_renice
+	
+	local currentIteration
 	while true
 	do
-		_unix_renice_app > /dev/null 2>&1
-		sleep 10
-		_unix_renice_app > /dev/null 2>&1
-		sleep 10
-		_unix_renice_app > /dev/null 2>&1
-		sleep 10
-		_unix_renice_app > /dev/null 2>&1
-		sleep 10
-		_unix_renice_app > /dev/null 2>&1
-		sleep 10
-		_unix_renice_app > /dev/null 2>&1
-		sleep 10
-		_unix_renice_app > /dev/null 2>&1
-		sleep 10
-		_unix_renice_app > /dev/null 2>&1
-		sleep 10
-		_unix_renice_app > /dev/null 2>&1
-		sleep 10
+		currentIteration=0
+		while [[ "$currentIteration" -lt "4" ]]
+		do
+			sleep 120
+			[[ "$matchingEMBEDDED" != 'false' ]] && sleep 120
+			_unix_renice_app > /dev/null 2>&1
+			let currentIteration="$currentIteration"+1
+		done
 		
 		_unix_renice
-		sleep 10
 	done
 }
 
@@ -9509,6 +11667,14 @@ _unix_renice_app() {
 	
 	_priority_enumerate_pattern "^konsole$" >> "$processListFile"
 	
+	
+	_priority_enumerate_pattern "^okular$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^xournal$" >> "$processListFile"
+	
+	_priority_enumerate_pattern "^soffice.bin$" >> "$processListFile"
+	
+	
 	_priority_enumerate_pattern "^pavucontrol$" >> "$processListFile"
 	
 	local currentPID
@@ -9554,6 +11720,11 @@ _unix_renice_idle() {
 	_priority_enumerate_pattern "^mysqld$" >> "$processListFile"
 	_priority_enumerate_pattern "^ntpd$" >> "$processListFile"
 	#_priority_enumerate_pattern "^avahi-daemon$" >> "$processListFile"
+	
+	
+	# WARNING: Probably unnecessary and counterproductive. May risk halting important compile jobs.
+	#_priority_enumerate_pattern "^cc1$" >> "$processListFile"
+	#_priority_enumerate_pattern "^cc1plus$" >> "$processListFile"
 	
 	
 	local currentPID
@@ -10348,7 +12519,10 @@ _set_me_host() {
 	export metaTmp="$scriptAbsoluteFolder""$metaPrefix"/.m_"$sessionid"
 	
 	# WARNING: Setting metaProc to a value not including sessionid disables automatic removal by default!
-	export metaProc="$metaBase""$metaPrefix"/.m_"$sessionid"
+	# WARNING: Setting metaProc to a value not accepted by "_safeRMR" disables automatic removal by default!
+	export metaProc="$scriptAbsoluteFolder""$metaPrefix"/.m_"$sessionid"
+	[[ "$metaType" == "base" ]] && export metaProc="$metaBase""$metaPrefix"/.m_"$sessionid"
+	#[[ "$metaType" == "" ]] && export metaProc="$scriptAbsoluteFolder""$metaPrefix"/.m_"$sessionid"
 }
 
 _reset_me_host() {
@@ -12052,8 +14226,8 @@ _testBuiltIdle() {
 
 _buildIdle() {
 	local idleSourceCode
-	idleSourceCode="$scriptAbsoluteFolder"/generic/process/idle.c
-	! [[ -e "$idleSourceCode" ]] && idleSourceCode="$scriptLib"/ubiquitous_bash/generic/process/idle.c
+	idleSourceCode="$scriptAbsoluteFolder"/generic/process/getIdle.c
+	! [[ -e "$idleSourceCode" ]] && idleSourceCode="$scriptLib"/ubiquitous_bash/generic/process/getIdle.c
 	
 	mkdir -p "$scriptBin"
 	gcc -o "$scriptBin"/getIdle "$idleSourceCode" -lXss -lX11
@@ -12763,6 +14937,16 @@ _test() {
 	rm -f "$safeTmp"/flock > /dev/null 2>&1
 	rm -f "$safeTmp"/ready > /dev/null 2>&1
 	
+	ln -s /dev/null "$safeTmp"/working
+	ln -s /dev/null/broken "$safeTmp"/broken
+	if ! [[ -h "$safeTmp"/broken ]] || ! [[ -h "$safeTmp"/working ]] || [[ -e "$safeTmp"/broken ]] || ! [[ -e "$safeTmp"/working ]]
+	then
+		_messageFAIL
+		_stop 1
+	fi
+	rm -f "$safeTmp"/working
+	rm -f "$safeTmp"/broken
+	
 	_messagePASS
 	
 	
@@ -12819,6 +15003,7 @@ _test() {
 	_getDep bash
 	_getDep echo
 	_getDep cat
+	_getDep tac
 	_getDep type
 	_getDep mkdir
 	_getDep trap
@@ -13091,6 +15276,7 @@ _package() {
 	#cp -a "$scriptAbsoluteLocation" "$safeTmp"/package/"$scriptBasename"
 	cp -a "$scriptAbsoluteLocation" "$safeTmp"/package/
 	cp -a "$scriptAbsoluteFolder"/ops "$safeTmp"/package/
+	cp -a "$scriptAbsoluteFolder"/ops.sh "$safeTmp"/package/
 	
 	#cp -a "$scriptAbsoluteFolder"/_bin "$safeTmp"
 	#cp -a "$scriptAbsoluteFolder"/_config "$safeTmp"
@@ -14821,6 +17007,12 @@ _deps_blockchain() {
 _deps_image() {
 	_deps_notLean
 	_deps_machineinfo
+	
+	# DANGER: Required for safety mechanisms which may also be used by some other virtualization backends!
+	# _deps_image
+	# _deps_chroot
+	# _deps_vbox
+	# _deps_qemu
 	export enUb_image="true"
 }
 
@@ -14834,6 +17026,13 @@ _deps_virt_thick() {
 
 _deps_virt() {
 	_deps_machineinfo
+	
+	# WARNING: Includes 'findInfrastructure_virt' which may be a dependency of multiple virtualization backends.
+	# _deps_image
+	# _deps_chroot
+	# _deps_vbox
+	# _deps_qemu
+	# _deps_docker
 	export enUb_virt="true"
 }
 
@@ -14935,6 +17134,13 @@ _deps_channel() {
 
 _deps_stopwatch() {
 	export enUb_stopwatch="true"
+}
+
+# WARNING: Specifically refers to 'Linux', the kernel, and things specific to it, NOT any other UNIX like features.
+# WARNING: Beware Linux shortcut specific dependency programs must not be required, or will break other operating systems!
+# ie. _test_linux must not require Linux-only binaries
+_deps_linux() {
+	export enUb_linux="true"
 }
 
 #placeholder, define under "metaengine/build"
@@ -15068,7 +17274,7 @@ _compile_bash_deps() {
 		return 0
 	fi
 	
-	if [[ "$1" == "abstract" ]]
+	if [[ "$1" == "abstract" ]] || [[ "$1" == "abstractfs" ]]
 	then
 		_deps_dev
 		
@@ -15076,6 +17282,21 @@ _compile_bash_deps() {
 		
 		_deps_metaengine
 		
+		_deps_abstractfs
+		
+		return 0
+	fi
+	
+	# Beware most uses of fakehome will benefit from full virtualization fallback.
+	if [[ "$1" == "fakehome" ]]
+	then
+		_deps_dev
+		
+		_deps_channel
+		
+		_deps_metaengine
+		
+		_deps_fakehome
 		_deps_abstractfs
 		
 		return 0
@@ -15128,6 +17349,13 @@ _compile_bash_deps() {
 		
 		#_deps_proxy
 		#_deps_proxy_special
+		
+		# WARNING: Linux *kernel* admin assistance *only*. NOT any other UNIX like features.
+		# WARNING: Beware Linux shortcut specific dependency programs must not be required, or will break other operating systems!
+		# ie. _test_linux must not require Linux-only binaries
+		_deps_linux
+		
+		_deps_stopwatch
 		
 		_deps_build
 		
@@ -15185,6 +17413,10 @@ _compile_bash_deps() {
 		_deps_proxy
 		_deps_proxy_special
 		
+		_deps_stopwatch
+		
+		_deps_linux
+		
 		_deps_build
 		
 		_deps_build_bash
@@ -15234,6 +17466,7 @@ _compile_bash_essential_utilities() {
 	includeScriptList+=( "generic/filesystem"/allLogic.sh )
 	includeScriptList+=( "generic/process"/timeout.sh )
 	includeScriptList+=( "generic/process"/terminate.sh )
+	includeScriptList+=( "generic"/condition.sh )
 	includeScriptList+=( "generic"/uid.sh )
 	includeScriptList+=( "generic/filesystem/permissions"/checkpermissions.sh )
 	includeScriptList+=( "generic"/findInfrastructure.sh )
@@ -15382,6 +17615,7 @@ _compile_bash_utilities_virtualization() {
 	[[ "$enUb_docker" == "true" ]] && includeScriptList+=( "virtualization/docker"/dockeruser.sh )
 }
 
+# WARNING: Shortcuts must NOT cause _stop/exit failures in _test/_setup procedures!
 _compile_bash_shortcuts() {
 	export includeScriptList
 	
@@ -15438,6 +17672,13 @@ _compile_bash_shortcuts() {
 	[[ "$enUb_docker" == "true" ]] && includeScriptList+=( "shortcuts/docker"/dockercontainer.sh )
 	
 	[[ "$enUb_image" == "true" ]] && includeScriptList+=( "shortcuts/image"/gparted.sh )
+	
+	
+	[[ "$enUb_linux" == "true" ]] && includeScriptList+=( "shortcuts/linux"/kernelConfig_here.sh )
+	[[ "$enUb_linux" == "true" ]] && includeScriptList+=( "shortcuts/linux"/kernelConfig.sh )
+	[[ "$enUb_linux" == "true" ]] && includeScriptList+=( "shortcuts/linux"/kernelConfig_platform.sh )
+	
+	[[ "$enUb_linux" == "true" ]] && includeScriptList+=( "shortcuts/linux"/bfq.sh )
 }
 
 _compile_bash_shortcuts_setup() {
@@ -15944,17 +18185,31 @@ fi
 #fi
 
 #Override functions with external definitions from a separate file if available.
+# CAUTION: Recommend only "ops" or "ops.sh" . Using both can cause confusion.
+# ATTENTION: Recommend "ops.sh" only when unusually long. Specifically intended for "CoreAutoSSH" .
 if [[ -e "$objectDir"/ops ]]
 then
 	. "$objectDir"/ops
+fi
+if [[ -e "$objectDir"/ops.sh ]]
+then
+	. "$objectDir"/ops.sh
 fi
 if [[ -e "$scriptLocal"/ops ]]
 then
 	. "$scriptLocal"/ops
 fi
+if [[ -e "$scriptLocal"/ops.sh ]]
+then
+	. "$scriptLocal"/ops.sh
+fi
 if [[ -e "$scriptLocal"/ssh/ops ]]
 then
 	. "$scriptLocal"/ssh/ops
+fi
+if [[ -e "$scriptLocal"/ssh/ops.sh ]]
+then
+	. "$scriptLocal"/ssh/ops.sh
 fi
 
 #WILL BE OVERWRITTEN FREQUENTLY.

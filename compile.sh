@@ -138,6 +138,7 @@ else	#FAIL, implies [[ "$ub_import" == "true" ]]
 fi
 
 #Override.
+# DANGER: Recursion hazard. Do not create overrides without checking that alternate exists.
 
 # WARNING: Only partially compatible.
 if ! type md5sum > /dev/null 2>&1 && type md5 > /dev/null 2>&1
@@ -155,6 +156,30 @@ fi
 #		md5sum "$@"
 #	}
 #fi
+
+
+# WARNING: DANGER: Compatibility may not be guaranteed!
+if ! type unionfs-fuse > /dev/null 2>&1 && type unionfs > /dev/null 2>&1 && man unionfs | grep 'unionfs-fuse - A userspace unionfs implementation' > /dev/null 2>&1
+then
+	unionfs-fuse() {
+		unionfs "$@"
+	}
+fi
+
+if ! type qemu-arm-static > /dev/null 2>&1 && type qemu-arm > /dev/null 2>&1
+then
+	qemu-arm-static() {
+		qemu-arm "$@"
+	}
+fi
+
+if ! type qemu-armeb-static > /dev/null 2>&1 && type qemu-armeb > /dev/null 2>&1
+then
+	qemu-armeb-static() {
+		qemu-armeb "$@"
+	}
+fi
+
 
 #Override (Program).
 
@@ -995,6 +1020,14 @@ _terminateAll() {
 	done < "$processListFile"
 	
 	rm "$processListFile"
+}
+
+_condition_lines_zero() {
+	local currentLineCount
+	currentLineCount=$(wc -l)
+	
+	[[ "$currentLineCount" == 0 ]] && return 0
+	return 1
 }
 
 #Generates random alphanumeric characters, default length 18.
@@ -2263,6 +2296,9 @@ _checkPort_sequence() {
 	do
 		grep -m1 'open' "$safeTmp"/_showPort_ipv4 > /dev/null 2>&1 && _stop
 		grep -m1 'open' "$safeTmp"/_showPort_ipv6 > /dev/null 2>&1 && _stop
+		
+		! [[ $(jobs | wc -c) -gt '0' ]] && ! grep -m1 'open' "$safeTmp"/_showPort_ipv4 && grep -m1 'open' "$safeTmp"/_showPort_ipv6 > /dev/null 2>&1 && _stop 1
+		
 		let currentTimer="$currentTimer"+1
 		sleep 1
 	done
@@ -2925,6 +2961,12 @@ _deps_blockchain() {
 _deps_image() {
 	_deps_notLean
 	_deps_machineinfo
+	
+	# DANGER: Required for safety mechanisms which may also be used by some other virtualization backends!
+	# _deps_image
+	# _deps_chroot
+	# _deps_vbox
+	# _deps_qemu
 	export enUb_image="true"
 }
 
@@ -2938,6 +2980,13 @@ _deps_virt_thick() {
 
 _deps_virt() {
 	_deps_machineinfo
+	
+	# WARNING: Includes 'findInfrastructure_virt' which may be a dependency of multiple virtualization backends.
+	# _deps_image
+	# _deps_chroot
+	# _deps_vbox
+	# _deps_qemu
+	# _deps_docker
 	export enUb_virt="true"
 }
 
@@ -3039,6 +3088,13 @@ _deps_channel() {
 
 _deps_stopwatch() {
 	export enUb_stopwatch="true"
+}
+
+# WARNING: Specifically refers to 'Linux', the kernel, and things specific to it, NOT any other UNIX like features.
+# WARNING: Beware Linux shortcut specific dependency programs must not be required, or will break other operating systems!
+# ie. _test_linux must not require Linux-only binaries
+_deps_linux() {
+	export enUb_linux="true"
 }
 
 #placeholder, define under "metaengine/build"
@@ -3172,7 +3228,7 @@ _compile_bash_deps() {
 		return 0
 	fi
 	
-	if [[ "$1" == "abstract" ]]
+	if [[ "$1" == "abstract" ]] || [[ "$1" == "abstractfs" ]]
 	then
 		_deps_dev
 		
@@ -3180,6 +3236,21 @@ _compile_bash_deps() {
 		
 		_deps_metaengine
 		
+		_deps_abstractfs
+		
+		return 0
+	fi
+	
+	# Beware most uses of fakehome will benefit from full virtualization fallback.
+	if [[ "$1" == "fakehome" ]]
+	then
+		_deps_dev
+		
+		_deps_channel
+		
+		_deps_metaengine
+		
+		_deps_fakehome
 		_deps_abstractfs
 		
 		return 0
@@ -3232,6 +3303,13 @@ _compile_bash_deps() {
 		
 		#_deps_proxy
 		#_deps_proxy_special
+		
+		# WARNING: Linux *kernel* admin assistance *only*. NOT any other UNIX like features.
+		# WARNING: Beware Linux shortcut specific dependency programs must not be required, or will break other operating systems!
+		# ie. _test_linux must not require Linux-only binaries
+		_deps_linux
+		
+		_deps_stopwatch
 		
 		_deps_build
 		
@@ -3289,6 +3367,10 @@ _compile_bash_deps() {
 		_deps_proxy
 		_deps_proxy_special
 		
+		_deps_stopwatch
+		
+		_deps_linux
+		
 		_deps_build
 		
 		_deps_build_bash
@@ -3338,6 +3420,7 @@ _compile_bash_essential_utilities() {
 	includeScriptList+=( "generic/filesystem"/allLogic.sh )
 	includeScriptList+=( "generic/process"/timeout.sh )
 	includeScriptList+=( "generic/process"/terminate.sh )
+	includeScriptList+=( "generic"/condition.sh )
 	includeScriptList+=( "generic"/uid.sh )
 	includeScriptList+=( "generic/filesystem/permissions"/checkpermissions.sh )
 	includeScriptList+=( "generic"/findInfrastructure.sh )
@@ -3486,6 +3569,7 @@ _compile_bash_utilities_virtualization() {
 	[[ "$enUb_docker" == "true" ]] && includeScriptList+=( "virtualization/docker"/dockeruser.sh )
 }
 
+# WARNING: Shortcuts must NOT cause _stop/exit failures in _test/_setup procedures!
 _compile_bash_shortcuts() {
 	export includeScriptList
 	
@@ -3542,6 +3626,13 @@ _compile_bash_shortcuts() {
 	[[ "$enUb_docker" == "true" ]] && includeScriptList+=( "shortcuts/docker"/dockercontainer.sh )
 	
 	[[ "$enUb_image" == "true" ]] && includeScriptList+=( "shortcuts/image"/gparted.sh )
+	
+	
+	[[ "$enUb_linux" == "true" ]] && includeScriptList+=( "shortcuts/linux"/kernelConfig_here.sh )
+	[[ "$enUb_linux" == "true" ]] && includeScriptList+=( "shortcuts/linux"/kernelConfig.sh )
+	[[ "$enUb_linux" == "true" ]] && includeScriptList+=( "shortcuts/linux"/kernelConfig_platform.sh )
+	
+	[[ "$enUb_linux" == "true" ]] && includeScriptList+=( "shortcuts/linux"/bfq.sh )
 }
 
 _compile_bash_shortcuts_setup() {
@@ -4048,17 +4139,31 @@ fi
 #fi
 
 #Override functions with external definitions from a separate file if available.
+# CAUTION: Recommend only "ops" or "ops.sh" . Using both can cause confusion.
+# ATTENTION: Recommend "ops.sh" only when unusually long. Specifically intended for "CoreAutoSSH" .
 if [[ -e "$objectDir"/ops ]]
 then
 	. "$objectDir"/ops
+fi
+if [[ -e "$objectDir"/ops.sh ]]
+then
+	. "$objectDir"/ops.sh
 fi
 if [[ -e "$scriptLocal"/ops ]]
 then
 	. "$scriptLocal"/ops
 fi
+if [[ -e "$scriptLocal"/ops.sh ]]
+then
+	. "$scriptLocal"/ops.sh
+fi
 if [[ -e "$scriptLocal"/ssh/ops ]]
 then
 	. "$scriptLocal"/ssh/ops
+fi
+if [[ -e "$scriptLocal"/ssh/ops.sh ]]
+then
+	. "$scriptLocal"/ssh/ops.sh
 fi
 
 #WILL BE OVERWRITTEN FREQUENTLY.
