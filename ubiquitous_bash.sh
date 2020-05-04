@@ -9211,9 +9211,12 @@ _ops_scope() {
 	_messagePlain_nominal '_ops_scope'
 	
 	#Find/run ops file in project dir.
-	! [[ -e "$ub_specimen"/ops ]] && ! [[ -e "$ub_specimen"/ops.sh ]] && _messagePlain_warn 'aU: undef: sketch ops'
 	[[ -e "$ub_specimen"/ops ]] && _messagePlain_good 'aU: found: sketch ops: ops' && . "$ub_specimen"/ops
 	[[ -e "$ub_specimen"/ops.sh ]] && _messagePlain_good 'aU: found: sketch ops: ops.sh' && . "$ub_specimen"/ops.sh
+	
+	! [[ -e "$ub_specimen"/ops ]] && ! [[ -e "$ub_specimen"/ops.sh ]] && _messagePlain_warn 'aU: undef: sketch ops' && return 1
+	
+	return 0
 }
 
 #"$1" == ub_specimen
@@ -16083,10 +16086,19 @@ _import_ops_sketch() {
 	then
 		_messagePlain_nominal 'aU: found: sketch ops'
 		. "$au_arduinoSketchDir"/ops
-		return 1
 	fi
 	
-	_messagePlain_warn 'aU: missing: sketch ops'
+	if [[ -e "$au_arduinoSketchDir"/ops.sh ]]
+	then
+		_messagePlain_nominal 'aU: found: sketch ops'
+		. "$au_arduinoSketchDir"/ops.sh
+	fi
+	
+	! [[ -e "$au_arduinoSketchDir"/ops ]] && ! [[ -e "$au_arduinoSketchDir"/ops.sh ]] && _messagePlain_warn 'aU: missing: sketch ops' && return 1
+	
+	#_messagePlain_warn 'aU: missing: sketch ops'
+	#return 1
+	
 	return 0
 }
 

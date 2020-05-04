@@ -29,10 +29,19 @@ _import_ops_sketch() {
 	then
 		_messagePlain_nominal 'aU: found: sketch ops'
 		. "$au_arduinoSketchDir"/ops
-		return 1
 	fi
 	
-	_messagePlain_warn 'aU: missing: sketch ops'
+	if [[ -e "$au_arduinoSketchDir"/ops.sh ]]
+	then
+		_messagePlain_nominal 'aU: found: sketch ops'
+		. "$au_arduinoSketchDir"/ops.sh
+	fi
+	
+	! [[ -e "$au_arduinoSketchDir"/ops ]] && ! [[ -e "$au_arduinoSketchDir"/ops.sh ]] && _messagePlain_warn 'aU: missing: sketch ops' && return 1
+	
+	#_messagePlain_warn 'aU: missing: sketch ops'
+	#return 1
+	
 	return 0
 }
 
