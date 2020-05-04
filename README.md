@@ -167,6 +167,8 @@ __asm__("nop\n\t");
 * https://www.pjrc.com/teensy/td_download.html
 
 
+* https://arduino-esp8266.readthedocs.io/en/latest/installing.html#using-git-version
+
 __Copyright__
 This file is part of arduinoUbiquitous.
 
