@@ -4850,7 +4850,7 @@ _fakeHome() {
 	fakeHomeENVvars+=(realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome")
 	fakeHomeENVvars+=(TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}")
 	fakeHomeENVvars+=(_JAVA_OPTIONS="${_JAVA_OPTIONS}")
-	fakeHomeENVvars+=(scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder"realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder")
+	fakeHomeENVvars+=(scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder")
 	fakeHomeENVvars+=(sessionid="$sessionid" realSessionID="$realSessionID" )
 	
 	if type dbus-run-session > /dev/null 2>&1
@@ -9277,6 +9277,14 @@ _scope_interact() {
 	"$@"
 }
 
+# ATTENTION: Overload with "core.sh" or similar!
+_scope_prog_procedure() {
+	# WARNING: Not necessarily wise for all applications. However, applications needing a different working directory should get there from an environment variable relative to script or specimen directory.
+	cd "$ub_specimen"
+	
+	#true
+}
+
 
 _scope_sequence() {
 	_messagePlain_nominal 'init: scope: '"$ub_scope_name"
@@ -9285,6 +9293,8 @@ _scope_sequence() {
 	_start
 	_start_scope "$@"
 	_ops_scope
+	
+	_scope_prog_procedure "$@"
 	
 	_scope_attach "$@"
 	
@@ -9301,7 +9311,7 @@ _scope_prog() {
 }
 
 _scope() {
-	_scope_prog
+	_scope_prog "$@"
 	[[ "$ub_scope_name" == "" ]] && export ub_scope_name='scope'
 	"$scriptAbsoluteLocation" _scope_sequence "$@"
 }
@@ -15795,11 +15805,6 @@ _scope_arduinoide_sequence() {
 }
 
 _scope_arduinoide() {
-	local shiftParam1
-	shiftParam1="$1"
-	shift
-	
-	_scope_prog "$@"
 	_scope "$shiftParam1" "_scope_arduinoide_procedure" "$@"
 }
 

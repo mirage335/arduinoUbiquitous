@@ -45,11 +45,6 @@ _scope_arduinoide_sequence() {
 }
 
 _scope_arduinoide() {
-	local shiftParam1
-	shiftParam1="$1"
-	shift
-	
-	_scope_prog "$@"
 	_scope "$shiftParam1" "_scope_arduinoide_procedure" "$@"
 }
 

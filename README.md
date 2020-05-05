@@ -125,15 +125,16 @@ __asm__("nop\n\t");
 
 # Certification
 
-## d85c11ac4f31371afaf55bdcb565cc2dcdfce4cc
+## -
 
 + Upload Arduino Zero bootloader via SWD to Ardunin M0 as Arduino Zero.
++ Compile Blink.
 + Upload Blink via SWD to Arduino M0 as Arduino Zero.
 + Upload Blink via Serial (including after SWD).
 + "_scope_ddd_procedure" after "_compile" within './_scope ./_lib/Blink/'
 
 
-* Fading Blink LED.
+* Fading or Stuck Blink LED.
 	* Quick USB power cycling regardless of USB data presence.
 	* Serial port programming by ArduinoIDE.
 
