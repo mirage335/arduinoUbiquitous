@@ -15799,12 +15799,18 @@ _scope_arduinoide_procedure() {
 _scope_arduinoide_sequence() {
 	_start
 	
-	_scope_arduinoide_procedure "$@"
+	local shiftParam1
+	shiftParam1="$1"
+	shift
+	_scope "$shiftParam1" "_scope_arduinoide_procedure" "$@"
 	
 	_stop
 }
 
 _scope_arduinoide() {
+	local shiftParam1
+	shiftParam1="$1"
+	shift
 	_scope "$shiftParam1" "_scope_arduinoide_procedure" "$@"
 }
 

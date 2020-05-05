@@ -134,7 +134,7 @@ __asm__("nop\n\t");
 + "_scope_ddd_procedure" after "_compile" within './_scope ./_lib/Blink/'
 
 
-* Fading or Stuck Blink LED.
+* Fading or Stuck Blink LED, inability to upload via serial.
 	* Quick USB power cycling regardless of USB data presence.
 	* Serial port programming by ArduinoIDE.
 
