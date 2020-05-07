@@ -10,6 +10,8 @@ _refresh_anchors() {
 	_refresh_anchors_arduino "$@"
 	
 	_tryExec "_refresh_anchors_task"
+	
+	return 0
 }
 
 

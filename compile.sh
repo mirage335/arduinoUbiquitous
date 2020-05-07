@@ -4090,8 +4090,7 @@ _compile_bash_installation_prog() {
 _compile_bash_program_prog() {	
 	export includeScriptList
 	
-	includeScriptList+=( core.sh )
-	includeScriptList+=( core_default.sh )
+	
 	
 	
 	includeScriptList+=( core_arduino_env.sh )
@@ -4103,20 +4102,29 @@ _compile_bash_program_prog() {
 	includeScriptList+=( core_arduino_app.sh )
 	includeScriptList+=( core_arduino_app_scope.sh )
 	
-	includeScriptList+=( core_arduino__build_ops.sh )
-	includeScriptList+=( core_arduino__build_ops_default.sh )
-	
-	includeScriptList+=( core_arduino__build__debug_atom.sh )
-	includeScriptList+=( core_arduino__build__debug_ddd.sh )
-	includeScriptList+=( core_arduino__build__debug_gdb.sh )
-	
-	includeScriptList+=( core_arduino___build_bootloader.sh )
-	includeScriptList+=( core_arduino___build_compile.sh )
-	includeScriptList+=( core_arduino___build_run.sh )
-	includeScriptList+=( core_arduino___build_upload.sh )
 	
 	includeScriptList+=( core_arduino____device_zero.sh )
 	includeScriptList+=( core_arduino____device_default.sh )
+	
+	
+	includeScriptList+=( core_arduino__build_ops.sh )
+	includeScriptList+=( core_arduino__build_ops_default.sh )
+	
+	
+	includeScriptList+=( core_arduino__build__debug_gdb.sh )
+	includeScriptList+=( core_arduino__build__debug_ddd.sh )
+	#includeScriptList+=( core_arduino__build__debug_atom.sh )
+	#includeScriptList+=( core_arduino__build__debug_eclipse.sh )
+	
+	
+	includeScriptList+=( core_arduino___build_compile.sh )
+	includeScriptList+=( core_arduino___build_upload.sh )
+	includeScriptList+=( core_arduino___build_run.sh )
+	includeScriptList+=( core_arduino___build_bootloader.sh )
+	
+	
+	#includeScriptList+=( core.sh )
+	includeScriptList+=( core_default.sh )
 	
 	
 	includeScriptList+=( installation_prog_arduino.sh )

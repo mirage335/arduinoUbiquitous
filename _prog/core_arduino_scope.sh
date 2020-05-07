@@ -55,7 +55,7 @@ CZXWXcRMTo8EmM8i4d
 		
 		_messagePlain_nominal '_scope_attach: prog: deploy'
 		
-		_scope_command_write _scope_arduino_arduinoide_procedure
+		_scope_command_write _scope_arduino_arduinoide
 		
 		_scope_command_write _arduino_compile
 		_scope_command_write _arduino_upload
@@ -89,3 +89,4 @@ _scope_arduino() {
 	_declare_scope_arduino
 	_scope "$@"
 }
+
