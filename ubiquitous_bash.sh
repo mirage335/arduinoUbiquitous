@@ -15926,7 +15926,7 @@ _arduino_arduinoide_user() {
 		#_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	#_set_arduino_editShortHome
@@ -15958,7 +15958,7 @@ _arduino_arduinoide_edit() {
 		#_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	_set_arduino_editShortHome
@@ -15992,7 +15992,7 @@ _arduino_arduinoide_config() {
 		#_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	_set_arduino_editShortHome
@@ -16024,7 +16024,7 @@ _scope_arduino_arduinoide_procedure() {
 		true
 		#_stop 1
 	fi
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	#Current directory is generally irrelevant to arduino, and if different from sketchDir, may cause problems.
@@ -16326,7 +16326,7 @@ _arduino_debug_ddd_sequence() {
 		_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	#_set_arduino_editShortHome
@@ -16431,7 +16431,7 @@ _arduino_compile_sequence() {
 		_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	#_set_arduino_editShortHome
@@ -16606,7 +16606,7 @@ _arduino_upload_sequence() {
 		_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	#_set_arduino_editShortHome
@@ -16643,7 +16643,7 @@ _arduino_run_sequence() {
 		_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	#_set_arduino_editShortHome
@@ -16680,7 +16680,7 @@ _arduino_bootloader_sequence() {
 		_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	_arduino_bootloader_procedure "$@"

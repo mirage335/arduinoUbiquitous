@@ -13,7 +13,7 @@ _arduino_bootloader_sequence() {
 		_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	_arduino_bootloader_procedure "$@"

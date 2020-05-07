@@ -151,7 +151,7 @@ _arduino_upload_sequence() {
 		_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	#_set_arduino_editShortHome

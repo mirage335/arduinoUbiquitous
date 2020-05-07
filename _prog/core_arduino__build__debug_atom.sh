@@ -93,7 +93,7 @@ _arduino_atom_sequence() {
 		_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	#_set_arduino_editShortHome
@@ -117,7 +117,7 @@ _arduino_atom() {
 }
 
 _ide_atom() {
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	_arduino_atom_procedure "$@"

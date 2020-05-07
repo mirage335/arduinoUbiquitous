@@ -10,7 +10,7 @@ _arduino_arduinoide_user() {
 		#_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	#_set_arduino_editShortHome
@@ -42,7 +42,7 @@ _arduino_arduinoide_edit() {
 		#_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	_set_arduino_editShortHome
@@ -76,7 +76,7 @@ _arduino_arduinoide_config() {
 		#_stop 1
 	fi
 	
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	_set_arduino_editShortHome

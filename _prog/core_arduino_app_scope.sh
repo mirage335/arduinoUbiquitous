@@ -7,7 +7,7 @@ _scope_arduino_arduinoide_procedure() {
 		true
 		#_stop 1
 	fi
-	_import_ops_sketch
+	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
 	#Current directory is generally irrelevant to arduino, and if different from sketchDir, may cause problems.
