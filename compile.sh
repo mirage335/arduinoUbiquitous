@@ -1588,6 +1588,45 @@ _messageCMD() {
 	_messagePlain_probe_cmd "$@"
 }
 
+#Blue. Diagnostic instrumentation.
+#Prints "$@" with quotes around every parameter.
+_messagePlain_probe_quoteAdd() {
+	
+	#https://stackoverflow.com/questions/1668649/how-to-keep-quotes-in-bash-arguments
+	
+	local currentCommandStringPunctuated
+	local currentCommandStringParameter
+	for currentCommandStringParameter in "$@"; do 
+		currentCommandStringParameter="${currentCommandStringParameter//\\/\\\\}"
+		currentCommandStringPunctuated="$currentCommandStringPunctuated \"${currentCommandStringParameter//\"/\\\"}\""
+	done
+	#_messagePlain_probe "$currentCommandStringPunctuated"
+	
+	echo -e -n '\E[0;34m '
+	
+	_safeEcho "$currentCommandStringPunctuated"
+	
+	echo -e -n ' \E[0m'
+	echo
+	
+	return
+}
+
+#Blue. Diagnostic instrumentation.
+#Prints "$@" and runs "$@".
+# WARNING: Use with care.
+_messagePlain_probe_cmd_quoteAdd() {
+	
+	_messagePlain_probe_quoteAdd "$@"
+	
+	"$@"
+	
+	return
+}
+_messageCMD_quoteAdd() {
+	_messagePlain_probe_cmd_quoteAdd "$@"
+}
+
 #Demarcate major steps.
 _messageNormal() {
 	echo -e -n '\E[1;32;46m '
@@ -4051,20 +4090,38 @@ _compile_bash_installation_prog() {
 _compile_bash_program_prog() {	
 	export includeScriptList
 	
-	includeScriptList+=( core_interface.sh )
-	includeScriptList+=( core_external.sh )
+	includeScriptList+=( core.sh )
+	includeScriptList+=( core_default.sh )
 	
-	includeScriptList+=( core_scope.sh )
 	
 	includeScriptList+=( core_arduino_env.sh )
-	includeScriptList+=( core_arduino_scope.sh )
+	includeScriptList+=( core_arduino_bin_.sh )
 	includeScriptList+=( core_arduino.sh )
 	
-	includeScriptList+=( core_interface.sh )
+	includeScriptList+=( core_arduino_scope.sh )
 	
-	includeScriptList+=( _variant.sh )
+	includeScriptList+=( core_arduino_app.sh )
+	includeScriptList+=( core_arduino_app_scope.sh )
 	
-	includeScriptList+=( _variant_custom.sh )
+	includeScriptList+=( core_arduino__build_ops.sh )
+	includeScriptList+=( core_arduino__build_ops_default.sh )
+	
+	includeScriptList+=( core_arduino__build__debug_atom.sh )
+	includeScriptList+=( core_arduino__build__debug_ddd.sh )
+	includeScriptList+=( core_arduino__build__debug_gdb.sh )
+	
+	includeScriptList+=( core_arduino___build_bootloader.sh )
+	includeScriptList+=( core_arduino___build_compile.sh )
+	includeScriptList+=( core_arduino___build_run.sh )
+	includeScriptList+=( core_arduino___build_upload.sh )
+	
+	includeScriptList+=( core_arduino____device_zero.sh )
+	includeScriptList+=( core_arduino____device_default.sh )
+	
+	
+	includeScriptList+=( installation_prog_arduino.sh )
+	
+	includeScriptList+=( _special.sh )
 }
 
 _compile_bash_config_prog() {	

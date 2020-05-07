@@ -1,13 +1,3 @@
-_set_share_abstractfs() {
-	_set_share_abstractfs_reset
-	
-	#export sharedHostProjectDir="$abstractfs_base"
-	export sharedHostProjectDir=$(_getAbsoluteFolder "$abstractfs_base")
-	export sharedGuestProjectDir="$abstractfs"
-	
-	#Blank default. Resolves to lowest directory shared by "$PWD" and "$@" .
-	#export sharedHostProjectDir="$sharedHostProjectDirDefault"
-}
 
 _set_arduino_userShortHome() {
 	export actualFakeHome="$shortFakeHome"
@@ -47,8 +37,7 @@ _prepare_arduino_installation() {
 	_relink ../.arduino15 "$au_arduinoDir"/portable
 	_relink ../Arduino "$au_arduinoDir"/portable/sketchbook
 	
-	#Default not to create "project.afs" file, unless "$afs_nofs" explicitly set to "false".
-	[[ "$afs_nofs" != "false" ]] && export afs_nofs=true
+	
 	[[ -e "$au_arduinoSketchDir" ]] && _abstractfs true "$au_arduinoSketchDir"
 }
 
@@ -163,3 +152,14 @@ _set_arduino_var() {
 	return 0
 }
 
+_gather_arduino_sym() {
+	if ! [[ -e "$au_arduinoFirmware_sym" ]]
+	then
+		_messagePlain_warn 'warn: missing: firmware elf: sym' > /dev/tty 2>&1
+		#return 1
+		
+		[[ -e "$au_arduinoFirmware_elf" ]] && cp -n "$au_arduinoFirmware_elf" "$au_arduinoFirmware_sym"
+		! [[ -e "$au_arduinoFirmware_sym" ]] && echo > "$au_arduinoFirmware_sym" && return 1
+	fi
+	return 0
+}

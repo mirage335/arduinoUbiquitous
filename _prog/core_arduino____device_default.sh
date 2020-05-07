@@ -1,0 +1,2 @@
+
+_declare_arduino_device_zero

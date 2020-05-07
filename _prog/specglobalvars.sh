@@ -1,3 +1,13 @@
+
+##### specglobalvars #####
+
+#Default not to create "project.afs" file, unless "$afs_nofs" explicitly set to "false".
+[[ "$afs_nofs" != "false" ]] && export afs_nofs=true
+
+
+
+##### specglobalvars_arduino #####
+
 export au_arduinoLocal="$scriptLocal"/arduino
 
 export au_arduinoVersion=arduino-1.8.5
@@ -9,3 +19,14 @@ export au_openocdStatic="$scriptLib"/openocd-static
 export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
 export au_openocdStaticBin="$au_openocdStatic"/build/bin/openocd
 export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
+
+
+
+
+
+##### specglobalvars_arduino_device zero #####
+
+
+
+
+
