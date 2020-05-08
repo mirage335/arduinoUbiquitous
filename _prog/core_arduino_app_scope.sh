@@ -44,5 +44,6 @@ _scope_arduino_arduinoide() {
 	local shiftParam1
 	shiftParam1="$1"
 	shift
+	_declare_scope_arduino
 	_scope "$shiftParam1" "_scope_arduino_arduinoide_procedure" "$@"
 }

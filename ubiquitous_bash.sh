@@ -15781,6 +15781,7 @@ _refresh_anchors_arduino() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_arduinoide_user
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_arduinoide_edit
 	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_arduino
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_scope_arduino_arduinoide
 	
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_compile
@@ -15878,6 +15879,7 @@ CZXWXcRMTo8EmM8i4d
 		
 		_messagePlain_nominal '_scope_attach: prog: deploy'
 		
+		_scope_command_write _scope_arduino
 		_scope_command_write _scope_arduino_arduinoide
 		
 		_scope_command_write _arduino_compile
@@ -16061,6 +16063,7 @@ _scope_arduino_arduinoide() {
 	local shiftParam1
 	shiftParam1="$1"
 	shift
+	_declare_scope_arduino
 	_scope "$shiftParam1" "_scope_arduino_arduinoide_procedure" "$@"
 }
 
