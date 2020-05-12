@@ -15,7 +15,7 @@ _arduino_executable() {
 	_virtUser "$@"
 	
 	#Do not create "project.afs". Create elsewhere if desired.
-	export afs_nofs=true
+	#export afs_nofs=true
 	
 	#_JAVA_OPTIONS "user.home" updated by _fakeHome
 	[[ "$setFakeHome" != "true" ]] && _messagePlain_warn 'aU: undetected: setFakeHome: unset: java: user.home'
