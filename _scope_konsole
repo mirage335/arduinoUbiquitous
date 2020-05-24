@@ -545,6 +545,7 @@ export anchorScriptAbsoluteLocation=$(_getScriptAbsoluteLocation)
 export anchorScriptAbsoluteFolder=$(_getScriptAbsoluteFolder)
 export anchorName=$(basename "$anchorScriptAbsoluteLocation")
 
+
 export anchorSourceDir="arduinoUbiquitous"
 export anchorSource="ubiquitous_bash.sh"
 export anchorSourcePath="$anchorSourceDir"/"$anchorSource"
@@ -554,6 +555,14 @@ export anchorLabNameAlt="$anchorLabName"Mini
 
 export anchorEntity=""
 #export anchorEntity="entity/"
+
+if [[ "$anchorName" == "_anchor" ]]
+then
+	! [[ -e "$anchorScriptAbsoluteFolder"/"$anchorSource" ]] && exit 1
+	
+	"$anchorScriptAbsoluteFolder"/"$anchorSource" _anchor
+	exit "$?"
+fi
 
 _launch_anchor "$@"
 
