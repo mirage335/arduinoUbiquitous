@@ -460,7 +460,7 @@ _compat_realpath() {
 	export compat_realpath_bin=/opt/local/libexec/gnubin/realpath
 	[[ -e "$compat_realpath_bin" ]] && [[ "$compat_realpath_bin" != "" ]] && return 0
 	
-	export compat_realpath_bin=$(which realpath)
+	export compat_realpath_bin=$(type -p realpath)
 	[[ -e "$compat_realpath_bin" ]] && [[ "$compat_realpath_bin" != "" ]] && return 0
 	
 	export compat_realpath_bin=/bin/realpath
@@ -2937,6 +2937,12 @@ _apt-file() {
 
 
 _fetchDep_debianStretch_special() {
+# 	if [[ "$1" == *"java"* ]]
+# 	then
+# 		sudo -n apt-get install --install-recommends -y default-jdk default-jre
+# 		return 0
+# 	fi
+	
 	if [[ "$1" == *"wine"* ]] && ! dpkg --print-foreign-architectures | grep i386 > /dev/null 2>&1
 	then
 		sudo -n dpkg --add-architecture i386
@@ -3245,6 +3251,12 @@ _fetchDep_debianStretch() {
 
 
 _fetchDep_debianBuster_special() {
+# 	if [[ "$1" == *"java"* ]]
+# 	then
+# 		sudo -n apt-get install --install-recommends -y default-jdk default-jre
+# 		return 0
+# 	fi
+	
 	if [[ "$1" == *"wine"* ]] && ! dpkg --print-foreign-architectures | grep i386 > /dev/null 2>&1
 	then
 		sudo -n dpkg --add-architecture i386
@@ -3739,6 +3751,432 @@ _stopwatch() {
 	bc <<< "$measureDateB - $measureDateA"
 }
 
+
+
+_set_java_arbitrary() {
+	export ubJava="$1"
+}
+_check_java_arbitrary() {
+	type "$ubJava" > /dev/null 2>&1
+}
+
+
+_java_openjdkANY_check_filter() {
+	head -n 1 | grep -i 'OpenJDK'
+}
+_java_openjdk11_check_filter() {
+	_java_openjdkANY_check_filter | grep 'version.\{0,4\}11'
+}
+_java_openjdk11_debian_check() {
+	local current_java_path='/usr/lib/jvm/java-11-openjdk-amd64/bin/java'
+	
+	! type "$current_java_path" > /dev/null 2>&1 && return 1
+	
+	#! "$current_java_path" -version 2>&1 | _java_openjdk11_check_filter > /dev/null 2>&1 && return 1
+	
+	_set_java_arbitrary "$current_java_path"
+	
+	return 0
+}
+_java_openjdk11_debian() {
+	if _java_openjdk11_debian_check
+	then
+		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+		"$ubJava" "$@"
+		_stop "$?"
+	fi
+	return 1
+}
+_java_openjdk11_usrbin_check() {
+	local current_java_path='/usr/bin/java'
+	
+	! type "$current_java_path" > /dev/null 2>&1 && return 1
+	
+	! "$current_java_path" -version 2>&1 | _java_openjdk11_check_filter > /dev/null 2>&1 && return 1
+	
+	_set_java_arbitrary "$current_java_path"
+	
+	return 0
+}
+_java_openjdk11_usrbin() {
+	if _java_openjdk11_usrbin_check
+	then
+		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+		"$ubJava" "$@"
+		_stop "$?"
+	fi
+	return 1
+}
+_java_openjdk11_PATH_check() {
+	local current_java_path=$(type -p java 2>/dev/null)
+	
+	[[ ! -e "$current_java_path" ]] && return 1
+	[[ "$current_java_path" == "" ]] && return 1
+	! type "$current_java_path" > /dev/null 2>&1 && return 1
+	
+	! "$current_java_path" -version 2>&1 | _java_openjdk11_check_filter > /dev/null 2>&1 && return 1
+	
+	_set_java_arbitrary "$current_java_path"
+	
+	return 0
+}
+_java_openjdk11_PATH() {
+	if _java_openjdk11_PATH_check
+	then
+		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+		"$ubJava" "$@"
+		_stop "$?"
+	fi
+	return 1
+}
+_java_openjdk11() {
+	_java_openjdk11_debian "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdk11_usrbin "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdk11_PATH "$@"
+	[[ "$?" == '0' ]] && return 0
+}
+_set_java_openjdk11() {
+	export ubJava_setOnly='true'
+	_java_openjdk11
+	export ubJava_setOnly='false'
+	_check_java_arbitrary
+}
+_check_java_openjdk11() {
+	_java_openjdk11_debian_check && return 0
+	_java_openjdk11_usrbin_check && return 0
+	_java_openjdk11_PATH_check && return 0
+	return 1
+}
+
+
+
+
+# WARNING: Untested.
+_java_openjdk8_check_filter() {
+	_java_openjdkANY_check_filter | grep 'version.\{0,5\}8'
+}
+_java_openjdk8_debian_check() {
+	local current_java_path='/usr/lib/jvm/java-8-openjdk-amd64/bin/java'
+	
+	! type "$current_java_path" > /dev/null 2>&1 && return 1
+	
+	#! "$current_java_path" -version 2>&1 | _java_openjdk8_check_filter > /dev/null 2>&1 && return 1
+	
+	_set_java_arbitrary "$current_java_path"
+	
+	return 0
+}
+_java_openjdk8_debian() {
+	if _java_openjdk8_debian_check
+	then
+		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+		"$ubJava" "$@"
+		_stop "$?"
+	fi
+	return 1
+}
+_java_openjdk8_usrbin_check() {
+	local current_java_path='/usr/bin/java'
+	
+	! type "$current_java_path" > /dev/null 2>&1 && return 1
+	
+	! "$current_java_path" -version 2>&1 | _java_openjdk8_check_filter > /dev/null 2>&1 && return 1
+	
+	_set_java_arbitrary "$current_java_path"
+	
+	return 0
+}
+_java_openjdk8_usrbin() {
+	if _java_openjdk8_usrbin_check
+	then
+		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+		"$ubJava" "$@"
+		_stop "$?"
+	fi
+	return 1
+}
+_java_openjdk8_PATH_check() {
+	local current_java_path=$(type -p java 2>/dev/null)
+	
+	[[ ! -e "$current_java_path" ]] && return 1
+	[[ "$current_java_path" == "" ]] && return 1
+	! type "$current_java_path" > /dev/null 2>&1 && return 1
+	
+	! "$current_java_path" -version 2>&1 | _java_openjdk8_check_filter > /dev/null 2>&1 && return 1
+	
+	_set_java_arbitrary "$current_java_path"
+	
+	return 0
+}
+_java_openjdk8_PATH() {
+	if _java_openjdk8_PATH_check
+	then
+		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+		"$ubJava" "$@"
+		_stop "$?"
+	fi
+	return 1
+}
+_java_openjdk8() {
+	_java_openjdk8_debian "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdk8_usrbin "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdk8_PATH "$@"
+	[[ "$?" == '0' ]] && return 0
+}
+_set_java_openjdk8() {
+	export ubJava_setOnly='true'
+	_java_openjdk8
+	export ubJava_setOnly='false'
+	_check_java_arbitrary
+}
+_check_java_openjdk8() {
+	_java_openjdk8_debian_check && return 0
+	_java_openjdk8_usrbin_check && return 0
+	_java_openjdk8_PATH_check && return 0
+	return 1
+}
+
+
+
+_java_openjdkANY_debian() {
+	_java_openjdk8_debian "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdk11_debian "$@"
+	[[ "$?" == '0' ]] && return 0
+}
+_java_openjdkANY_usrbin_check() {
+	local current_java_path='/usr/bin/java'
+	
+	! type "$current_java_path" > /dev/null 2>&1 && return 1
+	
+	! "$current_java_path" -version 2>&1 | _java_openjdkANY_check_filter > /dev/null 2>&1 && return 1
+	
+	_set_java_arbitrary "$current_java_path"
+	
+	return 0
+}
+_java_openjdkANY_usrbin() {
+	if _java_openjdkANY_usrbin_check
+	then
+		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+		"$ubJava" "$@"
+		_stop "$?"
+	fi
+	return 1
+}
+_java_openjdkANY_PATH_check() {
+	local current_java_path=$(type -p java 2>/dev/null)
+	
+	[[ ! -e "$current_java_path" ]] && return 1
+	[[ "$current_java_path" == "" ]] && return 1
+	! type "$current_java_path" > /dev/null 2>&1 && return 1
+	
+	! "$current_java_path" -version 2>&1 | _java_openjdkANY_check_filter > /dev/null 2>&1 && return 1
+	
+	_set_java_arbitrary "$current_java_path"
+	
+	return 0
+}
+_java_openjdkANY_PATH() {
+	if _java_openjdkANY_PATH_check
+	then
+		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+		"$ubJava" "$@"
+		_stop "$?"
+	fi
+	return 1
+}
+_java_openjdkANY() {
+	_java_openjdkANY_debian "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdkANY_usrbin "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdkANY_PATH "$@"
+	[[ "$?" == '0' ]] && return 0
+}
+_java_openjdk() {
+	_java_openjdkANY "$@"
+}
+_set_java_openjdkANY() {
+	export ubJava_setOnly='true'
+	_java_openjdkANY
+	export ubJava_setOnly='false'
+	_check_java_arbitrary
+}
+_set_java_openjdk() {
+	export ubJava_setOnly='true'
+	_java_openjdk
+	export ubJava_setOnly='false'
+	_check_java_arbitrary
+}
+_check_java_openjdkANY() {
+	_check_java_openjdk11 && return 0
+	_check_java_openjdk8 && return 0
+	_java_openjdkANY_usrbin_check && return 0
+	_java_openjdkANY_PATH_check && return 0
+	return 1
+}
+
+
+
+
+# DANGER: Oracle Java *strongly* discouraged. Support provided as rough example only.
+_java_oraclejdk11_debian_check() {
+	local current_java_path='/usr/lib/jvm/java-11-oracle/bin/java'
+	
+	! type "$current_java_path" > /dev/null 2>&1 && return 1
+	
+	#! "$current_java_path" -version 2>&1 | _java_oraclejdk11_check_filter > /dev/null 2>&1 && return 1
+	
+	_set_java_arbitrary "$current_java_path"
+	
+	return 0
+}
+_java_oraclejdk11_debian() {
+	if _java_oraclejdk11_debian_check
+	then
+		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+		"$ubJava" "$@"
+		_stop "$?"
+	fi
+	return 1
+}
+# _java_oraclejdk11_usrbin_check() {
+# 	local current_java_path='/usr/bin/java'
+# 	
+# 	! type "$current_java_path" > /dev/null 2>&1 && return 1
+# 	
+# 	! "$current_java_path" -version 2>&1 | _java_oraclejdk11_check_filter > /dev/null 2>&1 && return 1
+# 	
+# 	_set_java_arbitrary "$current_java_path"
+# 	
+# 	return 0
+# }
+# _java_oraclejdk11_usrbin() {
+# 	if _java_oraclejdk11_usrbin_check
+# 	then
+# 		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+# 		"$ubJava" "$@"
+# 		_stop "$?"
+# 	fi
+# 	return 1
+# }
+# _java_oraclejdk11_PATH_check() {
+# 	local current_java_path=$(type -p java 2>/dev/null)
+# 	
+# 	[[ ! -e "$current_java_path" ]] && return 1
+# 	[[ "$current_java_path" == "" ]] && return 1
+# 	! type "$current_java_path" > /dev/null 2>&1 && return 1
+# 	
+# 	! "$current_java_path" -version 2>&1 | _java_oraclejdk11_check_filter > /dev/null 2>&1 && return 1
+# 	
+# 	_set_java_arbitrary "$current_java_path"
+# 	
+# 	return 0
+# }
+# _java_oraclejdk11_PATH() {
+# 	if _java_oraclejdk11_PATH_check
+# 	then
+# 		[[ "$ubJava_setOnly" == 'true' ]] && return 0
+# 		"$ubJava" "$@"
+# 		_stop "$?"
+# 	fi
+# 	return 1
+# }
+_java_oraclejdk11() {
+	_java_oraclejdk11_debian "$@"
+	[[ "$?" == '0' ]] && return 0
+# 	_java_oraclejdk11_usrbin "$@"
+# 	[[ "$?" == '0' ]] && return 0
+# 	_java_oraclejdk11_PATH "$@"
+# 	[[ "$?" == '0' ]] && return 0
+}
+_set_java_oraclejdk11() {
+	export ubJava_setOnly='true'
+	_java_oraclejdk11
+	export ubJava_setOnly='false'
+	_check_java_arbitrary
+}
+_check_java_oraclejdk11() {
+	_java_oraclejdk11_debian_check && return 0
+	return 1
+}
+_java_oraclejdk_ANY() {
+	_java_oraclejdk11 "$@"
+	[[ "$?" == '0' ]] && return 0
+}
+_java_oraclejdk() {
+	_java_oraclejdk_ANY "$@"
+}
+_set_java_oraclejdk_ANY() {
+	export ubJava_setOnly='true'
+	_java_oraclejdk_ANY
+	export ubJava_setOnly='false'
+	_check_java_arbitrary
+}
+_set_java_oraclejdk() {
+	export ubJava_setOnly='true'
+	_java_oraclejdk
+	export ubJava_setOnly='false'
+	_check_java_arbitrary
+}
+_check_java_oraclejdk(){
+	_check_java_oraclejdk11
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ATTENTION Overload with 'core.sh' or similar ONLY if further specialization is actually required!
+_test_java() {
+	_wantGetDep java
+	
+	! _check_java_openjdkANY && echo 'missing: openjdk'
+	#! _check_java_openjdk8 && echo 'missing: openjdk8'
+	#! _check_java_openjdk11 && echo 'missing: openjdk11'
+	
+	# DANGER: Oracle Java *strongly* discouraged. Support provided as rough example only.
+	#! _check_java_oraclejdk && echo 'missing: oraclejdk'
+	#! _check_java_oraclejdk11  && echo 'missing: oraclejdk11'
+	
+	return 0
+}
+
+# ATTENTION Overload with 'core.sh' or similar ONLY if further specialization is actually required!
+_set_java() {
+	export ubJava_setOnly='true'
+	_java
+	export ubJava_setOnly='false'
+	_check_java_arbitrary
+}
+
+# ATTENTION Overload with 'core.sh' or similar ONLY if further specialization is actually required!
+_java() {
+	_java_openjdk11 "$@"
+	_java_openjdk8 "$@"
+	_java_openjdkANY "$@"
+	
+	# DANGER: Oracle Java *strongly* discouraged. Support provided as rough example only.
+	#_java_oraclejdk11 "$@"
+	#_java_oraclejdk "$@"
+}
+
+
+
 #####Idle
 
 _gosuBinary() {
@@ -4224,7 +4662,10 @@ _searchBaseDir() {
 			
 			newDir=$(_findDir "$subArg")
 			
-			while [[ "$newDir" != "$baseDir"* ]]
+			# Trailing slash added to comparison to prevent partial matching of directory names.
+			# https://stackoverflow.com/questions/12340846/bash-shell-script-to-find-the-closest-parent-directory-of-several-files
+			# https://stackoverflow.com/questions/9018723/what-is-the-simplest-way-to-remove-a-trailing-slash-from-each-parameter
+			while [[ "${newDir%/}/" != "${baseDir%/}/"* ]]
 			do
 				baseDir=$(_findDir "$baseDir"/..)
 				
@@ -4401,6 +4842,9 @@ _test_abstractfs() {
 	fi
 }
 
+# WARNING: First parameter, "$1" , must always be non-translated program to run or specialized abstractfs command.
+# Specifically do not attempt _abstractfs "$scriptAbsoluteLocation" or similar.
+# "$scriptAbsoluteLocation" _fakeHome "$scriptAbsoluteLocation" _abstractfs bash
 _abstractfs() {
 	#Nesting prohibited. Not fully tested.
 	# WARNING: May cause infinite recursion symlinks.
@@ -4417,7 +4861,21 @@ _abstractfs() {
 	
 	export abstractfs_puid=$(_uid)
 	
-	_base_abstractfs "$@"
+	
+	local current_abstractfs_base_args
+	current_abstractfs_base_args=("${@}")
+	
+	[[ "$ubAbstractFS_enable_CLD" == 'true' ]] && [[ "$ubASD_CLD" != '' ]] && current_abstractfs_base_args+=( "$ubASD_PRJ" "$ubASD_CLD" )
+	
+	# WARNING: Enabling may allow a misplaced 'project.afs' file in "/" , "$HOME' , or similar, to override a legitimate directory.
+	# However, such a misplaced file may already cause wrong directory collisions with abstractfs.
+	# Historically not enabled by default. Consider enabling by default equivalent to at least a minor version bump - be wary of any possible broken use cases.
+	[[ "$abstractfs_projectafs_dir" != "" ]] && [[ "$ubAbstractFS_enable_projectafs_dir" == 'true' ]] && current_abstractfs_base_args+=( "$abstractfs_projectafs_dir" )
+	#[[ "$abstractfs_projectafs_dir" != "" ]] && [[ "$ubAbstractFS_enable_projectafs_dir" != 'false' ]] && current_abstractfs_base_args+=( "$abstractfs_projectafs_dir" )
+	
+	_base_abstractfs "${current_abstractfs_base_args[@]}"
+	
+	
 	_name_abstractfs > /dev/null 2>&1
 	[[ "$abstractfs_name" == "" ]] && return 1
 	
@@ -4425,6 +4883,7 @@ _abstractfs() {
 	
 	_set_share_abstractfs
 	_relink_abstractfs
+	
 	_virtUser "$@"
 	
 	cd "$localPWD"
@@ -4432,10 +4891,27 @@ _abstractfs() {
 	#cd "$abstractfs"
 	
 	local commandExitStatus
+	commandExitStatus=1
 	
 	#_scope_terminal "${processedArgs[@]}"
-	"$abstractfs_command" "${processedArgs[@]}"
-	commandExitStatus=$?
+	
+	if ! [[ -L "$abstractfs" ]] && [[ -d "$abstractfs" ]]
+	then
+		# _messagePlain_bad 'fail: abstractfs: abstractfs_base is a directory: abstractfs_base= ""$abstractfs_base"
+		rmdir "$abstractfs"
+		_set_share_abstractfs_reset
+		_rmlink_abstractfs
+		return 1
+	fi
+	
+	_set_abstractfs_disable_CLD
+	[[ "$abstractfs_command" == 'ub_abstractfs_getOnly_dst' ]] && echo "$abstractfs"
+	[[ "$abstractfs_command" == 'ub_abstractfs_getOnly_src' ]] && echo "$abstractfs_base"
+	if [[ "$abstractfs_command" != 'ub_abstractfs_getOnly_dst' ]] && [[ "$abstractfs_command" != 'ub_abstractfs_getOnly_src' ]]
+	then
+		"$abstractfs_command" "${processedArgs[@]}"
+		commandExitStatus="$?"
+	fi
 	
 	_set_share_abstractfs_reset
 	_rmlink_abstractfs
@@ -4443,12 +4919,467 @@ _abstractfs() {
 	return "$commandExitStatus"
 }
 
+
+
+
+
+_get_abstractfs_dst_procedure() {
+	shift
+	_abstractfs 'ub_abstractfs_getOnly_dst' "$@"
+}
+_get_abstractfs_dst_sequence() {
+	_start
+	_get_abstractfs_dst_procedure "$@"
+	_stop 0
+}
+
+# If the result independent of any particular command is desired, use "_true" as command (first parameter).
+_get_abstractfs_dst() {
+	"$scriptAbsoluteLocation" _get_abstractfs_dst_sequence "$@"
+}
+_get_abstractfs() {
+	_get_abstractfs_dst "$@"
+}
+
+
+
+_get_abstractfs_src_procedure() {
+	shift
+	_abstractfs 'ub_abstractfs_getOnly_src' "$@"
+}
+_get_abstractfs_src_sequence() {
+	_start
+	_get_abstractfs_src_procedure "$@"
+	_stop 0
+}
+# If the result independent of any particular command is desired, use "_true" as command (first parameter).
+_get_abstractfs_src() {
+	"$scriptAbsoluteLocation" _get_abstractfs_src_sequence "$@"
+}
+
+_get_base_abstractfs() {
+	_get_abstractfs_src "$@"
+}
+_get_base_abstractfs_name() {
+	local current_abstractfs_base
+	current_abstractfs_base=$(_get_abstractfs_src "$@")
+	basename "$current_abstractfs_base"
+}
+
+
+
+
+
+# No known production use.
+# ATTENTION Overload ONLY if further specialization is actually required!
+# WARNING: Input parameters must NOT include neighboring ConfigurationLookupDirectory, regardless of whether static ConfigurationLookupDirectory is used.
+_prepare_abstractfs_appdir_none() {
+	_set_abstractfs_AbstractSourceDirectory "$@"
+	#_probe_prepare_abstractfs_appdir_AbstractSourceDirectory
+	
+	##### # ATTENTION: Prior to abstractfs. 'ApplicationProjectDirectory', ConfigurationLookupDirectory.
+	
+	#export ubASD="$ubASD"
+	
+	export ubASD_PRJ="$ubASD_PRJ_none"
+	#export ubASD_PRJ="$ubASD_PRJ_independent"
+	#export ubASD_PRJ="$ubASD_PRJ_shared"
+	#export ubASD_PRJ="$ubASD_PRJ_export"
+	
+	export ubASD_CLD="$ubASD_CLD_none"
+	#export ubASD_CLD="$ubASD_CLD_independent"
+	#export ubASD_CLD="$ubASD_CLD_shared"
+	#export ubASD_CLD="$ubASD_CLD_export"
+	
+	#_probe_prepare_abstractfs_appdir_AbstractSourceDirectory_prior
+	
+	
+	
+	
+	# CLD_none , CLD_independent , CLD_export
+	_set_abstractfs_disable_CLD
+	
+	# CLD_shared
+	#_set_abstractfs_enable_CLD
+	
+	_prepare_abstractfs_appdir "$@"
+	
+	
+	# CAUTION: May be invalid. Do not use or enable. For reference only.
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_none_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_independent_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_shared_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_export_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_none_sub"
+	##export ubADD_CLD="$ubADD""$ubADD_CLD_independent_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_shared_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_export_sub"
+	
+	
+	export ubAFS_PRJ="$ubADD""$ubADD_PRJ_none_sub"
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_independent_sub"
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_shared_sub"
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_export_sub"
+	
+	export ubAFS_CLD="$ubADD""$ubADD_CLD_none_sub"
+	#export ubAFS_CLD="$ubASD_CLD_independent"
+	#export ubAFS_CLD="$ubADD""$ubADD_CLD_shared_sub"
+	#export ubAFS_CLD="$ubADD""$ubADD_CLD_export_sub"
+	
+	
+	#_probe_prepare_abstractfs_appdir_post
+}
+# MISUSE. Permissible, given rare requirement to ensure directories exist to perform common directory determination.
+_set_abstractfs_appdir_none() {
+	_prepare_abstractfs_appdir_none "$@"
+}
+
+
+
+
+
+# No known production use.
+# ATTENTION Overload ONLY if further specialization is actually required!
+# WARNING: Input parameters must NOT include neighboring ConfigurationLookupDirectory, regardless of whether static ConfigurationLookupDirectory is used.
+_prepare_abstractfs_appdir_independent() {
+	_set_abstractfs_AbstractSourceDirectory "$@"
+	#_probe_prepare_abstractfs_appdir_AbstractSourceDirectory
+	
+	##### # ATTENTION: Prior to abstractfs. 'ApplicationProjectDirectory', ConfigurationLookupDirectory.
+	
+	#export ubASD="$ubASD"
+	
+	#export ubASD_PRJ="$ubASD_PRJ_none"
+	export ubASD_PRJ="$ubASD_PRJ_independent"
+	#export ubASD_PRJ="$ubASD_PRJ_shared"
+	#export ubASD_PRJ="$ubASD_PRJ_export"
+	
+	#export ubASD_CLD="$ubASD_CLD_none"
+	export ubASD_CLD="$ubASD_CLD_independent"
+	#export ubASD_CLD="$ubASD_CLD_shared"
+	#export ubASD_CLD="$ubASD_CLD_export"
+	
+	#_probe_prepare_abstractfs_appdir_AbstractSourceDirectory_prior
+	
+	
+	
+	
+	# CLD_none , CLD_independent , CLD_export
+	_set_abstractfs_disable_CLD
+	
+	# CLD_shared
+	#_set_abstractfs_enable_CLD
+	
+	_prepare_abstractfs_appdir "$@"
+	
+	
+	# CAUTION: May be invalid. Do not use or enable. For reference only.
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_none_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_independent_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_shared_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_export_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_none_sub"
+	##export ubADD_CLD="$ubADD""$ubADD_CLD_independent_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_shared_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_export_sub"
+	
+	
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_none_sub"
+	export ubAFS_PRJ="$ubADD""$ubADD_PRJ_independent_sub"
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_shared_sub"
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_export_sub"
+	
+	#export ubAFS_CLD="$ubADD""$ubADD_CLD_none_sub"
+	export ubAFS_CLD="$ubASD_CLD_independent"
+	#export ubAFS_CLD="$ubADD""$ubADD_CLD_shared_sub"
+	#export ubAFS_CLD="$ubADD""$ubADD_CLD_export_sub"
+	
+	
+	#_probe_prepare_abstractfs_appdir_post
+}
+# MISUSE. Permissible, given rare requirement to ensure directories exist to perform common directory determination.
+_set_abstractfs_appdir_independent() {
+	_prepare_abstractfs_appdir_independent "$@"
+}
+
+
+
+
+
+# No known production use.
+# ATTENTION Overload ONLY if further specialization is actually required!
+# WARNING: Input parameters must NOT include neighboring ConfigurationLookupDirectory, regardless of whether static ConfigurationLookupDirectory is used.
+# DANGER: Strongly discouraged. May break use of "project.afs" with alternative layouts and vice versa.
+_prepare_abstractfs_appdir_shared() {
+	_set_abstractfs_AbstractSourceDirectory "$@"
+	#_probe_prepare_abstractfs_appdir_AbstractSourceDirectory
+	
+	##### # ATTENTION: Prior to abstractfs. 'ApplicationProjectDirectory', ConfigurationLookupDirectory.
+	
+	#export ubASD="$ubASD"
+	
+	#export ubASD_PRJ="$ubASD_PRJ_none"
+	#export ubASD_PRJ="$ubASD_PRJ_independent"
+	export ubASD_PRJ="$ubASD_PRJ_shared"
+	#export ubASD_PRJ="$ubASD_PRJ_export"
+	
+	#export ubASD_CLD="$ubASD_CLD_none"
+	#export ubASD_CLD="$ubASD_CLD_independent"
+	export ubASD_CLD="$ubASD_CLD_shared"
+	#export ubASD_CLD="$ubASD_CLD_export"
+	
+	#_probe_prepare_abstractfs_appdir_AbstractSourceDirectory_prior
+	
+	
+	
+	
+	# CLD_none , CLD_independent , CLD_export
+	#_set_abstractfs_disable_CLD
+	
+	# CLD_shared
+	_set_abstractfs_enable_CLD
+	
+	_prepare_abstractfs_appdir "$@"
+	
+	
+	# CAUTION: May be invalid. Do not use or enable. For reference only.
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_none_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_independent_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_shared_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_export_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_none_sub"
+	##export ubADD_CLD="$ubADD""$ubADD_CLD_independent_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_shared_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_export_sub"
+	
+	
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_none_sub"
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_independent_sub"
+	export ubAFS_PRJ="$ubADD""$ubADD_PRJ_shared_sub"
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_export_sub"
+	
+	#export ubAFS_CLD="$ubADD""$ubADD_CLD_none_sub"
+	#export ubAFS_CLD="$ubASD_CLD_independent"
+	export ubAFS_CLD="$ubADD""$ubADD_CLD_shared_sub"
+	#export ubAFS_CLD="$ubADD""$ubADD_CLD_export_sub"
+	
+	
+	#_probe_prepare_abstractfs_appdir_post
+}
+# MISUSE. Permissible, given rare requirement to ensure directories exist to perform common directory determination.
+_set_abstractfs_appdir_shared() {
+	_prepare_abstractfs_appdir_shared "$@"
+}
+
+
+
+
+
+# No known production use.
+# ATTENTION Overload ONLY if further specialization is actually required!
+# WARNING: Input parameters must NOT include neighboring ConfigurationLookupDirectory, regardless of whether static ConfigurationLookupDirectory is used.
+_prepare_abstractfs_appdir_export() {
+	_set_abstractfs_AbstractSourceDirectory "$@"
+	#_probe_prepare_abstractfs_appdir_AbstractSourceDirectory
+	
+	##### # ATTENTION: Prior to abstractfs. 'ApplicationProjectDirectory', ConfigurationLookupDirectory.
+	
+	#export ubASD="$ubASD"
+	
+	#export ubASD_PRJ="$ubASD_PRJ_none"
+	#export ubASD_PRJ="$ubASD_PRJ_independent"
+	#export ubASD_PRJ="$ubASD_PRJ_shared"
+	export ubASD_PRJ="$ubASD_PRJ_export"
+	
+	#export ubASD_CLD="$ubASD_CLD_none"
+	#export ubASD_CLD="$ubASD_CLD_independent"
+	#export ubASD_CLD="$ubASD_CLD_shared"
+	export ubASD_CLD="$ubASD_CLD_export"
+	
+	#_probe_prepare_abstractfs_appdir_AbstractSourceDirectory_prior
+	
+	
+	
+	
+	# CLD_none , CLD_independent , CLD_export
+	_set_abstractfs_disable_CLD
+	
+	# CLD_shared
+	#_set_abstractfs_enable_CLD
+	
+	_prepare_abstractfs_appdir "$@"
+	
+	
+	# CAUTION: May be invalid. Do not use or enable. For reference only.
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_none_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_independent_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_shared_sub"
+	#export ubADD_PRJ="$ubADD""$ubADD_PRJ_export_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_none_sub"
+	##export ubADD_CLD="$ubADD""$ubADD_CLD_independent_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_shared_sub"
+	#export ubADD_CLD="$ubADD""$ubADD_CLD_export_sub"
+	
+	
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_none_sub"
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_independent_sub"
+	#export ubAFS_PRJ="$ubADD""$ubADD_PRJ_shared_sub"
+	export ubAFS_PRJ="$ubADD""$ubADD_PRJ_export_sub"
+	
+	#export ubAFS_CLD="$ubADD""$ubADD_CLD_none_sub"
+	#export ubAFS_CLD="$ubASD_CLD_independent"
+	#export ubAFS_CLD="$ubADD""$ubADD_CLD_shared_sub"
+	export ubAFS_CLD="$ubADD""$ubADD_CLD_export_sub"
+	
+	
+	#_probe_prepare_abstractfs_appdir_post
+}
+# MISUSE. Permissible, given rare requirement to ensure directories exist to perform common directory determination.
+_set_abstractfs_appdir_export() {
+	_prepare_abstractfs_appdir_export "$@"
+}
+
+
+
+
+
+
+# CAUTION: ConfigurationLookupDirectory, managed by "_appdir" functions, is NOT a global configuration registry. ONLY intended to support programs which may require *project-specific* configuration (eg. Eclipse).
+# WARNING: Input parameters must NOT include neighboring ConfigurationLookupDirectory, regardless of whether static ConfigurationLookupDirectory is used.
+# WARNING: All 'mkdir' operations using "$ubADD" or similar must take place *within* abstractfs, to avoid creating a folder conflicting with the required symlink.
+# Input
+# "$@"
+_set_abstractfs_AbstractSourceDirectory() {
+	# AbstractSourceDirectory
+	_set_abstractfs_disable_CLD
+	export ubASD=$(export afs_nofs_write="true" ; "$scriptAbsoluteLocation" _get_base_abstractfs "$@" "$ub_specimen")
+	_set_abstractfs_disable_CLD
+	export ubASD_name=$(basename $ubASD)
+	
+	# Should never be reached. Also, undesirable default.
+	[[ "$ubASD_name" == "" ]] && export ubASD_name=project
+	
+	
+	# No known production use.
+	export ubADD_CLD_none_sub=""
+	export ubADD_PRJ_none_sub=""
+	export ubASD_CLD_none_sub="$ubADD_CLD_none_sub"
+	export ubASD_CLD_none="$ubASD"
+	export ubASD_PRJ_none=""
+	export ubASD_PRJ_none="$ubASD""$ubASD_PRJ_none"
+	
+	# ApplicationSourceDirectory-ConfigurationLookupDirectory
+	# Project directory is *source* directory.
+	# ConfigurationLookupDirectory is *neighbor*, using absolute path *outside* abstractfs translation.
+	# CAUTION: Not compatible with applications requiring all paths translated by abstractfs.
+	# CAUTION: Invalid to combine "$ubADD" with "$ubADD_CLD_independent_sub" .
+	export ubADD_CLD_independent_sub=/../"$ubASD_name".cld
+	export ubADD_PRJ_independent_sub=""
+	export ubASD_CLD_independent_sub="$ubADD_CLD_independent_sub"
+	export ubASD_CLD_independent="$ubASD""$ubASD_CLD_independent_sub"
+	export ubASD_PRJ_independent_sub=""
+	export ubASD_PRJ_independent="$ubASD""$ubASD_PRJ_independent_sub"
+	
+	# ConfigurationLookupDirectory is *neighbor*, next to project directory, in *shared* abstractfs directory.
+	# DANGER: Strongly discouraged. May break use of "project.afs" with alternative layouts and vice versa.
+	export ubADD_CLD_shared_sub=/"$ubASD_name".cld
+	export ubADD_PRJ_shared_sub=/"$ubASD_name"
+	export ubASD_CLD_shared_sub=/.."$ubADD_CLD_shared_sub"
+	export ubASD_CLD_shared="$ubASD""$ubASD_CLD_shared_sub"
+	export ubASD_PRJ_shared_sub=""
+	export ubASD_PRJ_shared="$ubASD""$ubASD_PRJ_shared_sub"
+	
+	# Internal '_export' folder instead of neighboring ConfigurationLookupDirectory .
+	export ubADD_CLD_export_sub=/_export/afscld
+	export ubADD_PRJ_export_sub=""
+	export ubASD_CLD_export_sub="$ubADD_CLD_export_sub"
+	export ubASD_CLD_export="$ubASD""$ubASD_CLD_export_sub"
+	export ubASD_PRJ_export_sub="$ubASD_CLD_export_sub"
+	export ubASD_PRJ_export="$ubASD"
+}
+
+_set_abstractfs_enable_CLD() {
+	export ubAbstractFS_enable_CLD='true'
+}
+
+_set_abstractfs_disable_CLD() {
+	export ubAbstractFS_enable_CLD='false'
+	
+	# No known production use.
+	export ubAbstractFS_enable_CLDnone='false'
+	export ubAbstractFS_enable_CLDindependent='false'
+	export ubAbstractFS_enable_CLDshared='false'
+	export ubAbstractFS_enable_CLDexport='false'
+}
+
+_prepare_abstractfs_appdir() {
+	mkdir -p "$ubASD"
+	mkdir -p "$ubASD_CLD"
+	#_set_abstractfs_disable_CLD
+	export ubADD=$(export afs_nofs="true" ; "$scriptAbsoluteLocation" _get_abstractfs "$@" "$ub_specimen")
+	#_set_abstractfs_disable_CLD
+}
+
+
+
+
+
+
+
+
+
+
+
+_probe_prepare_abstractfs_appdir_AbstractSourceDirectory() {
+	_messagePlain_nominal '_probe_prepare_abstractfs_appdir_AbstractSourceDirectory'
+	_messagePlain_probe_var ubASD
+	_messagePlain_probe_var ubASD_name
+	
+	_messagePlain_probe_var ubASD_CLD_none_sub
+	_messagePlain_probe_var ubASD_CLD_none
+	
+	_messagePlain_probe_var ubASD_CLD_independent_sub
+	_messagePlain_probe_var ubASD_CLD_independent
+	
+	_messagePlain_probe_var ubASD_CLD_shared_sub
+	_messagePlain_probe_var ubASD_CLD_shared
+	
+	_messagePlain_probe_var ubASD_CLD_export_sub
+	_messagePlain_probe_var ubASD_CLD_export
+}
+
+_probe_prepare_abstractfs_appdir_AbstractSourceDirectory_prior() {
+	_messagePlain_nominal '_probe_prepare_abstractfs_appdir_AbstractSourceDirectory_prior'
+	_messagePlain_probe_var ubASD
+	_messagePlain_probe_var ubASD_PRJ
+	_messagePlain_probe_var ubASD_CLD
+}
+
+_probe_prepare_abstractfs_appdir_post() {
+	_messagePlain_nominal '_probe_prepare_abstractfs_appdir_post'
+	_messagePlain_probe_var ubADD
+	#_messagePlain_probe_var ubADD_PRJ
+	#_messagePlain_probe_var ubADD_CLD
+	_messagePlain_probe_var ubAFS_PRJ
+	_messagePlain_probe_var ubAFS_CLD
+}
+
+
+
+_probe_prepare_abstractfs_appdir() {
+	_probe_prepare_abstractfs_appdir_AbstractSourceDirectory
+	_probe_prepare_abstractfs_appdir_AbstractSourceDirectory_prior
+	_probe_prepare_abstractfs_appdir_post
+}
+
+
 _reset_abstractfs() {
 	export abstractfs=
 	export abstractfs_base=
 	export abstractfs_name=
 	export abstractfs_puid=
 	export abstractfs_projectafs=
+	export abstractfs_projectafs_dir=
 }
 
 _prohibit_rmlink_abstractfs() {
@@ -4556,6 +5487,7 @@ _findProjectAFS_procedure() {
 	if [[ -e "./project.afs" ]]
 	then
 		_getAbsoluteLocation "./project.afs"
+		export abstractfs_projectafs_dir=$(_getAbsoluteFolder "./project.afs")
 		return 0
 	fi
 	
@@ -4591,7 +5523,7 @@ _write_projectAFS() {
 	testAbstractfsBase="$abstractfs_base"
 	[[ "$1" != "" ]] && testAbstractfsBase=$(_getAbsoluteLocation "$1")
 	
-	( [[ "$nofs" == "true" ]] || [[ "$afs_nofs" == "true" ]] ) && return 0
+	( [[ "$nofs" == "true" ]] || [[ "$afs_nofs" == "true" ]] || [[ "$nofs_write" == "true" ]] || [[ "$afs_nofs_write" == "true" ]] ) && return 0
 	_projectAFS_here > "$testAbstractfsBase"/project.afs
 	chmod u+x "$testAbstractfsBase"/project.afs
 }
@@ -4893,6 +5825,7 @@ _fakeHome() {
 	fakeHomeENVvars+=(DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP="$XDG_SESSION_DESKTOP" XDG_CURRENT_DESKTOP="$XDG_SESSION_DESKTOP")
 	fakeHomeENVvars+=(realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome")
 	fakeHomeENVvars+=(TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}")
+	[[ "$ub_fakeHome_dropPWD" != 'true' ]] && fakeHomeENVvars+=(PWD="$PWD")
 	fakeHomeENVvars+=(_JAVA_OPTIONS="${_JAVA_OPTIONS}")
 	fakeHomeENVvars+=(scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder")
 	fakeHomeENVvars+=(sessionid="$sessionid" realSessionID="$realSessionID" )
@@ -4934,6 +5867,7 @@ _fakeHome_specific() {
 	fakeHomeENVvars+=(DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP="$XDG_SESSION_DESKTOP" XDG_CURRENT_DESKTOP="$XDG_SESSION_DESKTOP")
 	fakeHomeENVvars+=(realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome")
 	fakeHomeENVvars+=(TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}")
+	[[ "$ub_fakeHome_dropPWD" != 'true' ]] && fakeHomeENVvars+=(PWD="$PWD")
 	fakeHomeENVvars+=(_JAVA_OPTIONS="${_JAVA_OPTIONS}")
 	#fakeHomeENVvars+=(scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder"realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder")
 	#fakeHomeENVvars+=(sessionid="$sessionid" realSessionID="$realSessionID" )
@@ -5927,6 +6861,60 @@ IF NOT EXIST "X:\" GOTO checkMount
 CZXWXcRMTo8EmM8i4d
 }
 
+
+#Prints "$@" with quotes around every parameter.
+_echoArgsBootdisc_MSW() {
+	
+	#https://stackoverflow.com/questions/1668649/how-to-keep-quotes-in-bash-arguments
+	
+	local currentCommandStringPunctuated
+	local currentCommandStringParameter
+	for currentCommandStringParameter in "$@"; do 
+		
+		# MSW interprets the expression \" and similar differently from UNIX.
+		#currentCommandStringParameter="${currentCommandStringParameter//\\/\\\\}"
+		
+		currentCommandStringPunctuated="$currentCommandStringPunctuated \"${currentCommandStringParameter//\"/\\\"}\""
+	done
+	#_messagePlain_probe "$currentCommandStringPunctuated"
+	
+	#echo -e -n '\E[0;34m '
+	
+	_safeEcho "$currentCommandStringPunctuated"
+	
+	#echo -e -n ' \E[0m'
+	echo
+	
+	return
+}
+
+#Prints "$@" with quotes around every parameter.
+_echoArgsBootdisc_UNIX() {
+	
+	#https://stackoverflow.com/questions/1668649/how-to-keep-quotes-in-bash-arguments
+	
+	local currentCommandStringPunctuated
+	local currentCommandStringParameter
+	for currentCommandStringParameter in "$@"; do 
+		
+		# MSW interprets the expression \" and similar differently from UNIX.
+		currentCommandStringParameter="${currentCommandStringParameter//\\/\\\\}"
+		
+		currentCommandStringPunctuated="$currentCommandStringPunctuated \"${currentCommandStringParameter//\"/\\\"}\""
+	done
+	#_messagePlain_probe "$currentCommandStringPunctuated"
+	
+	#echo -e -n '\E[0;34m '
+	
+	_safeEcho "$currentCommandStringPunctuated"
+	
+	#echo -e -n ' \E[0m'
+	echo
+	
+	return
+}
+
+
 _testVirtBootdisc() {
 	if ! type mkisofs > /dev/null 2>&1 && ! type genisoimage > /dev/null 2>&1
 	then
@@ -6000,8 +6988,10 @@ _createHTG_MSW() {
 	
 	_preCommand_MSW >> "$hostToGuestFiles"/application.bat
 	
-	_safeEcho_newline "${processedArgs[@]}" >> "$hostToGuestFiles"/application.bat
-	 
+	# WARNING: Not fully tested with all plausible inputs. Beware possible misinterpretations of '$' and similar characters.
+	#_safeEcho_newline "${processedArgs[@]}" >> "$hostToGuestFiles"/application.bat
+	_echoArgsBootdisc_MSW "${processedArgs[@]}" >> "$hostToGuestFiles"/application.bat
+	
 	echo ""  >> "$hostToGuestFiles"/application.bat
 	
 	echo -e -n >> "$hostToGuestFiles"/loader.bat
@@ -6056,7 +7046,12 @@ _createHTG_UNIX() {
 	
 	echo '#!/usr/bin/env bash' >> "$hostToGuestFiles"/cmd.sh
 	echo "export localPWD=""$localPWD" >> "$hostToGuestFiles"/cmd.sh
-	_safeEcho_newline "/media/bootdisc/ubiquitous_bash.sh _dropBootdisc ${processedArgs[@]}" >> "$hostToGuestFiles"/cmd.sh
+	
+	# WARNING: Not fully tested with all plausible inputs. Beware possible misinterpretations of '$' and similar characters.
+	#_safeEcho_newline "/media/bootdisc/ubiquitous_bash.sh _dropBootdisc ${processedArgs[@]}" >> "$hostToGuestFiles"/cmd.sh
+	echo -n "/media/bootdisc/ubiquitous_bash.sh _dropBootdisc " >> "$hostToGuestFiles"/cmd.sh
+	_echoArgsBootdisc_UNIX "${processedArgs[@]}" >> "$hostToGuestFiles"/cmd.sh
+	
 }
 
 _commandBootdisc() {
@@ -6730,7 +7725,7 @@ _chroot() {
 	
 	local chrootExitStatus
 	
-	sudo -n env -i HOME="/root" TERM="${TERM}" SHELL="/bin/bash" PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" DISPLAY="$DISPLAY" XSOCK="$XSOCK" XAUTH="$XAUTH" localPWD="$localPWD" hostArch=$(uname -m) virtSharedUser="$virtGuestUser" $(sudo -n which chroot) "$chrootDir" "$@"
+	sudo -n env -i HOME="/root" TERM="${TERM}" SHELL="/bin/bash" PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" DISPLAY="$DISPLAY" XSOCK="$XSOCK" XAUTH="$XAUTH" localPWD="$localPWD" hostArch=$(uname -m) virtSharedUser="$virtGuestUser" $(sudo -n bash -c "type -p chroot") "$chrootDir" "$@"
 	
 	chrootExitStatus="$?"
 	
@@ -7400,7 +8395,7 @@ _integratedQemu() {
 	
 	if [[ "$ubVirtPlatform" == "x64-bios" ]]
 	then
-		_integratedQemu_x64
+		_integratedQemu_x64 "$@"
 		return "$?"
 	fi
 	
@@ -7409,12 +8404,12 @@ _integratedQemu() {
 	
 	if [[ "$ubVirtPlatform" == "raspbian" ]]
 	then
-		_integratedQemu_raspi
+		_integratedQemu_raspi "$@"
 		return "$?"
 	fi
 	
 	#Default x64 .
-	"$scriptAbsoluteLocation" _integratedQemu_x64
+	"$scriptAbsoluteLocation" _integratedQemu_x64 "$@"
 	return "$?"
 }
 
@@ -8941,155 +9936,110 @@ _ubide() {
 	_atom . ./ubiquitous_bash.sh "$@"
 }
 
-_test_deveclipse() {
-	_wantGetDep eclipse
-	
-	! [[ -e /usr/share/eclipse/dropins/cdt ]] && echo 'warn: missing: /usr/share/eclipse/dropins/cdt'
+_set_java__eclipse() {
+	_set_java_openjdk "$@"
 }
 
-#"$1" == workspaceDir
-_prepare_eclipse_workspace() {
-	local local_workspace_import="$1"/_import
-	
-	mkdir -p "$local_workspace_import"
-	
-	local local_workspace_abstract
-	
-	#Scope
-	if [[ "$ub_specimen" != "" ]] && [[ "$ub_scope" != "" ]]
-	then
-		local_workspace_abstract=$(_name_abstractfs "$ub_specimen")
-		
-		mkdir -p "$local_workspace_import"/"$local_workspace_abstract"
-		
-		_relink "$ub_specimen" "$local_workspace_import"/"$local_workspace_abstract"/specimen
-		_relink "$ub_scope" "$local_workspace_import"/"$local_workspace_abstract"/scope
-		
-		#Export directories to be used for projects/sets to be stored in shared repositories.
-		mkdir -p "$ub_specimen"/_export
-		_relink "$ub_specimen"/_export "$local_workspace_import"/"$local_workspace_abstract"/_export
-		
-		_messagePlain_good 'eclipse: install: specimen, scope: '"$local_workspace_import"/"$local_workspace_abstract"
-	fi
-	
-	#Arbitary Project
-	if [[ "$arbitraryProjectDir" != "" ]]
-	then
-		local_workspace_abstract=$(_name_abstractfs "$arbitraryProjectDir")
-		
-		mkdir -p "$local_workspace_import"/"$local_workspace_abstract"
-		
-		_relink "$arbitraryProjectDir" "$local_workspace_import"/"$local_workspace_abstract"
-		
-		#Export directories to be used for projects/sets to be stored in shared repositories.
-		mkdir -p "$arbitraryProjectDir"/_export
-		_relink "$arbitraryProjectDir"/_export "$local_workspace_import"/"$local_workspace_abstract"/_export
-		
-		_messagePlain_good 'eclipse: install: arbitraryProjectDir: '"$local_workspace_import"/"$local_workspace_abstract"
-	fi
+
+_eclipse_binary() {
+	eclipse "$@"
 }
 
-#Creates user and export directories for eclipse instance. User directories to be used for project specific workspace. Export directories to be used for projects/sets to be stored in shared repositories.
-#"$eclipse_path" (eg. "$ub_specimen")
-#"eclipse_root" (eg. ".eclipser")
-_prepare_eclipse() {
-	#Special meaning of "$PWD" when run under _abstractfs ("$localPWD") is intended.
-	if [[ "$eclipse_path" == "" ]]
-	then
-		export eclipse_path=$(_getAbsoluteLocation "$PWD"/..)
-		[[ "$ub_specimen" != "" ]] && export eclipse_path=$(_getAbsoluteLocation "$ub_specimen"/..)
-		#[[ "$ub_scope" != "" ]] && export eclipse_path=$(_getAbsoluteLocation "$ub_scope")
-	fi
-	
-	if [[ "$eclipse_root" == "" ]]
-	then
-		export eclipse_root=$(_name_abstractfs "$ub_specimen")
-		export eclipse_root="$eclipse_root".ecr
-		#export eclipse_root='eclipser'
-		#export eclipse_root='.eclipser'
-	fi
-	
-	export eclipse_user='user'
-	
-	#export eclipse_export='_export'
-	
-	export eclipse_data='workspace'
-	export eclipse_config='configuration'
-	
-	mkdir -p "$eclipse_path"/"$eclipse_root"
-	mkdir -p "$eclipse_path"/"$eclipse_root"/"$eclipse_user"
-	#mkdir -p "$eclipse_path"/"$eclipse_root"/"$eclipse_export"
-	mkdir -p "$eclipse_path"/"$eclipse_root"/"$eclipse_data"
-	mkdir -p "$eclipse_path"/"$eclipse_root"/"$eclipse_user"/"$eclipse_config"
-	
-	#_mustcarry 'eclipser/' "$eclipse_path"/"$eclipse_root"/.gitignore
-	_mustcarry "$eclipse_user"/ "$eclipse_path"/"$eclipse_root"/.gitignore
-	_mustcarry "$eclipse_data"/ "$eclipse_path"/"$eclipse_root"/.gitignore
-	_mustcarry "$eclipse_user"/"$eclipse_config"/ "$eclipse_path"/"$eclipse_root"/.gitignore
-}
-
-_install_fakeHome_eclipse() {	
-	_link_fakeHome "$eclipse_path"/"$eclipse_root"/"$eclipse_data" workspace
-	
-	_link_fakeHome "$eclipse_path"/"$eclipse_root"/"$eclipse_user" .eclipse
-	#_link_fakeHome "$eclipse_path"/"$eclipse_root"/"$eclipse_user"/"$eclipse_config" .eclipse/configuration
-}
-
-_eclipse_procedure() {
-	_prepare_eclipse
-	_prepare_eclipse_workspace "$eclipse_path"/"$eclipse_root"/"$eclipse_data"
-	_messagePlain_probe eclipse -data "$eclipse_path"/"$eclipse_root"/"$eclipse_data" -configuration "$eclipse_path"/"$eclipse_root"/"$eclipse_user"/"$eclipse_config" "$@"
-	eclipse -data "$eclipse_path"/"$eclipse_root"/"$eclipse_data" -configuration "$eclipse_path"/"$eclipse_root"/"$eclipse_user"/"$eclipse_config" "$@"
-}
-
-_eclipse_config() {
-	_eclipse_procedure "$@"
-}
-
-_eclipse_stock() {
-	_prepare_eclipse_workspace "$HOME"/workspace
-	eclipse -data "$HOME"/workspace "$@"
-}
-
-_eclipse_home() {
-	_prepare_eclipse_workspace "$HOME"/workspace
-	_messagePlain_probe eclipse -data "$HOME"/workspace -configuration "$HOME"/.eclipse/configuration "$@"
-	eclipse -data "$HOME"/workspace -configuration "$HOME"/.eclipse/configuration "$@"
-}
-
-_eclipse_edit() {
-	_prepare_eclipse
-	
-	export actualFakeHome="$shortFakeHome"
-	#export actualFakeHome="$globalFakeHome"
-	export fakeHomeEditLib="true"
-	export keepFakeHome="true"
-	
-	_install_fakeHome_eclipse
-	
-	_fakeHome "$scriptAbsoluteLocation" --parent _eclipse_home "$@"
-}
-
-_eclipse_user() {
-	_prepare_eclipse
-	
-	export actualFakeHome="$shortFakeHome"
-	#export actualFakeHome="$globalFakeHome"
-	export fakeHomeEditLib="false"
-	export keepFakeHome="true"
-	
-	_install_fakeHome_eclipse
-	
-	_fakeHome "$scriptAbsoluteLocation" --parent _eclipse_home "$@"
+# ATTENTION: Override with 'core.sh', 'ops', or similar.
+# Static parameters. Must be accepted if function overridden to point script contained installation.
+_eclipse_param() {
+	_eclipse_example_binary -vm "$ubJava" -data "$ub_eclipse_workspace" -configuration "$ub_eclipse_configuration" "$@"
 }
 
 
 
 
 
-_eclipse() {
-	_eclipse_config "$@"
+
+
+ 
+
+
+_prepare_example_ConfigurationLookupDirectory_eclipse() {
+	#_prepare_abstractfs_appdir_none "$@"
+	
+	#_prepare_abstractfs_appdir_independent "$@"
+	
+	# DANGER: Strongly discouraged. May break use of "project.afs" with alternative layouts and vice versa.
+	#_prepare_abstractfs_appdir_shared "$@"
+	
+	_prepare_abstractfs_appdir_export "$@"
+	
+	#_probe_prepare_abstractfs_appdir_AbstractSourceDirectory
+	#_probe_prepare_abstractfs_appdir_AbstractSourceDirectory_prior
+	#_probe_prepare_abstractfs_appdir_post
+	_probe_prepare_abstractfs_appdir
+	
+	export ub_eclipse_workspace="$ubAFS_CLD"/_eclipse-workspace
+	export ub_eclipse_configuration="$ubAFS_CLD"/_eclipse-configuration/_eclipse_configuration
+	
+	mkdir -p "$ubASD_PRJ"
+	mkdir -p "$ubASD_CLD"
 }
+
+
+
+_eclipse_example_binary() {
+	eclipse "$@"
+	#sleep 9
+}
+
+
+# ATTENTION: Override with 'core.sh', 'ops', or similar.
+# Static parameters. Must be accepted if function overridden to point script contained installation.
+_eclipse_example-static() {
+	mkdir -p "$ub_eclipse_workspace"
+	mkdir -p "$ub_eclipse_configuration"
+	_eclipse_example_binary -vm "$ubJava" -data "$ub_eclipse_workspace" -configuration "$ub_eclipse_configuration" "$@"
+}
+
+
+
+_eclipse_example_procedure() {
+	! _set_java__eclipse && _stop 1
+	
+	# Scope will by default... cd "$ub_specimen" ...
+	#... abstractfs... consistent directory name... '_eclipse_executable'
+	mkdir -p ./project
+	cd ./project
+	
+	
+	# Configuration Lookup Directory
+	_prepare_example_ConfigurationLookupDirectory_eclipse _eclipse_example-static "$@"
+	
+	
+	#... fakeHome... preparation... disable ?
+	
+	
+	# Example only.
+	[[ "$specialGCC" != '' ]] && _messagePlain_request 'request: special GCC bin='"$specialGCC"
+	
+	#echo "$ub_specimen"
+	
+	
+	
+	_messagePlain_request 'request: abstractfs: project:  '"$ubAFS_PRJ"
+	
+	
+	#_abstractfs bash
+	#eclipse -vm "$ubJava"  "$@"
+	
+	
+	# DANGER: Current directory WILL be included in directory chosen by "_abstractfs" !
+	_abstractfs _eclipse_example-static "$@"
+}
+
+
+_eclipse_example() {
+	#_fakeHome "$scriptAbsoluteLocation" _eclipse_example_procedure "$@"
+	"$scriptAbsoluteLocation" _eclipse_example_procedure "$@"
+}
+
 
 #Simulated client/server discussion testing.
 
@@ -9335,6 +10285,7 @@ _scope_interact() {
 # ATTENTION: Overload with "core.sh" or similar!
 _scope_prog_procedure() {
 	# WARNING: Not necessarily wise for all applications. However, applications needing a different working directory should get there from an environment variable relative to script or specimen directory.
+	# WARNING: Disabling this may cause inconsistencies with programs which require "_abstractfs" (eg. Arduino, Eclipse).
 	cd "$ub_specimen"
 	
 	#true
@@ -11501,21 +12452,60 @@ _resetUbiquitous() {
 _refresh_anchors_ubiquitous() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_ubide
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_ubdb
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_test
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_true
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_false
+	
+	cp -a "$scriptAbsoluteFolder"/_anchor.bat "$scriptAbsoluteFolder"/_test.bat
+	cp -a "$scriptAbsoluteFolder"/_anchor.bat "$scriptAbsoluteFolder"/_true.bat
+	cp -a "$scriptAbsoluteFolder"/_anchor.bat "$scriptAbsoluteFolder"/_false.bat
 }
 
-_anchor() {
-	! [[ -e "$scriptAbsoluteFolder"/_anchor ]] && return 1
+# ATTENTION: Overload with 'core.sh' or similar.
+# WARNING: May become default behavior.
+_anchor_autoupgrade() {
+	local currentScriptBaseName
+	currentScriptBaseName=$(basename $scriptAbsoluteLocation)
+	[[ "$currentScriptBaseName" != "ubiquitous_bash.sh" ]] && return 1
+	
+	true
+	#[[ -e "$scriptLib"/ubiquitous_bash/_anchor ]] && cp -a "$scriptLib"/ubiquitous_bash/_anchor "$scriptAbsoluteFolder"/_anchor
+}
+
+_anchor_configure() {
+	export ubAnchorTemplateCurrent="$scriptAbsoluteFolder"/_anchor
+	[[ "$1" != "" ]] && export ubAnchorTemplateCurrent="$1"
+	
+	
+	_anchor_autoupgrade
+	
+	! [[ -e "$ubAnchorTemplateCurrent" ]] && return 1
 	
 	#https://superuser.com/questions/450868/what-is-the-simplest-scriptable-way-to-check-whether-a-shell-variable-is-exporte
 	! [ "$(bash -c 'echo ${objectName}')" ] && return 1
 	
 	
-	rm -f "$scriptAbsoluteFolder"/_anchor.tmp > /dev/null 2>&1
-	cp "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_anchor.tmp
-	perl -p -e 's/export anchorSourceDir=.*/export anchorSourceDir="$ENV{objectName}"/g' "$scriptAbsoluteFolder"/_anchor > "$scriptAbsoluteFolder"/_anchor.tmp
-	mv "$scriptAbsoluteFolder"/_anchor.tmp "$scriptAbsoluteFolder"/_anchor
+	rm -f "$scriptAbsoluteFolder"/_anchor.tmp "$scriptAbsoluteFolder"/_anchor.tmp1 "$scriptAbsoluteFolder"/_anchor.tmp2 > /dev/null 2>&1
+	cp "$ubAnchorTemplateCurrent" "$scriptAbsoluteFolder"/_anchor.tmp
+	cp "$ubAnchorTemplateCurrent" "$scriptAbsoluteFolder"/_anchor.tmp1
+	cp "$ubAnchorTemplateCurrent" "$scriptAbsoluteFolder"/_anchor.tmp2
+	
+	
+	perl -p -e 's/export anchorSourceDir=.*/export anchorSourceDir="$ENV{objectName}"/g' "$scriptAbsoluteFolder"/_anchor.tmp > "$scriptAbsoluteFolder"/_anchor.tmp1
+	
+	perl -p -e 's/SET "MSWanchorSourceDir=.*/SET "MSWanchorSourceDir=$ENV{objectName}"/g' "$scriptAbsoluteFolder"/_anchor.tmp1 > "$scriptAbsoluteFolder"/_anchor.tmp2
+	
+	
+	mv "$scriptAbsoluteFolder"/_anchor.tmp2 "$ubAnchorTemplateCurrent"
+	rm -f "$scriptAbsoluteFolder"/_anchor.tmp "$scriptAbsoluteFolder"/_anchor.tmp1 "$scriptAbsoluteFolder"/_anchor.tmp2 > /dev/null 2>&1
+}
+
+_anchor() {
+	_anchor_configure
+	_anchor_configure "$scriptAbsoluteFolder"/_anchor.bat
+	
+	! [[ -e "$scriptAbsoluteFolder"/_anchor ]] && ! [[ -e "$scriptAbsoluteFolder"/_anchor.bat ]] && return 1
 	
 	[[ "$scriptAbsoluteFolder" == *"ubiquitous_bash" ]] && _refresh_anchors_ubiquitous
 	
@@ -11564,10 +12554,10 @@ _setup_renice() {
 	cat << CZXWXcRMTo8EmM8i4d >> "$ubcoreFile"
 
 # token_ub_renice
-if [[ "\$__overrideRecursionGuard_make" != 'true' ]] && [[ "\$__overrideKeepPriority_make" != 'true' ]] && type which > /dev/null 2>&1 && which make > /dev/null 2>&1
+if [[ "\$__overrideRecursionGuard_make" != 'true' ]] && [[ "\$__overrideKeepPriority_make" != 'true' ]] && type type > /dev/null 2>&1 && type -p make > /dev/null 2>&1
 then
 	__overrideRecursionGuard_make='true'
-	__override_make=$(which make 2>/dev/null)
+	__override_make=$(type -p make 2>/dev/null)
 	make() {
 		#Greater or equal, _priority_idle_pid
 		
@@ -11895,6 +12885,7 @@ export scriptLib="$scriptAbsoluteFolder"/_lib
 [[ ! -e "$scriptLib" ]] && export scriptLib="$scriptAbsoluteFolder"
 
 
+# WARNING: Standard relied upon by other standalone scripts (eg. MSW compatible _anchor.bat )
 export scriptLocal="$scriptAbsoluteFolder"/_local
 
 #For system installations (exclusively intended to support _setupUbiquitous and _drop* hooks).
@@ -14506,6 +15497,7 @@ _stop_stty_echo() {
 	[[ "$ubFoundEchoStatus" != "" ]] && stty --file=/dev/tty "$ubFoundEchoStatus" 2> /dev/null
 }
 
+# DANGER: Use of "_stop" must NOT require successful "_start". Do NOT include actions which would not be safe if "_start" was not used or unsuccessful.
 _stop() {
 	_stop_stty_echo
 	
@@ -15111,6 +16103,11 @@ _test() {
 	_getDep return
 	_getDep set
 	
+	# WARNING: Deprecated. Migrate to 'type -p' instead when possible.
+	# WARNING: No known production use.
+	#https://unix.stackexchange.com/questions/85249/why-not-use-which-what-to-use-then
+	_getDep which
+	
 	_getDep printf
 	
 	_getDep dd
@@ -15362,10 +16359,56 @@ _package_prog() {
 	true
 }
 
+
+_package_ubcp_copy() {
+	mkdir -p "$safeTmp"/package/_local
+	
+	if [[ -e "$scriptLocal"/ubcp ]]
+	then
+		cp -a "$scriptLocal"/ubcp "$safeTmp"/package/_local/
+		return 0
+	fi
+	if [[ -e "$scriptLib"/ubcp ]]
+	then
+		cp -a "$scriptLib"/ubcp "$safeTmp"/package/_local/
+		return 0
+	fi
+	if [[ -e "$scriptAbsoluteFolder"/ubcp ]]
+	then
+		cp -a "$scriptAbsoluteFolder"/ubcp "$safeTmp"/package/_local/
+		return 0
+	fi
+	
+	
+	if [[ -e "$scriptLib"/ubiquitous_bash/_local/ubcp ]]
+	then
+		cp -a "$scriptLib"/ubiquitous_bash/_local/ubcp "$safeTmp"/package/_local/
+		return 0
+	fi
+	if [[ -e "$scriptLib"/ubiquitous_bash/_lib/ubcp ]]
+	then
+		cp -a "$scriptLib"/ubiquitous_bash/_lib/ubcp "$safeTmp"/package/_local/
+		return 0
+	fi
+	if [[ -e "$scriptLib"/ubiquitous_bash/ubcp ]]
+	then
+		cp -a "$scriptLib"/ubiquitous_bash/ubcp "$safeTmp"/package/_local/
+		return 0
+	fi
+	
+	
+	cd "$outerPWD"
+	_stop 1
+}
+
+
 # WARNING Must define "_package_license" function in ops to include license files in package!
-_package() {
+_package_procedure() {
 	_start
 	mkdir -p "$safeTmp"/package
+	
+	# WARNING: Largely due to presence of '.gitignore' files in 'ubcp' .
+	export safeToDeleteGit="true"
 	
 	_package_prog
 	
@@ -15379,6 +16422,12 @@ _package() {
 	cp -a "$scriptAbsoluteFolder"/ops "$safeTmp"/package/
 	cp -a "$scriptAbsoluteFolder"/ops.sh "$safeTmp"/package/
 	
+	cp "$scriptAbsoluteFolder"/_* "$safeTmp"/package/
+	cp "$scriptAbsoluteFolder"/*.sh "$safeTmp"/package/
+	
+	cp -a "$scriptLocal"/ops "$safeTmp"/package/
+	cp -a "$scriptLocal"/ops.sh "$safeTmp"/package/
+	
 	#cp -a "$scriptAbsoluteFolder"/_bin "$safeTmp"
 	#cp -a "$scriptAbsoluteFolder"/_config "$safeTmp"
 	#cp -a "$scriptAbsoluteFolder"/_prog "$safeTmp"
@@ -15388,12 +16437,38 @@ _package() {
 	cp -a "$scriptAbsoluteFolder"/README.md "$safeTmp"/package/
 	cp -a "$scriptAbsoluteFolder"/USAGE.html "$safeTmp"/package/
 	
+	if [[ "$ubPackage_enable_ubcp" == 'true' ]]
+	then
+		_package_ubcp_copy "$@"
+	fi
+	
 	cd "$safeTmp"/package/
-	tar -czvf "$scriptAbsoluteFolder"/package.tar.gz .
+	
+	! [[ "$ubPackage_enable_ubcp" == 'true' ]] && tar -czvf "$scriptAbsoluteFolder"/package.tar.gz .
+	[[ "$ubPackage_enable_ubcp" == 'true' ]] && tar -czvf "$scriptAbsoluteFolder"/package_ubcp.tar.gz .
+	
+	if [[ "$ubPackage_enable_ubcp" == 'true' ]]
+	then
+		_messagePlain_request 'request: review contents of _local/ubcp/cygwin/home and similar directories'
+	fi
 	
 	cd "$outerPWD"
 	_stop
 }
+
+_package() {
+	export ubPackage_enable_ubcp='false'
+	"$scriptAbsoluteLocation" _package_procedure "$@"
+	
+	export ubPackage_enable_ubcp='true'
+	"$scriptAbsoluteLocation" _package_procedure "$@"
+}
+
+
+
+
+
+
 
 _check_prog() {
 	! _check_prog_arduino "$@" && return 1
@@ -17011,6 +18086,10 @@ _deps_blockchain() {
 	export enUb_blockchain="true"
 }
 
+_deps_java() {
+	export enUb_java="true"
+}
+
 _deps_image() {
 	_deps_notLean
 	_deps_machineinfo
@@ -17271,7 +18350,6 @@ _compile_bash_deps() {
 	
 	if [[ "$1" == "processor" ]]
 	then
-		
 		_deps_dev
 		
 		_deps_channel
@@ -17318,6 +18396,9 @@ _compile_bash_deps() {
 		
 		_deps_notLean
 		_deps_os_x11
+		
+		_deps_java
+		
 		
 		_deps_x11
 		_deps_image
@@ -17381,6 +18462,9 @@ _compile_bash_deps() {
 		
 		_deps_notLean
 		_deps_os_x11
+		
+		_deps_java
+		
 		
 		_deps_x11
 		_deps_image
@@ -17558,7 +18642,16 @@ _compile_bash_utilities() {
 	includeScriptList+=( "special"/uuid.sh )
 	
 	[[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "instrumentation"/bashdb/bashdb.sh )
-	([[ "$enUb_notLean" == "true" ]] || [[ "$enUb_stopwatch" == "true" ]]) && includeScriptList+=( "instrumentation"/profiling/stopwatch.sh )
+	( [[ "$enUb_notLean" == "true" ]] || [[ "$enUb_stopwatch" == "true" ]] ) && includeScriptList+=( "instrumentation"/profiling/stopwatch.sh )
+}
+
+# Specifically intended to support Eclipse as necessary for building existing software .
+# Java is regarded as something similar to, but not, an unusual virtualization backend, due to its perhaps rare combination of portability, ongoing incompatible versions, lack of root or kernelspace requirements, typical operating system wide installation, and overall complexity.
+# Multiple 'jre' and 'jdk' packages or script contained versions may be able to, or required, to satisfy related dependencies.
+# WARNING: This is intended to provide for java *applications*, NOT necessarily browser java 'applets'.
+# WARNING: Do NOT deprecate java versions for 'security' reasons - this is intended ONLY to support applications which already normally require user or root permissions.
+_compile_bash_utilities_java() {
+	[[ "$enUb_java" == "true" ]] && includeScriptList+=( "special/java"/java.sh )
 }
 
 _compile_bash_utilities_virtualization() {
@@ -17576,6 +18669,8 @@ _compile_bash_utilities_virtualization() {
 	[[ "$enUb_virt" == "true" ]] && includeScriptList+=( "virtualization"/localPathTranslation.sh )
 	
 	[[ "$enUb_abstractfs" == "true" ]] && includeScriptList+=( "virtualization/abstractfs"/abstractfs.sh )
+	[[ "$enUb_abstractfs" == "true" ]] && includeScriptList+=( "virtualization/abstractfs"/abstractfs_appdir_specific.sh )
+	[[ "$enUb_abstractfs" == "true" ]] && includeScriptList+=( "virtualization/abstractfs"/abstractfs_appdir.sh )
 	[[ "$enUb_abstractfs" == "true" ]] && includeScriptList+=( "virtualization/abstractfs"/abstractfsvars.sh )
 	
 	[[ "$enUb_fakehome" == "true" ]] && includeScriptList+=( "virtualization/fakehome"/fakehomemake.sh )
@@ -17636,7 +18731,14 @@ _compile_bash_shortcuts() {
 	
 	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devemacs.sh )
 	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devatom.sh )
-	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_abstractfs" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/deveclipse.sh )
+	
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_abstractfs" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app/eclipse"/deveclipse_java.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_abstractfs" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app/eclipse"/deveclipse_env.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_abstractfs" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app/eclipse"/deveclipse_bin_.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_abstractfs" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app/eclipse"/deveclipse_app.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_abstractfs" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app/eclipse"/deveclipse_example_export.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_abstractfs" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app/eclipse"/deveclipse_example.sh )
+	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_abstractfs" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app/eclipse"/deveclipse.sh )
 	
 	includeScriptList+=( "shortcuts/dev/query"/devquery.sh )
 	
@@ -17909,6 +19011,7 @@ _compile_bash() {
 	_compile_bash_essential_utilities_prog
 	_compile_bash_utilities
 	_compile_bash_utilities_prog
+	_compile_bash_utilities_java
 	_compile_bash_utilities_virtualization
 	_compile_bash_utilities_virtualization_prog
 	
