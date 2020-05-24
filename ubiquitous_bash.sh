@@ -12138,6 +12138,7 @@ export hostToGuestISO="$instancedVirtDir"/htg/htg.iso
 
 
 ##### specglobalvars_arduino #####
+# ATTENTION: TODO: Defaults. Should be set by a function and included by such functions as '_declare_arduino_device_zero'. Other boards (ie. Teensyduino) may need to override partially.
 
 export au_arduinoLocal="$scriptLocal"/arduino
 
