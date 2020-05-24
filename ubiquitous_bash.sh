@@ -13133,15 +13133,7 @@ export hostToGuestISO="$instancedVirtDir"/htg/htg.iso
 
 export au_arduinoLocal="$scriptLocal"/arduino
 
-export au_arduinoVersion=arduino-1.8.5
-export au_arduinoDir="$au_arduinoLocal"/"$au_arduinoVersion"
-
-export au_gdbBin="$au_arduinoLocal"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb
-
-export au_openocdStatic="$scriptLib"/openocd-static
-export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
-export au_openocdStaticBin="$au_openocdStatic"/build/bin/openocd
-export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
+_declare_arduino_installation_default
 
 
 
@@ -16544,6 +16536,34 @@ _main() {
 	_stop
 }
 
+# ATTENTION: WARNING: Override of arduino related environment variables should only be done to support build toolchains entirely compatible with the existing functions to support arduino (eg. other arduino versions, teensyduino, not eclipse).
+
+
+
+_declare_arduino_installation_1.8.5() {
+	export au_arduinoVersion=arduino-1.8.5
+	export au_arduinoDir="$au_arduinoLocal"/"$au_arduinoVersion"
+
+	export au_gdbBin="$au_arduinoLocal"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb
+
+	export au_openocdStatic="$scriptLib"/openocd-static
+	export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
+	export au_openocdStaticBin="$au_openocdStatic"/build/bin/openocd
+	export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
+}
+
+
+
+
+
+
+# ATTENTION: Declared as a function (rather than only by calling a function) to allow to be called at the correct script location by by 'specglobalvars.sh'.
+# WARNING: Slim possibility this  may be required for historical reasons which have not been identified.
+_declare_arduino_installation_default() {
+	_declare_arduino_installation_1.8.5
+}
+_declare_arduino_installation_default
+
 
 _set_arduino_userShortHome() {
 	export actualFakeHome="$shortFakeHome"
@@ -19207,7 +19227,8 @@ _compile_bash_installation_prog() {
 _compile_bash_program_prog() {	
 	export includeScriptList
 	
-	
+	includeScriptList+=( core_arduino____installation_1.8.5.sh )
+	includeScriptList+=( core_arduino____installation_default.sh )
 	
 	
 	includeScriptList+=( core_arduino_env.sh )

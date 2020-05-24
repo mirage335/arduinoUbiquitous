@@ -108,7 +108,8 @@ _compile_bash_installation_prog() {
 _compile_bash_program_prog() {	
 	export includeScriptList
 	
-	
+	includeScriptList+=( core_arduino____installation_1.8.5.sh )
+	includeScriptList+=( core_arduino____installation_default.sh )
 	
 	
 	includeScriptList+=( core_arduino_env.sh )
