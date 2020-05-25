@@ -131,7 +131,7 @@ __asm__("nop\n\t");
 + Compile Blink.
 + Upload Blink via SWD to Arduino M0 as Arduino Zero.
 + Upload Blink via Serial (including after SWD).
-+ "_scope_ddd_procedure" after "_compile" within './_scope ./_lib/Blink/'
++ "_arduino_debug_ddd" after "_compile" within './_scope ./_lib/Blink/' or as './_arduino_debug_ddd ./_lib/Blink/' .
 
 
 * Fading or Stuck Blink LED, inability to upload via serial.

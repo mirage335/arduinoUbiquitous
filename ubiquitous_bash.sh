@@ -16629,11 +16629,11 @@ _prepare_arduino_installation() {
 	
 	mkdir -p "$au_arduinoDir"
 	
-	#mkdir -p "$au_arduinoDir"/portable
-	#mkdir -p "$au_arduinoDir"/portable/sketchbook
-	
 	_relink ../.arduino15 "$au_arduinoDir"/portable
 	_relink ../Arduino "$au_arduinoDir"/portable/sketchbook
+	
+	mkdir -p "$au_arduinoDir"/portable
+	mkdir -p "$au_arduinoDir"/portable/sketchbook
 	
 	
 	[[ -e "$au_arduinoSketchDir" ]] && _abstractfs true "$au_arduinoSketchDir"
@@ -16824,6 +16824,7 @@ _arduino_deconfigure_procedure() {
 	local arduinoPreferences
 	
 	arduinoPreferences="$1"
+	[[ "$arduinoPreferences" == '' ]] && arduinoPreferences="$HOME"/.arduino15/preferences.txt
 	
 	#! [[ -e "$arduinoPreferences" ]] && arduinoPreferences="$HOME"/.arduino15/preferences.txt
 	! [[ -e "$arduinoPreferences" ]] && _messagePlain_bad 'aU: missing: preferences' && return 1
@@ -16855,20 +16856,26 @@ _arduino_deconfigure_procedure() {
 }
 
 _arduino_deconfigure_method() {
-	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_deconfigure_procedure "$HOME"/.arduino15/preferences.txt "$@"
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_deconfigure_procedure "$@"
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_deconfigure_procedure "$au_arduinoLocal"/.arduino15/preferences.txt "$@"
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt "$@"
 }
 
 
 
 # WARNING: No production use.
 # WARNING: May interfere with user global Arduino IDE installation.
+# DANGER: May be obsolete and broken.
 #Example.
 _arduino_deconfigure_sequence() {
 	_start
 	
+	# User global home folder.
 	_arduino_deconfigure_procedure "$HOME"/.arduino15/preferences.txt
-	_arduino_deconfigure_procedure "$au_arduinoLocal"/.arduino15/preferences.txt
-	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
+	
+	_arduino_deconfigure_method
+	_arduino_deconfigure_method "$au_arduinoLocal"/.arduino15/preferences.txt
+	_arduino_deconfigure_method "$au_arduinoDir"/portable/preferences.txt
 	
 	_stop
 }
@@ -17113,6 +17120,7 @@ _arduino_arduinoide_edit() {
 # Prefer _scope .
 #config, assumes portable directories have been setup
 # WARNING: No production use.
+# DANGER: May be obsolete and broken.
 _arduino_arduinoide_config() {
 	_start
 	

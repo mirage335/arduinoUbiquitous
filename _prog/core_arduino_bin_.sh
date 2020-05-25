@@ -60,6 +60,7 @@ _arduino_deconfigure_procedure() {
 	local arduinoPreferences
 	
 	arduinoPreferences="$1"
+	[[ "$arduinoPreferences" == '' ]] && arduinoPreferences="$HOME"/.arduino15/preferences.txt
 	
 	#! [[ -e "$arduinoPreferences" ]] && arduinoPreferences="$HOME"/.arduino15/preferences.txt
 	! [[ -e "$arduinoPreferences" ]] && _messagePlain_bad 'aU: missing: preferences' && return 1
@@ -91,20 +92,26 @@ _arduino_deconfigure_procedure() {
 }
 
 _arduino_deconfigure_method() {
-	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_deconfigure_procedure "$HOME"/.arduino15/preferences.txt "$@"
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_deconfigure_procedure "$@"
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_deconfigure_procedure "$au_arduinoLocal"/.arduino15/preferences.txt "$@"
+	_fakeHome "$scriptAbsoluteLocation" --parent _arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt "$@"
 }
 
 
 
 # WARNING: No production use.
 # WARNING: May interfere with user global Arduino IDE installation.
+# DANGER: May be obsolete and broken.
 #Example.
 _arduino_deconfigure_sequence() {
 	_start
 	
+	# User global home folder.
 	_arduino_deconfigure_procedure "$HOME"/.arduino15/preferences.txt
-	_arduino_deconfigure_procedure "$au_arduinoLocal"/.arduino15/preferences.txt
-	_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
+	
+	_arduino_deconfigure_method
+	_arduino_deconfigure_method "$au_arduinoLocal"/.arduino15/preferences.txt
+	_arduino_deconfigure_method "$au_arduinoDir"/portable/preferences.txt
 	
 	_stop
 }

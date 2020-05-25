@@ -67,6 +67,7 @@ _arduino_arduinoide_edit() {
 # Prefer _scope .
 #config, assumes portable directories have been setup
 # WARNING: No production use.
+# DANGER: May be obsolete and broken.
 _arduino_arduinoide_config() {
 	_start
 	
