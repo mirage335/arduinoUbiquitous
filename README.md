@@ -125,7 +125,7 @@ __asm__("nop\n\t");
 
 # Certification
 
-## a19b4e6e6eaf045666889e54897530c75a23778f
+## b6d5060bafdc300cfd063a14245668dd2201afb4
 
 + Upload Arduino Zero bootloader via SWD to Ardunin M0 as Arduino Zero.
 + Compile Blink.
