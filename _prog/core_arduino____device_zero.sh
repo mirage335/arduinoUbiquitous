@@ -1,9 +1,9 @@
 _arduino_method_device_zero() {
-	_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_platform=samd --pref board=arduino_zero_native "$@"
+	_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_package=arduino --pref target_platform=samd --pref board=arduino_zero_native "$@"
 }
 
 _prepare_arduino_board_device_zero() {
-	_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_platform=samd --pref board=arduino_zero_native
+	_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_package=arduino --pref target_platform=samd --pref board=arduino_zero_native
 }
 
 

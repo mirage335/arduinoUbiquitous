@@ -47,8 +47,8 @@ CZXWXcRMTo8EmM8i4d
 		
 		[[ "$au_arduinoSketchDir" != "$ub_specimen" ]] && _messagePlain_bad 'fail: mismatch: au_arduinoSketchDir, ub_specimen' && _stop 1
 		
-		#_set_arduino_editShortHome
-		_set_arduino_userShortHome
+		_set_arduino_editShortHome
+		#_set_arduino_userShortHome
 		_prepare_arduino_installation
 		#export arduinoExecutable="$au_arduinoDir"/arduino
 		export arduinoExecutable=

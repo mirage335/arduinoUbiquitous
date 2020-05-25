@@ -25,6 +25,14 @@ _set_arduino_editFakeHome() {
 	export keepFakeHome="true"
 }
 
+# ATTENTION: Sets whether global fakeHome directory is used in editable mode for compile jobs and similar!
+# DANGER: Setting 'user' non-editable is known to break automatic setting of 'preferences' needed to set board type automatically!
+# WARNING: Setting 'user' non-editable is known to possibly cause warning messages with gdb and/or ddd .
+_set_arduino_fakeHome() {
+	#_set_arduino_userFakeHome
+	_set_arduino_editFakeHome
+}
+
 _prepare_arduino_installation() {
 	mkdir -p "$au_arduinoLocal"/.arduino15
 	mkdir -p "$au_arduinoLocal"/Arduino

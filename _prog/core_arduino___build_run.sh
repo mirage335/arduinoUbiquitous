@@ -15,8 +15,8 @@ _arduino_run_sequence() {
 	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
-	#_set_arduino_editShortHome
-	_set_arduino_userShortHome
+	_set_arduino_editShortHome
+	#_set_arduino_userShortHome
 	_prepare_arduino_installation
 	#export arduinoExecutable="$au_arduinoDir"/arduino
 	export arduinoExecutable=
