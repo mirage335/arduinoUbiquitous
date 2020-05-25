@@ -125,7 +125,7 @@ __asm__("nop\n\t");
 
 # Certification
 
-## b6d5060bafdc300cfd063a14245668dd2201afb4
+## 10c37b4fb6340965b7a319996de3692de6b58b15
 
 + Upload Arduino Zero bootloader via SWD to Ardunin M0 as Arduino Zero.
 + Compile Blink.
@@ -138,7 +138,9 @@ __asm__("nop\n\t");
 	* Quick USB power cycling regardless of USB data presence.
 	* Serial port programming by ArduinoIDE.
 
-
+## 10c37b4fb6340965b7a319996de3692de6b58b15
++ ./_arduino_compile ./_lib/_examples/teensy36/Blink/
++ ./_arduino_upload ./_lib/_examples/teensy36/Blink/
 
 
 # Reference
