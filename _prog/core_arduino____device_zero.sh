@@ -39,6 +39,8 @@ _arduino_bootloader_zero() {
 
 _declare_arduino_device_zero() {
 
+	_declare_arduino_installation_default
+
 	_arduino_method_device() {
 		_arduino_method_device_zero "$@"
 	}

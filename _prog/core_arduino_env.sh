@@ -31,11 +31,11 @@ _prepare_arduino_installation() {
 	
 	mkdir -p "$au_arduinoDir"
 	
-	mkdir -p "$au_arduinoDir"/portable
-	mkdir -p "$au_arduinoDir"/portable/sketchbook
-	
 	_relink ../.arduino15 "$au_arduinoDir"/portable
 	_relink ../Arduino "$au_arduinoDir"/portable/sketchbook
+	
+	mkdir -p "$au_arduinoDir"/portable
+	mkdir -p "$au_arduinoDir"/portable/sketchbook
 	
 	
 	[[ -e "$au_arduinoSketchDir" ]] && _abstractfs true "$au_arduinoSketchDir"

@@ -13129,13 +13129,22 @@ export hostToGuestISO="$instancedVirtDir"/htg/htg.iso
 
 
 ##### specglobalvars_arduino #####
-# ATTENTION: TODO: Defaults. Should be set by a function and included by such functions as '_declare_arduino_device_zero'. Other boards (ie. Teensyduino) may need to override partially.
 
 export au_arduinoLocal="$scriptLocal"/arduino
 
-_declare_arduino_installation_default
-
-
+# WARNING: Some sane defaults may be defined here due to slim possibility may be found necessary due to historical reasons which have not been identified.
+# Disabled by default. Strongly discouraged.
+###
+# export au_arduinoVersion=arduino-1.8.5
+# export au_arduinoDir="$au_arduinoLocal"/"$au_arduinoVersion"
+# 
+# export au_gdbBin="$au_arduinoLocal"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb
+# 
+# export au_openocdStatic="$scriptLib"/openocd-static
+# export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
+# export au_openocdStaticBin="$au_openocdStatic"/build/bin/openocd
+# export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
+###
 
 
 
@@ -16552,17 +16561,40 @@ _declare_arduino_installation_1.8.5() {
 	export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
 }
 
+_declare_arduino_installation_1.8.12() {
+	export au_arduinoVersion=arduino-1.8.12
+	export au_arduinoDir="$au_arduinoLocal"/"$au_arduinoVersion"
+
+	export au_gdbBin="$au_arduinoLocal"/.arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-gdb
+
+	export au_openocdStatic="$scriptLib"/openocd-static
+	export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
+	export au_openocdStaticBin="$au_openocdStatic"/build/bin/openocd
+	export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
+}
+
+
+_declare_teensyduino_installation_1.52() {
+	_declare_arduino_installation_1.8.12
+	
+	# Specific teensyduino variables.
+	
+	
+}
 
 
 
-
-
-# ATTENTION: Declared as a function (rather than only by calling a function) to allow to be called at the correct script location by by 'specglobalvars.sh'.
-# WARNING: Slim possibility this  may be required for historical reasons which have not been identified.
+# ATTENTION: Declared as a function, rather than only by calling a function, to allow device declarations to request a arduino, with a default, rather than specific, version.
 _declare_arduino_installation_default() {
-	_declare_arduino_installation_1.8.5
+	#_declare_arduino_installation_1.8.5
+	_declare_arduino_installation_1.8.12
 }
 _declare_arduino_installation_default
+
+
+_declare_teensyduino_installation_default() {
+	_declare_teensyduino_installation_1.52
+}
 
 
 _set_arduino_userShortHome() {
@@ -16597,8 +16629,8 @@ _prepare_arduino_installation() {
 	
 	mkdir -p "$au_arduinoDir"
 	
-	mkdir -p "$au_arduinoDir"/portable
-	mkdir -p "$au_arduinoDir"/portable/sketchbook
+	#mkdir -p "$au_arduinoDir"/portable
+	#mkdir -p "$au_arduinoDir"/portable/sketchbook
 	
 	_relink ../.arduino15 "$au_arduinoDir"/portable
 	_relink ../Arduino "$au_arduinoDir"/portable/sketchbook
@@ -17203,6 +17235,8 @@ _arduino_bootloader_zero() {
 
 
 _declare_arduino_device_zero() {
+
+	_declare_arduino_installation_default
 
 	_arduino_method_device() {
 		_arduino_method_device_zero "$@"
