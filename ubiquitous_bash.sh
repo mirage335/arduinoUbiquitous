@@ -16623,6 +16623,14 @@ _set_arduino_editFakeHome() {
 	export keepFakeHome="true"
 }
 
+# ATTENTION: Sets whether global fakeHome directory is used in editable mode for compile jobs and similar!
+# DANGER: Setting 'user' non-editable is known to break automatic setting of 'preferences' needed to set board type automatically!
+# WARNING: Setting 'user' non-editable is known to possibly cause warning messages with gdb and/or ddd .
+_set_arduino_fakeHome() {
+	#_set_arduino_userFakeHome
+	_set_arduino_editFakeHome
+}
+
 _prepare_arduino_installation() {
 	mkdir -p "$au_arduinoLocal"/.arduino15
 	mkdir -p "$au_arduinoLocal"/Arduino
@@ -17006,8 +17014,9 @@ CZXWXcRMTo8EmM8i4d
 		
 		[[ "$au_arduinoSketchDir" != "$ub_specimen" ]] && _messagePlain_bad 'fail: mismatch: au_arduinoSketchDir, ub_specimen' && _stop 1
 		
-		_set_arduino_editShortHome
+		#_set_arduino_editShortHome
 		#_set_arduino_userShortHome
+		_set_arduino_fakeHome
 		_prepare_arduino_installation
 		#export arduinoExecutable="$au_arduinoDir"/arduino
 		export arduinoExecutable=
@@ -17189,8 +17198,9 @@ _scope_arduino_arduinoide_procedure() {
 	
 	
 	
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
 	#_set_arduino_userShortHome
+	_set_arduino_fakeHome
 	_arduino_deconfigure_method
 	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 }
@@ -17436,8 +17446,9 @@ _arduino_debug_ddd_openocd_procedure_typical() {
 	cd "$au_arduinoSketchDir"
 	
 	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
 	#_set_arduino_userShortHome
+	_set_arduino_fakeHome
 	
 	! _check_arduino_debug && _messagePlain_bad 'fail: block: au_remotePort= '"$au_remotePort" > /dev/tty 2>&1 && return 1
 	_arduino_swd_openocd_device
@@ -17471,8 +17482,9 @@ _arduino_debug_ddd_sequence() {
 	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
 	#_set_arduino_userShortHome
+	_set_arduino_fakeHome
 	_prepare_arduino_installation
 	#export arduinoExecutable="$au_arduinoDir"/arduino
 	export arduinoExecutable=
@@ -17510,19 +17522,22 @@ _arduino_method_device() {
 _arduino_compile_preferences_procedure() {
 	# ATTENTION: Precautionary. Wastes time. Disable if possible.
 	#_set_arduino_userShortHome
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
+	_set_arduino_fakeHome
 	_messagePlain_nominal 'au: compile: set: build path'
 	_arduino_method --save-prefs --pref build.path="$shortTmp"/_build
 	
 	# ATTENTION: Precautionary. Wastes time. Disable if possible.
 	#_set_arduino_userShortHome
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
+	_set_arduino_fakeHome
 	_messagePlain_nominal 'au: compile: set: board'
 	_prepare_arduino_board
 	
 	# ATTENTION: WARNING: Partial operation combination. Undefined behavior may occur.
 	#_set_arduino_userShortHome
 	#_set_arduino_editShortHome
+	#_set_arduino_fakeHome
 	#_messagePlain_nominal 'au: compile: combine: partial'
 	#_arduino_method_device --pref build.path="$shortTmp"/_build
 	
@@ -17530,13 +17545,15 @@ _arduino_compile_preferences_procedure() {
 	# ATTENTION: WARNING: Full operation combination. Undefined behavior may occur.
 	#_set_arduino_userShortHome
 	#_set_arduino_editShortHome
+	#_set_arduino_fakeHome
 	#_messagePlain_nominal 'au: compile: combine: full'
 	#_arduino_method_device --pref build.path="$shortTmp"/_build "$@"
 	
 	
 	# ATTENTION: Precautionary. Wastes time. Disable if possible.
 	#_set_arduino_userShortHome
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
+	_set_arduino_fakeHome
 	_arduino_method "$@"
 }
 
@@ -17581,8 +17598,9 @@ _arduino_compile_sequence() {
 	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
 	#_set_arduino_userShortHome
+	_set_arduino_fakeHome
 	_prepare_arduino_installation
 	#export arduinoExecutable="$au_arduinoDir"/arduino
 	export arduinoExecutable=
@@ -17756,8 +17774,9 @@ _arduino_upload_sequence() {
 	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
 	#_set_arduino_userShortHome
+	_set_arduino_fakeHome
 	_prepare_arduino_installation
 	#export arduinoExecutable="$au_arduinoDir"/arduino
 	export arduinoExecutable=
@@ -17793,8 +17812,9 @@ _arduino_run_sequence() {
 	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
 	#_set_arduino_userShortHome
+	_set_arduino_fakeHome
 	_prepare_arduino_installation
 	#export arduinoExecutable="$au_arduinoDir"/arduino
 	export arduinoExecutable=

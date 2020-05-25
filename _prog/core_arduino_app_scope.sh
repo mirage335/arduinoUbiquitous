@@ -34,8 +34,9 @@ _scope_arduino_arduinoide_procedure() {
 	
 	
 	
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
 	#_set_arduino_userShortHome
+	_set_arduino_fakeHome
 	_arduino_deconfigure_method
 	#_arduino_deconfigure_procedure "$au_arduinoDir"/portable/preferences.txt
 }

@@ -9,19 +9,22 @@ _arduino_method_device() {
 _arduino_compile_preferences_procedure() {
 	# ATTENTION: Precautionary. Wastes time. Disable if possible.
 	#_set_arduino_userShortHome
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
+	_set_arduino_fakeHome
 	_messagePlain_nominal 'au: compile: set: build path'
 	_arduino_method --save-prefs --pref build.path="$shortTmp"/_build
 	
 	# ATTENTION: Precautionary. Wastes time. Disable if possible.
 	#_set_arduino_userShortHome
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
+	_set_arduino_fakeHome
 	_messagePlain_nominal 'au: compile: set: board'
 	_prepare_arduino_board
 	
 	# ATTENTION: WARNING: Partial operation combination. Undefined behavior may occur.
 	#_set_arduino_userShortHome
 	#_set_arduino_editShortHome
+	#_set_arduino_fakeHome
 	#_messagePlain_nominal 'au: compile: combine: partial'
 	#_arduino_method_device --pref build.path="$shortTmp"/_build
 	
@@ -29,13 +32,15 @@ _arduino_compile_preferences_procedure() {
 	# ATTENTION: WARNING: Full operation combination. Undefined behavior may occur.
 	#_set_arduino_userShortHome
 	#_set_arduino_editShortHome
+	#_set_arduino_fakeHome
 	#_messagePlain_nominal 'au: compile: combine: full'
 	#_arduino_method_device --pref build.path="$shortTmp"/_build "$@"
 	
 	
 	# ATTENTION: Precautionary. Wastes time. Disable if possible.
 	#_set_arduino_userShortHome
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
+	_set_arduino_fakeHome
 	_arduino_method "$@"
 }
 
@@ -80,8 +85,9 @@ _arduino_compile_sequence() {
 	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
 	#_set_arduino_userShortHome
+	_set_arduino_fakeHome
 	_prepare_arduino_installation
 	#export arduinoExecutable="$au_arduinoDir"/arduino
 	export arduinoExecutable=

@@ -17,8 +17,9 @@ _arduino_debug_ddd_openocd_procedure_typical() {
 	cd "$au_arduinoSketchDir"
 	
 	#Safety provisions require this to be reset by any script process, even if "--parent" or similar declared.
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
 	#_set_arduino_userShortHome
+	_set_arduino_fakeHome
 	
 	! _check_arduino_debug && _messagePlain_bad 'fail: block: au_remotePort= '"$au_remotePort" > /dev/tty 2>&1 && return 1
 	_arduino_swd_openocd_device
@@ -52,8 +53,9 @@ _arduino_debug_ddd_sequence() {
 	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
-	_set_arduino_editShortHome
+	#_set_arduino_editShortHome
 	#_set_arduino_userShortHome
+	_set_arduino_fakeHome
 	_prepare_arduino_installation
 	#export arduinoExecutable="$au_arduinoDir"/arduino
 	export arduinoExecutable=
