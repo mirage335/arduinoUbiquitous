@@ -23,6 +23,12 @@ _test_prog_arduino() {
 _setup_prog_arduino() {
 	[[ -e "$au_openocdStaticUB" ]] && ! "$au_openocdStaticUB" _setup_prog "$@" && _stop 1
 	
+	#cat << 'CZXWXcRMTo8EmM8i4d' | sudo tee "$1"'/etc/udev/rules.d/49-teensy-'"$ubiquitiousBashIDshort"'.rules' > /dev/null
+#CZXWXcRMTo8EmM8i4d
+	sudo -n cp "$scriptLib"/udev_teensy-rules/49-teensy.rules /etc/udev/rules.d/
+	#_messagePlain_good 'write: udev: complete'
+	
+	
 	return 0
 }
 

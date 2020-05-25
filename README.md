@@ -170,6 +170,18 @@ __asm__("nop\n\t");
 
 * https://arduino-esp8266.readthedocs.io/en/latest/installing.html#using-git-version
 
+
+
+# Third Party Copyright
+
+All third-party files incorporated retain the licenses provided by their original authors. Incorporated works may include...
+
+* Arduino - https://www.arduino.cc/
+* Teensyduino - https://www.pjrc.com/teensy/td_download.html
+
+All other files are part of the arduinoUbiquitous . In particular, it is desired that there should be no ambiguity whatsoever the shell script segments provided under directory "_prog" and subsequently concatenated or compiled into 'ubiquitous_bash.sh', or any similar files, are intended to be covered by the GPLv3 license .
+
+
 __Copyright__
 This file is part of arduinoUbiquitous.
 
