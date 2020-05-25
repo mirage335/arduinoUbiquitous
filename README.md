@@ -139,6 +139,8 @@ __asm__("nop\n\t");
 	* Serial port programming by ArduinoIDE.
 
 
+
+
 # Reference
 * https://hackaday.com/2015/07/28/embed-with-elliot-there-is-no-arduino-language/
 
@@ -170,6 +172,9 @@ __asm__("nop\n\t");
 
 * https://arduino-esp8266.readthedocs.io/en/latest/installing.html#using-git-version
 
+
+
+* https://forum.pjrc.com/threads/41751-Is-the-Teensy-boot-loader-source-available
 
 
 # Third Party Copyright

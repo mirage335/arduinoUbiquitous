@@ -48,6 +48,7 @@ _set_arduino_firmware() {
 	fi
 	
 	! _check_arduino_firmware && return 1
+	return 0
 }
 
 _arduino_serial_wait() {

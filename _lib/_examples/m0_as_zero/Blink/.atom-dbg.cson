@@ -1,0 +1,8 @@
+"Arduino Firmware":
+	debugger: "dbg-gdb"
+	gdb_executable: "_interface_debug_atom"
+	gdb_commands: [ "eval \"target remote localhost:%d\", $au_remotePort"
+	"load"
+	"monitor reset init"
+	"monitor reset halt"
+	]

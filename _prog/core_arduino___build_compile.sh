@@ -44,6 +44,20 @@ _arduino_compile_preferences_procedure() {
 	_arduino_method "$@"
 }
 
+_arduino_compile_wait_teensy() {
+	_messagePlain_nominal 'Waiting: teensy bootloader open'
+	
+	ps -e | grep teensy
+	
+	local currentWaitTime=0
+	for currentWaitTime in {1..270}
+	do
+		pgrep teensy > /dev/null 2>&1 && sleep 1
+	done
+	
+	return 0
+}
+
 
 _arduino_compile_procedure() {
 	local localFunctionEntryPWD
@@ -69,6 +83,9 @@ _arduino_compile_procedure() {
 	cp "$shortTmp"/_build/*.bin "$au_arduinoBuildOut"/
 	cp "$shortTmp"/_build/*.hex "$au_arduinoBuildOut"/
 	cp "$shortTmp"/_build/*.elf "$au_arduinoBuildOut"/
+	
+	# May allow teensy graphical loader to read file.
+	[[ "$au_teensy36" == 'true' ]] && _arduino_compile_wait_teensy
 	
 	cd "$localFunctionEntryPWD"
 }
