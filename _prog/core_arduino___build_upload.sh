@@ -14,10 +14,62 @@ _arduino_upload_serial_bossac_typical() {
 	sleep 2
 	"$au_arduinoLocal"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port="$arduinoSerialPort" -U true -i -e -w -v "$au_arduinoFirmware_bin" -R
 }
-
-# ATTENTION Overload ONLY if further specialization is actually required!
+# ATTENTION: Overload ONLY if further specialization is actually required!
 _arduino_upload_serial_bossac_device() {
 	_arduino_upload_serial_bossac_typical "$@"
+}
+
+
+# ATTENTION: Overload ONLY if further specialization is actually required!
+_get_arduino_serialport_avrdude_typical() {
+	local arduinoSerialPort
+	
+	arduinoSerialPort=ttyACM0
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM1
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM2
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB0
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB1
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB2
+	! [[ -e /dev/"$arduinoSerialPort" ]] && return 1
+	
+	echo "$arduinoSerialPort"
+	return 0
+}
+# ATTENTION: EXAMPLE ONLY.
+# NOT typical. Unique.
+# https://forum.arduino.cc/index.php?topic=168515.msg1254196#msg1254196
+# ATTENTION: WARNING: Overload. Further specialization required!
+_arduino_upload_serial_avrdude_example() {
+	local arduinoSerialPort
+	! arduinoSerialPort=$(_get_arduino_serialport_avrdude_typical) && return 1
+
+	_set_arduino_fakeHome
+	_fakeHome "$au_avrdudeStatic" -C"$au_avrdudeStaticConf" -v -patmega2560 -cwiring -P"$arduinoSerialPort" -b115200 -D -Uflash:w:"$au_arduinoFirmware_hex":i
+}
+# ATTENTION: Overload. Further specialization required!
+_arduino_upload_serial_avrdude_device() {
+	_arduino_upload_serial_avrdude_example "$@"
+}
+
+
+# ONLY required by some specific devices. Generic implementation available for Arduino AVR. Other addons should define their own functions (eg. _set_arduino_firmware_hex_teensy36 ).
+_check_arduino_firmware_hex() {
+	! [[ -e "$au_arduinoFirmware_hex" ]] && return 1
+	return 0
+}
+_set_arduino_firmware_hex() {
+	export au_arduinoFirmware_hex=$(find "$shortTmp"/_build -maxdepth 1 -name '*.hex' ! -name '*bootloader*' 2> /dev/null | head -n 1)
+	! [[ -e "$au_arduinoFirmware_hex" ]] && export au_arduinoFirmware_hex=$(find "$au_arduinoBuildOut" -maxdepth 1 -name '*.hex' ! -name '*bootloader*' 2> /dev/null | head -n 1)
+	
+	[[ -e "$au_arduinoFirmware_hex" ]] && export au_arduinoFirmware=$(_getAbsoluteFolder "$au_arduinoFirmware_hex")
+	
+	
+	export au_arduinoFirmware_hex_basename=$(basename "$au_arduinoFirmware_hex")
+	
+	export au_arduinoFirmware_hex_sketchname="${au_arduinoFirmware_hex_basename%.*}"
+	
+	! _check_arduino_firmware_hex && return 1
+	return 0
 }
 
 
@@ -29,7 +81,6 @@ _check_arduino_firmware() {
 	! [[ -d "$au_arduinoFirmware" ]] && return 1
 	return 0
 }
-
 _set_arduino_firmware() {
 	export au_arduinoFirmware_bin=$(find "$shortTmp"/_build -maxdepth 1 -name '*.bin' 2> /dev/null | head -n 1)
 	! [[ -e "$au_arduinoFirmware_bin" ]] && export au_arduinoFirmware_bin=$(find "$au_arduinoBuildOut" -maxdepth 1 -name '*.bin' 2> /dev/null | head -n 1)
@@ -105,9 +156,13 @@ _arduino_upload_avrisp_procedure() {
 	
 	_messagePlain_nominal 'Upload.'
 	
-	_set_arduino_firmware
 	
-	! [[ -e "$au_arduinoFirmware_bin" ]] && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
+	#_set_arduino_firmware
+	
+	_set_arduino_firmware_hex
+	
+	#! [[ -e "$au_arduinoFirmware_bin" ]] && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
+	! [[ -e "$au_arduinoFirmware_hex" ]] && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
 	
 	local avrispUploadStatus
 	
@@ -125,9 +180,10 @@ _arduino_upload_avrisp_procedure() {
 	if [[ "$avrispUploadStatus" != 0 ]]	#AVRISP upload failed.
 	then
 		
-		# TODO
+		# TODO: Testing.
 		false
 		#_arduino_upload_serial_bossac_device
+		_arduino_upload_serial_avrdude_device
 		
 	fi
 	

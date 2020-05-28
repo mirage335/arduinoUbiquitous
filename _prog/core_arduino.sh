@@ -1,23 +1,30 @@
 
 
 
-# # ATTENTION: Add to ops!
+# 
 # _arduino_example_blink() {
 # 	_arduino_run "$scriptLib"/Blink
 # }
 # 
 # 
-# # ATTENTION: Add to ops!
+# 
 # _task_scope_arduinoide_blink() {
 # 	_scope_arduinoide "$scriptLib"/Blink "$@"
 # }
 # 
 # 
 # # ATTENTION: Add to ops!
-# _refresh_anchors_task() {
-# 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_scope_arduinoide_blink
-# }
+_refresh_anchors_task() {
+	true
+	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_arduino_compile_blink
+	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_scope_arduinoide_blink
+}
 
+# # ATTENTION: Add to ops!
+_refresh_anchors_arduino_rewrite() {
+	true
+	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_rewrite
+}
 
 _refresh_anchors_arduino() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_arduinoide_user
@@ -52,6 +59,13 @@ _refresh_anchors_arduino() {
 	
 	
 	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_example_blink
+	
+	#_tryExec '_arduino_example_blink'
+	#_tryExec '_task_scope_arduinoide_blink'
+	
+	_tryExec '_refresh_anchors_task'
+	
+	_tryExec '_refresh_anchors_arduino_rewrite'
 	
 	
 	##### - BEGIN - Critical PATH Inclusions

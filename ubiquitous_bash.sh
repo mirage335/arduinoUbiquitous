@@ -16559,6 +16559,9 @@ _declare_arduino_installation_1.8.5() {
 	export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
 	export au_openocdStaticBin="$au_openocdStatic"/build/bin/openocd
 	export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
+	
+	export au_avrdudeStatic="$au_arduinoDir"/hardware/tools/avr/bin/avrdude
+	export au_avrdudeStaticConf="$au_arduinoDir"/hardware/tools/avr/etc/avrdude.conf
 }
 
 _declare_arduino_installation_1.8.12() {
@@ -16571,6 +16574,9 @@ _declare_arduino_installation_1.8.12() {
 	export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
 	export au_openocdStaticBin="$au_openocdStatic"/build/bin/openocd
 	export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
+	
+	export au_avrdudeStatic="$au_arduinoDir"/hardware/tools/avr/bin/avrdude
+	export au_avrdudeStaticConf="$au_arduinoDir"/hardware/tools/avr/etc/avrdude.conf
 }
 
 
@@ -16902,23 +16908,30 @@ _arduino_deconfigure() {
 
 
 
-# # ATTENTION: Add to ops!
+# 
 # _arduino_example_blink() {
 # 	_arduino_run "$scriptLib"/Blink
 # }
 # 
 # 
-# # ATTENTION: Add to ops!
+# 
 # _task_scope_arduinoide_blink() {
 # 	_scope_arduinoide "$scriptLib"/Blink "$@"
 # }
 # 
 # 
 # # ATTENTION: Add to ops!
-# _refresh_anchors_task() {
-# 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_scope_arduinoide_blink
-# }
+_refresh_anchors_task() {
+	true
+	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_arduino_compile_blink
+	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_task_scope_arduinoide_blink
+}
 
+# # ATTENTION: Add to ops!
+_refresh_anchors_arduino_rewrite() {
+	true
+	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_rewrite
+}
 
 _refresh_anchors_arduino() {
 	cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_arduinoide_user
@@ -16953,6 +16966,13 @@ _refresh_anchors_arduino() {
 	
 	
 	#cp -a "$scriptAbsoluteFolder"/_anchor "$scriptAbsoluteFolder"/_arduino_example_blink
+	
+	#_tryExec '_arduino_example_blink'
+	#_tryExec '_task_scope_arduinoide_blink'
+	
+	_tryExec '_refresh_anchors_task'
+	
+	_tryExec '_refresh_anchors_arduino_rewrite'
 	
 	
 	##### - BEGIN - Critical PATH Inclusions
@@ -17463,8 +17483,136 @@ _declare_arduino_device_teensy36() {
 
 
 
+_arduino_method_device_mega2560() {
+	_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_package=arduino --pref target_platform=avr --pref board=mega --pref custom_cpu=mega_atmega2560 "$@"
+}
 
-_declare_arduino_device_zero
+_prepare_arduino_board_device_mega2560() {
+	_arduino_method --save-prefs --pref programmer=arduino:sam_ice --pref target_package=arduino --pref target_platform=avr --pref board=mega --pref custom_cpu=mega_atmega2560
+}
+
+
+
+_arduino_swd_openocd_mega2560() {
+	false
+	#_arduino_swd_openocd -f "$scriptLib"/ArduinoCore-samd/variants/arduino_zero/openocd_scripts/arduino_zero.cfg -c "telnet_port disabled; tcl_port disabled; gdb_port "$au_remotePort "$@"
+}
+
+#Requires bootloader.
+_arduino_upload_swd_openocd_mega2560() {
+	false
+	
+	# WARNING: Probably not relevant. AVR ISP support is should probably be implemented as an overload for "_arduino_upload_procedure".
+	
+	#_arduino_swd_openocd_mega2560 -c "telnet_port disabled; program {""$au_arduinoFirmware_bin""} verify reset 0x00002000; shutdown"
+	#wait "$au_openocdPID"
+}
+
+
+## ATTENTION: Overload ONLY if further specialization is actually required!
+#_get_arduino_serialport_avrdude_typical() {
+#	local arduinoSerialPort
+#	
+#	arduinoSerialPort=ttyACM0
+#	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM1
+#	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM2
+#	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB0
+#	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB1
+#	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB2
+#	! [[ -e /dev/"$arduinoSerialPort" ]] && return 1
+#	
+#	echo "$arduinoSerialPort"
+#	return 0
+#}
+# ATTENTION: WARNING: Overload. Further specialization required!
+_arduino_upload_serial_avrdude_mega2560() {
+	local arduinoSerialPort
+	! arduinoSerialPort=$(_get_arduino_serialport_avrdude_typical) && return 1
+
+	_set_arduino_fakeHome
+	_fakeHome "$au_avrdudeStatic" -C"$au_avrdudeStaticConf" -v -patmega2560 -cwiring -P"$arduinoSerialPort" -b115200 -D -Uflash:w:"$au_arduinoFirmware_hex":i
+}
+
+
+_arduino_bootloader_mega2560_procedure() {
+	false
+	
+	# WARNING: AVR ISP tools are probably required, not SWD.
+	
+	#export au_remotePort_orig="$au_remotePort"
+	#export au_remotePort=disabled
+	#_arduino_swd_openocd_mega2560 -c "telnet_port disabled; init; halt; at91samd bootloader 0; program {""$scriptLib""/ArduinoCore-samd/bootloaders/zero/samd21_sam_ba.bin} verify reset; shutdown"
+	#wait "$au_openocdPID"
+	#export au_remotePort="$au_remotePort_orig"
+}
+_arduino_bootloader_mega2560() {
+	false
+	
+	#_arduino_bootloader_mega2560_procedure "$@"
+}
+
+
+
+
+
+
+
+
+_declare_arduino_device_mega2560() {
+
+	_declare_arduino_installation_default
+
+	_arduino_method_device() {
+		_arduino_method_device_mega2560 "$@"
+	}
+
+	_prepare_arduino_board() {
+		_messagePlain_good 'aU: precaution: set: board'
+		_prepare_arduino_board_device_mega2560 "$@"
+	}
+	
+	# Future Arduino type, or legacy AVRISP, devices, may need to overload this.
+	_arduino_upload_procedure() {
+		#_arduino_upload_swd_procedure "$@"
+		_arduino_upload_avrisp_procedure "$@"
+	}
+
+	#_arduino_swd_openocd_device() {
+	#	_arduino_swd_openocd_mega2560 "$@"
+	#}
+
+	#_arduino_upload_swd_openocd_device() {
+	#	_arduino_upload_swd_openocd_mega2560 "$@"
+	#}
+	
+	# ATTENTION: Overload ONLY if further specialization is actually required!
+	#_arduino_upload_serial_bossac_device() {
+	#	_arduino_upload_serial_bossac_typical "$@"
+	#}
+
+	# ATTENTION: Overload. Further specialization required!
+	_arduino_upload_serial_avrdude_device() {
+		_arduino_upload_serial_avrdude_mega2560 "$@"
+	}
+
+	_arduino_bootloader_procedure() {
+		_arduino_bootloader_mega2560_procedure "$@"
+	}
+	
+	
+	# ATTENTION: Overload ONLY if further specialization is actually required!
+	#_arduino_debug_ddd_procedure() {
+	#	_arduino_debug_ddd_openocd_procedure_typical "$@"
+	#}
+	
+	# ATTENTION: Overload ONLY if further specialization is actually required!
+	#_arduino_debug_gdb_procedure() {
+	#	_arduino_debug_gdb_openocd_procedure_typical "$@"
+	#}
+
+}
+
+
 
 #Redundant within scope. Required by any subshell operations (eg. _compile).
 _import_ops_arduino_sketch() {
@@ -17811,10 +17959,62 @@ _arduino_upload_serial_bossac_typical() {
 	sleep 2
 	"$au_arduinoLocal"/.arduino15/packages/arduino/tools/bossac/1.7.0/bossac -i -d --port="$arduinoSerialPort" -U true -i -e -w -v "$au_arduinoFirmware_bin" -R
 }
-
-# ATTENTION Overload ONLY if further specialization is actually required!
+# ATTENTION: Overload ONLY if further specialization is actually required!
 _arduino_upload_serial_bossac_device() {
 	_arduino_upload_serial_bossac_typical "$@"
+}
+
+
+# ATTENTION: Overload ONLY if further specialization is actually required!
+_get_arduino_serialport_avrdude_typical() {
+	local arduinoSerialPort
+	
+	arduinoSerialPort=ttyACM0
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM1
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyACM2
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB0
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB1
+	! [[ -e /dev/"$arduinoSerialPort" ]] && arduinoSerialPort=ttyUSB2
+	! [[ -e /dev/"$arduinoSerialPort" ]] && return 1
+	
+	echo "$arduinoSerialPort"
+	return 0
+}
+# ATTENTION: EXAMPLE ONLY.
+# NOT typical. Unique.
+# https://forum.arduino.cc/index.php?topic=168515.msg1254196#msg1254196
+# ATTENTION: WARNING: Overload. Further specialization required!
+_arduino_upload_serial_avrdude_example() {
+	local arduinoSerialPort
+	! arduinoSerialPort=$(_get_arduino_serialport_avrdude_typical) && return 1
+
+	_set_arduino_fakeHome
+	_fakeHome "$au_avrdudeStatic" -C"$au_avrdudeStaticConf" -v -patmega2560 -cwiring -P"$arduinoSerialPort" -b115200 -D -Uflash:w:"$au_arduinoFirmware_hex":i
+}
+# ATTENTION: Overload. Further specialization required!
+_arduino_upload_serial_avrdude_device() {
+	_arduino_upload_serial_avrdude_example "$@"
+}
+
+
+# ONLY required by some specific devices. Generic implementation available for Arduino AVR. Other addons should define their own functions (eg. _set_arduino_firmware_hex_teensy36 ).
+_check_arduino_firmware_hex() {
+	! [[ -e "$au_arduinoFirmware_hex" ]] && return 1
+	return 0
+}
+_set_arduino_firmware_hex() {
+	export au_arduinoFirmware_hex=$(find "$shortTmp"/_build -maxdepth 1 -name '*.hex' ! -name '*bootloader*' 2> /dev/null | head -n 1)
+	! [[ -e "$au_arduinoFirmware_hex" ]] && export au_arduinoFirmware_hex=$(find "$au_arduinoBuildOut" -maxdepth 1 -name '*.hex' ! -name '*bootloader*' 2> /dev/null | head -n 1)
+	
+	[[ -e "$au_arduinoFirmware_hex" ]] && export au_arduinoFirmware=$(_getAbsoluteFolder "$au_arduinoFirmware_hex")
+	
+	
+	export au_arduinoFirmware_hex_basename=$(basename "$au_arduinoFirmware_hex")
+	
+	export au_arduinoFirmware_hex_sketchname="${au_arduinoFirmware_hex_basename%.*}"
+	
+	! _check_arduino_firmware_hex && return 1
+	return 0
 }
 
 
@@ -17826,7 +18026,6 @@ _check_arduino_firmware() {
 	! [[ -d "$au_arduinoFirmware" ]] && return 1
 	return 0
 }
-
 _set_arduino_firmware() {
 	export au_arduinoFirmware_bin=$(find "$shortTmp"/_build -maxdepth 1 -name '*.bin' 2> /dev/null | head -n 1)
 	! [[ -e "$au_arduinoFirmware_bin" ]] && export au_arduinoFirmware_bin=$(find "$au_arduinoBuildOut" -maxdepth 1 -name '*.bin' 2> /dev/null | head -n 1)
@@ -17902,9 +18101,13 @@ _arduino_upload_avrisp_procedure() {
 	
 	_messagePlain_nominal 'Upload.'
 	
-	_set_arduino_firmware
 	
-	! [[ -e "$au_arduinoFirmware_bin" ]] && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
+	#_set_arduino_firmware
+	
+	_set_arduino_firmware_hex
+	
+	#! [[ -e "$au_arduinoFirmware_bin" ]] && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
+	! [[ -e "$au_arduinoFirmware_hex" ]] && _messagePlain_bad 'fail: missing: firmware' > /dev/tty 2>&1 && return 1
 	
 	local avrispUploadStatus
 	
@@ -17922,9 +18125,10 @@ _arduino_upload_avrisp_procedure() {
 	if [[ "$avrispUploadStatus" != 0 ]]	#AVRISP upload failed.
 	then
 		
-		# TODO
+		# TODO: Testing.
 		false
 		#_arduino_upload_serial_bossac_device
+		_arduino_upload_serial_avrdude_device
 		
 	fi
 	
@@ -18038,6 +18242,9 @@ _arduino_bootloader() {
 	_messagePlain_probe "done: _arduino_bootloader"
 	_messagePlain_good 'End.'
 }
+
+
+_declare_arduino_device_zero
 
 
 _declare_scope_arduino
@@ -19495,7 +19702,8 @@ _compile_bash_program_prog() {
 	
 	includeScriptList+=( core_arduino____device_zero.sh )
 	includeScriptList+=( core_arduino____device_teensy3.6.sh )
-	includeScriptList+=( core_arduino____device_default.sh )
+	includeScriptList+=( core_arduino____device_mega2560.sh )
+	#includeScriptList+=( core_arduino____device_default.sh )
 	
 	
 	includeScriptList+=( core_arduino__build_ops.sh )
@@ -19512,6 +19720,9 @@ _compile_bash_program_prog() {
 	includeScriptList+=( core_arduino___build_upload.sh )
 	includeScriptList+=( core_arduino___build_run.sh )
 	includeScriptList+=( core_arduino___build_bootloader.sh )
+	
+	
+	includeScriptList+=( core_arduino____device_default.sh )
 	
 	
 	#includeScriptList+=( core.sh )

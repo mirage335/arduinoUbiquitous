@@ -12,6 +12,9 @@ _declare_arduino_installation_1.8.5() {
 	export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
 	export au_openocdStaticBin="$au_openocdStatic"/build/bin/openocd
 	export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
+	
+	export au_avrdudeStatic="$au_arduinoDir"/hardware/tools/avr/bin/avrdude
+	export au_avrdudeStaticConf="$au_arduinoDir"/hardware/tools/avr/etc/avrdude.conf
 }
 
 _declare_arduino_installation_1.8.12() {
@@ -24,6 +27,9 @@ _declare_arduino_installation_1.8.12() {
 	export au_openocdStaticUB="$au_openocdStatic"/ubiquitous_bash.sh
 	export au_openocdStaticBin="$au_openocdStatic"/build/bin/openocd
 	export au_openocdStaticScript="$au_openocdStatic"/build/share/openocd/scripts
+	
+	export au_avrdudeStatic="$au_arduinoDir"/hardware/tools/avr/bin/avrdude
+	export au_avrdudeStaticConf="$au_arduinoDir"/hardware/tools/avr/etc/avrdude.conf
 }
 
 

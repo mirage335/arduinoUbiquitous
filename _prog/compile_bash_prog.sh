@@ -124,7 +124,8 @@ _compile_bash_program_prog() {
 	
 	includeScriptList+=( core_arduino____device_zero.sh )
 	includeScriptList+=( core_arduino____device_teensy3.6.sh )
-	includeScriptList+=( core_arduino____device_default.sh )
+	includeScriptList+=( core_arduino____device_mega2560.sh )
+	#includeScriptList+=( core_arduino____device_default.sh )
 	
 	
 	includeScriptList+=( core_arduino__build_ops.sh )
@@ -141,6 +142,9 @@ _compile_bash_program_prog() {
 	includeScriptList+=( core_arduino___build_upload.sh )
 	includeScriptList+=( core_arduino___build_run.sh )
 	includeScriptList+=( core_arduino___build_bootloader.sh )
+	
+	
+	includeScriptList+=( core_arduino____device_default.sh )
 	
 	
 	#includeScriptList+=( core.sh )
