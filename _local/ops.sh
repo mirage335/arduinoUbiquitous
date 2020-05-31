@@ -1,6 +1,11 @@
 #Enable search if "vm.img" and related files are missing.
 export ubVirtImageLocal="false"
 
+export ub_anchor_autoupgrade="true"
+
+#export ub_anchor_specificSoftwareName="experimental"
+#export ub_anchor_user="true"
+
 # _arduino_example_blink() {
 # 	_arduino_run "$scriptLib"/Blink
 # }
