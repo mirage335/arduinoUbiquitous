@@ -17089,7 +17089,7 @@ _refresh_anchors_arduino() {
 
 
 _refresh_anchors_specific_arduino() {
-	_refresh_anchors_specific_single_procedure _scope_arduino_konsole
+	_refresh_anchors_specific_single_procedure _scope_konsole
 	
 	_refresh_anchors_specific_single_procedure _scope_arduino_arduinoide
 	
@@ -17101,15 +17101,15 @@ _refresh_anchors_specific_arduino() {
 }
 
 _refresh_anchors_user_arduino() {
-	_refresh_anchors_specific_single_procedure _scope_arduino_konsole
+	_refresh_anchors_user_single_procedure _scope_konsole
 	
-	_refresh_anchors_specific_single_procedure _scope_arduino_arduinoide
+	_refresh_anchors_user_single_procedure _scope_arduino_arduinoide
 	
-	_refresh_anchors_specific_single_procedure _arduino_compile
-	_refresh_anchors_specific_single_procedure _arduino_upload
-	_refresh_anchors_specific_single_procedure _arduino_debug_ddd
+	_refresh_anchors_user_single_procedure _arduino_compile
+	_refresh_anchors_user_single_procedure _arduino_upload
+	_refresh_anchors_user_single_procedure _arduino_debug_ddd
 	
-	#_refresh_anchors_specific_single_procedure _arduino_bootloader
+	#_refresh_anchors_user_single_procedure _arduino_bootloader
 }
 
 
