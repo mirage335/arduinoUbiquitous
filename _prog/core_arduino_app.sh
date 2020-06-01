@@ -13,6 +13,8 @@ _arduino_arduinoide_user_sequence() {
 	_import_ops_arduino_sketch
 	_ops_arduino_sketch
 	
+	[[ "$au_arduinoide_noboard" != 'true' ]] && _prepare_arduino_board
+	
 	#_set_arduino_editShortHome
 	_set_arduino_userShortHome
 	_prepare_arduino_installation
@@ -47,6 +49,8 @@ _arduino_arduinoide_edit_sequence() {
 	
 	_import_ops_arduino_sketch
 	_ops_arduino_sketch
+	
+	[[ "$au_arduinoide_noboard" != 'true' ]] && _prepare_arduino_board
 	
 	_set_arduino_editShortHome
 	#_set_arduino_userShortHome
@@ -85,6 +89,8 @@ _arduino_arduinoide_config_sequence() {
 	
 	_import_ops_arduino_sketch
 	_ops_arduino_sketch
+	
+	[[ "$au_arduinoide_noboard" != 'true' ]] && _prepare_arduino_board
 	
 	_set_arduino_editShortHome
 	#_set_arduino_userShortHome

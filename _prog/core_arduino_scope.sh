@@ -56,6 +56,8 @@ CZXWXcRMTo8EmM8i4d
 		
 		_messagePlain_nominal '_scope_attach: prog: deploy'
 		
+		_scope_command_write _prepare_arduino_board
+		
 		_scope_command_write _scope_arduino
 		_scope_command_write _scope_arduino_arduinoide
 		
