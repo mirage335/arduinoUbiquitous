@@ -103,6 +103,31 @@ _refresh_anchors_user_arduino() {
 	#_refresh_anchors_user_single_procedure _arduino_bootloader
 }
 
+_associate_anchors_request() {
+	if type "_refresh_anchors_user" > /dev/null 2>&1
+	then
+		_tryExec "_refresh_anchors_user"
+		#return
+	fi
+	
+	_messagePlain_request 'association: dir'
+	echo _scope_konsole"$ub_anchor_suffix"
+	
+	_messagePlain_request 'association: dir'
+	echo _scope_arduino_arduinoide"$ub_anchor_suffix"
+	
+	
+	_messagePlain_request 'association: dir, *.ino'
+	echo _arduino_compile"$ub_anchor_suffix"
+	
+	_messagePlain_request 'association: dir, *.ino'
+	echo _arduino_upload"$ub_anchor_suffix"
+	
+	_messagePlain_request 'association: dir, *.ino'
+	echo _arduino_debug_ddd"$ub_anchor_suffix"
+}
+
+
 
 
 
