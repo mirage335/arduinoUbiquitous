@@ -16665,7 +16665,7 @@ _refresh_anchors() {
 
 #Typically launches an application - ie. through virtualized container.
 _launch() {
-	_arduino "$@"
+	_false "$@"
 }
 
 #Typically gathers command/variable scripts from other (ie. yaml) file types (ie. AppImage recipes).
@@ -18511,7 +18511,11 @@ _setup_prog_arduino() {
 	
 	#cat << 'CZXWXcRMTo8EmM8i4d' | sudo tee "$1"'/etc/udev/rules.d/49-teensy-'"$ubiquitiousBashIDshort"'.rules' > /dev/null
 #CZXWXcRMTo8EmM8i4d
-	sudo -n cp "$scriptLib"/udev_teensy-rules/49-teensy.rules /etc/udev/rules.d/
+	sudo -n cp "$scriptLib"/udev_teensy-rules/49-teensy.rules /etc/udev/rules.d/ > /dev/null 2>&1
+	sudo -n cp "$scriptLib"/arduinoUbiquitous/_lib/udev_teensy-rules/49-teensy.rules /etc/udev/rules.d/ > /dev/null 2>&1
+	
+	! [[ -e /etc/udev/rules.d/49-teensy.rules ]] && _messagePlain_warn 'write: udev: missing'
+	
 	#_messagePlain_good 'write: udev: complete'
 	
 	
