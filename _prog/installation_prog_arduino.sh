@@ -36,6 +36,12 @@ _setup_prog_arduino() {
 	return 0
 }
 
+# ATTENTION: Overload with 'ops' or similar.
+_package_prog_arduino_ops() {
+	true
+}
+
+# WARNING: Untested.
 _package_prog_arduino() {
 	#_set_arduino_installation > /dev/null
 	au_arduinoInstallation="$au_arduinoDir"
@@ -46,19 +52,39 @@ _package_prog_arduino() {
 	! [[ -e "$au_arduinoInstallation" ]] && _stop 1
 	
 	export safeToDeleteGit="true"
-	git gc
-	cp -a "$scriptAbsoluteFolder"/.git "$safeTmp"/package/.git
+	#git gc
+	#cp -a "$scriptAbsoluteFolder"/.git "$safeTmp"/package/.git
 	
-	mkdir -p "$safeTmp"/package/"$au_arduinoVersion"
-	cp -a "$au_arduinoInstallation"/. "$safeTmp"/package/"$au_arduinoVersion"
 	
-	rm "$safeTmp"/package/"$au_arduinoVersion"/portable
-	mkdir -p "$safeTmp"/package/"$au_arduinoVersion"/portable
-	cp -a "$globalFakeHome"/.arduino15/. "$safeTmp"/package/"$au_arduinoVersion"/portable/
 	
-	rm "$safeTmp"/package/"$au_arduinoVersion"/portable/sketchbook
-	mkdir -p "$safeTmp"/package/"$au_arduinoVersion"/portable/sketchbook
-	cp -a "$globalFakeHome"/Arduino/. "$safeTmp"/package/"$au_arduinoVersion"/portable/sketchbook
+	mkdir -p "$safeTmp"/package/_lib/src_arduino
+	cp -a "$scriptLib"/src_arduino/. "$safeTmp"/package/_lib/src_arduino
+	
+	# WARNING: Untested.
+	#mkdir -p "$safeTmp"/package/_lib/src_arduino/"$au_arduinoVersion"
+	#cp -a "$scriptLib"/src_arduino/"$au_arduinoVersion"/. "$safeTmp"/package/_lib/src_arduino/"$au_arduinoVersion"/
+	
+	
+	
+	mkdir -p "$safeTmp"/package/_local/arduino
+	cp -a "$au_arduinoLocal"/. "$safeTmp"/package/_local/arduino/
+	
+	# WARNING: Untested.
+	#mkdir -p "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"
+	#cp -a "$au_arduinoLocal"/"$au_arduinoVersion"/. "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/
+	
+	# WARNING: Untested.
+	#rm "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable
+	#mkdir -p "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable
+	#cp -a "$au_arduinoLocal"/.arduino15/. "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable/
+	
+	# WARNING: Untested.
+	#rm "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable/sketchbook
+	#mkdir -p "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable/sketchbook
+	#cp -a "$au_arduinoLocal"/Arduino/. "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable/sketchbook
+	
+	
+	_package_prog_arduino_ops
 	
 	return 0
 }

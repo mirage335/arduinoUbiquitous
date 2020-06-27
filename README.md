@@ -186,7 +186,37 @@ All third-party files incorporated retain the licenses provided by their origina
 * Arduino - https://www.arduino.cc/
 * Teensyduino - https://www.pjrc.com/teensy/td_download.html
 
+Copies of relevant Arduino (licensed GPLv2) source code are kept under the '_lib/src_arduino' directory, typically with a matching subdirectory under the '_local/arduino' directory.
+
+Some other projects may be included by git submodules. In particular, '_lib/openocd-static' is GPLv2 itself, and has many GPLv2 source code dependencies.
+
+
+All Third-Party files under a GPL license or similar must be distributed with complete source code.
+
+
 All other files are part of arduinoUbiquitous . In particular, it is desired that there should be no ambiguity whatsoever the shell script segments provided under directory "_prog" and subsequently concatenated or compiled into 'ubiquitous_bash.sh', or any similar files, are intended to be covered by the GPLv3 license .
+
+
+
+# Redistribution and Preservation
+
+Entire 'recursive' clones of the 'arduinoUbiquitous' and derivative repositories may be appropriate for redistribution and preservation.
+
+git clone --recursive https://github.com/mirage335/arduinoUbiquitous
+
+
+Distributing a 'binary' version with a separate means to obtain a 'source' copy is *strongly discouraged*.
+
+Without relevant source code, it may become infeasible to compile, upload, or interact with, firmware projects, with updated software or hardware. Entire point of 'arduinoUbiquitous' project, is to ensure 'Arduino' and related software, is reliable enough to depend upon for its ongoing use in large, complex, specialized resources, notably including the widespread use of 3D printing.
+
+For 'development' work, the approximately '2GB' compressed is a necessity which modern data storage and bandwidth is easily able to accommodate.
+
+
+
+# Safety
+
+Even for limited purposes, the '_package' function cannot be expected to work with any certainty. Beware the '_package' function is intended only for internal deployment to *embedded* systems, and only for *reconfiguration* and *uploading* already 'developed' firmware. At present, the '_package' function is intended mostly for the sake of example. Nonetheless, source code to the ArduinoIDE is typically added automatically, at least if the relevant subdirectories under the directories '_lib/src_arduino' and '_local/arduino' use identical names.
+
 
 
 __Copyright__

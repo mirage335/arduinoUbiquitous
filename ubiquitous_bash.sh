@@ -700,7 +700,7 @@ _safeRMR() {
 		return 1
 	fi
 	
-	#Blacklist.
+	#Denylist.
 	[[ "$1" == "/home" ]] && return 1
 	[[ "$1" == "/home/" ]] && return 1
 	[[ "$1" == "/home/$USER" ]] && return 1
@@ -714,7 +714,7 @@ _safeRMR() {
 	[[ "$1" == "$HOME" ]] && return 1
 	[[ "$1" == "$HOME/" ]] && return 1
 	
-	#Whitelist.
+	#Allowlist.
 	local safeToRM=false
 	
 	local safeScriptAbsoluteFolder
@@ -783,7 +783,7 @@ _safePath() {
 		return 1
 	fi
 	
-	#Blacklist.
+	#Denylist.
 	[[ "$1" == "/home" ]] && return 1
 	[[ "$1" == "/home/" ]] && return 1
 	[[ "$1" == "/home/$USER" ]] && return 1
@@ -797,7 +797,7 @@ _safePath() {
 	[[ "$1" == "$HOME" ]] && return 1
 	[[ "$1" == "$HOME/" ]] && return 1
 	
-	#Whitelist.
+	#Allowlist.
 	local safeToRM=false
 	
 	local safeScriptAbsoluteFolder
@@ -1356,12 +1356,17 @@ _priority_enumerate_pattern() {
 	rm "$parentListFile"
 }
 
+# DANGER: Best practice is to call as with trailing slashes and source trailing dot .
+# _instance_internal /root/source/. /root/destination/
+# _instance_internal "$1"/. "$actualFakeHome"/"$2"/
+# DANGER: Do not silence output unless specifically required (eg. links, possibly to directories, intended not to overwrite copies).
+# _instance_internal "$globalFakeHome"/. "$actualFakeHome"/ > /dev/null 2>&1
 _instance_internal() {
 	! [[ -e "$1" ]] && return 1
 	! [[ -d "$1" ]] && return 1
 	! [[ -e "$2" ]] && return 1
 	! [[ -d "$2" ]] && return 1
-	rsync -q -ax --exclude "/.cache" --exclude "/.git" "$@"
+	rsync -q -ax --exclude "/.cache" --exclude "/.git" --exclude ".git" "$@"
 }
 
 #echo -n
@@ -2836,17 +2841,30 @@ _detect_x11() {
 	return 1
 }
 
+_typeShare() {
+	_typeDep "$1" && return 0
+	
+	[[ -e /usr/share/"$1" ]] && ! [[ -d /usr/share/"$1" ]] && return 0
+	[[ -e /usr/local/share/"$1" ]] && ! [[ -d /usr/local/share/"$1" ]] && return 0
+	
+	return 1
+}
+
 _typeDep() {
-	[[ -e /lib/"$1" ]] && return 0
-	[[ -e /lib/x86_64-linux-gnu/"$1" ]] && return 0
-	[[ -e /lib64/"$1" ]] && return 0
-	[[ -e /lib64/x86_64-linux-gnu/"$1" ]] && return 0
-	[[ -e /usr/lib/"$1" ]] && return 0
-	[[ -e /usr/lib/x86_64-linux-gnu/"$1" ]] && return 0
-	[[ -e /usr/local/lib/"$1" ]] && return 0
-	[[ -e /usr/local/lib/x86_64-linux-gnu/"$1" ]] && return 0
-	[[ -e /usr/include/"$1" ]] && return 0
-	[[ -e /usr/local/include/"$1" ]] && return 0
+	
+	# WARNING: Allows specification of entire path from root. *Strongly* prefer use of subpath matching, for increased portability.
+	[[ "$1" == '/'* ]] && [[ -e "$1" ]] && return 0
+	
+	[[ -e /lib/"$1" ]] && ! [[ -d /lib/"$1" ]] && return 0
+	[[ -e /lib/x86_64-linux-gnu/"$1" ]] && ! [[ -d /lib/x86_64-linux-gnu/"$1" ]] && return 0
+	[[ -e /lib64/"$1" ]] && ! [[ -d /lib64/"$1" ]] && return 0
+	[[ -e /lib64/x86_64-linux-gnu/"$1" ]] && ! [[ -d /lib64/x86_64-linux-gnu/"$1" ]] && return 0
+	[[ -e /usr/lib/"$1" ]] && ! [[ -d /usr/lib/"$1" ]] && return 0
+	[[ -e /usr/lib/x86_64-linux-gnu/"$1" ]] && ! [[ -d /usr/lib/x86_64-linux-gnu/"$1" ]] && return 0
+	[[ -e /usr/local/lib/"$1" ]] && ! [[ -d  /usr/local/lib/"$1" ]] && return 0
+	[[ -e /usr/local/lib/x86_64-linux-gnu/"$1" ]] && ! [[ -d /usr/local/lib/x86_64-linux-gnu/"$1" ]] && return 0
+	[[ -e /usr/include/"$1" ]] && ! [[ -d /usr/include/"$1" ]] && return 0
+	[[ -e /usr/local/include/"$1" ]] && ! [[ -d /usr/local/include/"$1" ]] && return 0
 	
 	if ! type "$1" >/dev/null 2>&1
 	then
@@ -3754,7 +3772,7 @@ _stopwatch() {
 
 
 _set_java_arbitrary() {
-	export ubJava="$1"
+	export ubJava="$1""$ubJavac"
 }
 _check_java_arbitrary() {
 	type "$ubJava" > /dev/null 2>&1
@@ -3830,6 +3848,16 @@ _java_openjdk11_PATH() {
 	return 1
 }
 _java_openjdk11() {
+	export ubJavac=""
+	_java_openjdk11_debian "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdk11_usrbin "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdk11_PATH "$@"
+	[[ "$?" == '0' ]] && return 0
+}
+_javac_openjdk11() {
+	export ubJavac="c"
 	_java_openjdk11_debian "$@"
 	[[ "$?" == '0' ]] && return 0
 	_java_openjdk11_usrbin "$@"
@@ -3920,6 +3948,16 @@ _java_openjdk8_PATH() {
 	return 1
 }
 _java_openjdk8() {
+	export ubJavac=""
+	_java_openjdk8_debian "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdk8_usrbin "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdk8_PATH "$@"
+	[[ "$?" == '0' ]] && return 0
+}
+_javac_openjdk8() {
+	export ubJavac="c"
 	_java_openjdk8_debian "$@"
 	[[ "$?" == '0' ]] && return 0
 	_java_openjdk8_usrbin "$@"
@@ -3991,6 +4029,16 @@ _java_openjdkANY_PATH() {
 	return 1
 }
 _java_openjdkANY() {
+	export ubJavac=""
+	_java_openjdkANY_debian "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdkANY_usrbin "$@"
+	[[ "$?" == '0' ]] && return 0
+	_java_openjdkANY_PATH "$@"
+	[[ "$?" == '0' ]] && return 0
+}
+_javac_openjdkANY() {
+	export ubJavac="c"
 	_java_openjdkANY_debian "$@"
 	[[ "$?" == '0' ]] && return 0
 	_java_openjdkANY_usrbin "$@"
@@ -4110,6 +4158,11 @@ _java_oraclejdk_ANY() {
 	[[ "$?" == '0' ]] && return 0
 }
 _java_oraclejdk() {
+	export ubJavac=""
+	_java_oraclejdk_ANY "$@"
+}
+_javac_oraclejdk() {
+	export ubJavac="c"
 	_java_oraclejdk_ANY "$@"
 }
 _set_java_oraclejdk_ANY() {
@@ -4175,6 +4228,15 @@ _java() {
 	#_java_oraclejdk "$@"
 }
 
+_javac() {
+	_javac_openjdk11 "$@"
+	_javac_openjdk8 "$@"
+	_javac_openjdkANY "$@"
+	
+	# DANGER: Oracle Java *strongly* discouraged. Support provided as rough example only.
+	#_javac_oraclejdk11 "$@"
+	#_javac_oraclejdk "$@"
+}
 
 
 #####Idle
@@ -4223,6 +4285,7 @@ _testBuiltGosu() {
 		_stop 1
 	fi
 	
+	return 0
 }
 
 _verifyGosu_sequence() {
@@ -4279,7 +4342,11 @@ _buildGosu_sequence() {
 	
 	local haveGosuBin
 	haveGosuBin=false
-	[[ -e "$scriptBin"/gosu-armel ]] && [[ -e "$scriptBin"/gosu-armel.asc ]] && [[ -e "$scriptBin"/gosu-amd64 ]] && [[ -e "$scriptBin"/gosu-amd64.asc ]] && [[ -e "$scriptBin"/gosu-i386 ]] && [[ -e "$scriptBin"/gosu-i386.asc ]] && [[ -e "$scriptBin"/gosudev.asc ]] && haveGosuBin=true #&& return 0
+	if [[ -e "$scriptBin"/gosu-armel ]] && [[ -e "$scriptBin"/gosu-armel.asc ]] && [[ -e "$scriptBin"/gosu-amd64 ]] && [[ -e "$scriptBin"/gosu-amd64.asc ]] && [[ -e "$scriptBin"/gosu-i386 ]] && [[ -e "$scriptBin"/gosu-i386.asc ]] && [[ -e "$scriptBin"/gosudev.asc ]] && haveGosuBin=true
+	then
+		_wantSudo && _testBuiltGosu && return 0
+	fi
+	#&& return 0
 	
 	local GOSU_VERSION
 	GOSU_VERSION=1.10
@@ -7678,12 +7745,12 @@ _closeChRoot_emergency() {
 	fi
 	
 	#Not called by systemd, AND instanced directories still mounted, do not globally halt all. (optional)
-	#[[ "$1" == "" ]] && find "$scriptAbsoluteFolder"/v_* -maxdepth 1 -type d > /dev/null && return 0
+	#[[ "$1" == "" ]] && find "$scriptAbsoluteFolder"/v_* -maxdepth 1 -type d | _condition_lines_zero && return 0
 	
 	#Not called by systemd, do not globally halt all.
 	[[ "$1" == "" ]] && return 0
 	
-	! _readLocked "$lock_open" && ! find "$scriptAbsoluteFolder"/v_*/fs -maxdepth 1 -type d && return 0
+	! _readLocked "$lock_open" && find "$scriptAbsoluteFolder"/v_*/fs -maxdepth 1 -type d | _condition_lines_zero && return 0
 	_readLocked "$lock_closing" && return 1
 	_readLocked "$lock_opening" && return 1
 	
@@ -7782,7 +7849,7 @@ _mountChRoot_project() {
 		return 1
 	fi
 	
-	#Blacklist.
+	#Denylist.
 	[[ "$sharedHostProjectDir" == "/home" ]] && return 1
 	[[ "$sharedHostProjectDir" == "/home/" ]] && return 1
 	[[ "$sharedHostProjectDir" == "/home/$USER" ]] && return 1
@@ -7796,7 +7863,7 @@ _mountChRoot_project() {
 	[[ $(id -u) != 0 ]] && [[ "$sharedHostProjectDir" == "$HOME" ]] && return 1
 	[[ $(id -u) != 0 ]] && [[ "$sharedHostProjectDir" == "$HOME/" ]] && return 1
 	
-	#Whitelist.
+	#Allowlist.
 	local safeToMount=false
 	
 	local safeScriptAbsoluteFolder="$_getScriptAbsoluteFolder"
@@ -12266,8 +12333,11 @@ fi
 # Near-realtime priority may be acceptable, due to reliability of relevant Ubiquitous Bash functions.
 # WARNING: Do NOT prioritize highly enough to interfere with embedded hard realtime processes.
 
-
-export profileScriptLocation="$ubcoreUBdir"/ubiquitous_bash.sh
+# WARNING: Importing complete 'ubiquitous_bash.sh' may cause other scripts to call functions inappropriate for their needs during "_test" and "_setup" .
+# This may be acceptable if the user has already run "_setup" from the imported script .
+#export profileScriptLocation="$ubcoreUBdir"/ubiquitous_bash.sh
+export profileScriptLocation="$ubcoreUBdir"/ubcore.sh
+#export profileScriptLocation="$ubcoreUBdir"/lean.sh
 export profileScriptFolder="$ubcoreUBdir"
 [[ "\$scriptAbsoluteLocation" != "" ]] && . "\$scriptAbsoluteLocation" --parent _importShortcuts
 [[ "\$scriptAbsoluteLocation" == "" ]] && . "\$profileScriptLocation" --profile _importShortcuts
@@ -16161,6 +16231,12 @@ _test() {
 	rm -f "$safeTmp"/working
 	rm -f "$safeTmp"/broken
 	
+	
+	# WARNING: Not tested by default, due to lack of use except where faults are tolerable, and slim possibility of useful embedded systems not able to pass.
+	#! echo \$123 | grep -E '^\$[0-9]|^\.[0-9]' > /dev/null 2>&1 && _messageFAIL && return 1
+	#! echo \.123 | grep -E '^\$[0-9]|^\.[0-9]' > /dev/null 2>&1 && _messageFAIL && return 1
+	#echo 123 | grep -E '^\$[0-9]|^\.[0-9]' > /dev/null 2>&1 && _messageFAIL && return 1
+	
 	_messagePASS
 	
 	
@@ -16230,6 +16306,8 @@ _test() {
 	_getDep which
 	
 	_getDep printf
+	
+	_getDep stat
 	
 	_getDep dd
 	
@@ -16533,6 +16611,13 @@ _package_ubcp_copy() {
 	_stop 1
 }
 
+# ATTENTION: Override with 'ops' or similar ONLY if necessary.
+_package_subdir() {
+	#return 0
+	
+	mkdir -p "$safeTmp"/package/"$objectName"/
+	( shopt -s dotglob ; mv "$safeTmp"/package/* "$safeTmp"/package/"$objectName"/ )
+}
 
 # WARNING Must define "_package_license" function in ops to include license files in package!
 _package_procedure() {
@@ -16547,6 +16632,19 @@ _package_procedure() {
 	_tryExec "_package_license"
 	
 	_tryExec "_package_cautossh"
+	
+	#cp -a "$scriptAbsoluteFolder"/.git "$safeTmp"/package/ > /dev/null 2>&1
+	cp "$scriptAbsoluteFolder"/.gitmodules "$safeTmp"/package/ > /dev/null 2>&1
+	
+	cp "$scriptAbsoluteFolder"/COPYING "$safeTmp"/package/ > /dev/null 2>&1
+	cp "$scriptAbsoluteFolder"/COPYING* "$safeTmp"/package/ > /dev/null 2>&1
+	
+	cp "$scriptAbsoluteFolder"/gpl.txt "$safeTmp"/package/ > /dev/null 2>&1
+	cp "$scriptAbsoluteFolder"/gpl-*.txt "$safeTmp"/package/ > /dev/null 2>&1
+	cp "$scriptAbsoluteFolder"/gpl-3.0.txt "$safeTmp"/package/ > /dev/null 2>&1
+	
+	cp "$scriptAbsoluteFolder"/license.txt "$safeTmp"/package/ > /dev/null 2>&1
+	cp "$scriptAbsoluteFolder"/license*.txt "$safeTmp"/package/ > /dev/null 2>&1
 	
 	#scriptBasename=$(basename "$scriptAbsoluteLocation")
 	#cp -a "$scriptAbsoluteLocation" "$safeTmp"/package/"$scriptBasename"
@@ -16575,6 +16673,7 @@ _package_procedure() {
 	fi
 	
 	cd "$safeTmp"/package/
+	_package_subdir
 	
 	! [[ "$ubPackage_enable_ubcp" == 'true' ]] && tar -czvf "$scriptAbsoluteFolder"/package.tar.gz .
 	[[ "$ubPackage_enable_ubcp" == 'true' ]] && tar -czvf "$scriptAbsoluteFolder"/package_ubcp.tar.gz .
@@ -18522,6 +18621,12 @@ _setup_prog_arduino() {
 	return 0
 }
 
+# ATTENTION: Overload with 'ops' or similar.
+_package_prog_arduino_ops() {
+	true
+}
+
+# WARNING: Untested.
 _package_prog_arduino() {
 	#_set_arduino_installation > /dev/null
 	au_arduinoInstallation="$au_arduinoDir"
@@ -18532,19 +18637,39 @@ _package_prog_arduino() {
 	! [[ -e "$au_arduinoInstallation" ]] && _stop 1
 	
 	export safeToDeleteGit="true"
-	git gc
-	cp -a "$scriptAbsoluteFolder"/.git "$safeTmp"/package/.git
+	#git gc
+	#cp -a "$scriptAbsoluteFolder"/.git "$safeTmp"/package/.git
 	
-	mkdir -p "$safeTmp"/package/"$au_arduinoVersion"
-	cp -a "$au_arduinoInstallation"/. "$safeTmp"/package/"$au_arduinoVersion"
 	
-	rm "$safeTmp"/package/"$au_arduinoVersion"/portable
-	mkdir -p "$safeTmp"/package/"$au_arduinoVersion"/portable
-	cp -a "$globalFakeHome"/.arduino15/. "$safeTmp"/package/"$au_arduinoVersion"/portable/
 	
-	rm "$safeTmp"/package/"$au_arduinoVersion"/portable/sketchbook
-	mkdir -p "$safeTmp"/package/"$au_arduinoVersion"/portable/sketchbook
-	cp -a "$globalFakeHome"/Arduino/. "$safeTmp"/package/"$au_arduinoVersion"/portable/sketchbook
+	mkdir -p "$safeTmp"/package/_lib/src_arduino
+	cp -a "$scriptLib"/src_arduino/. "$safeTmp"/package/_lib/src_arduino
+	
+	# WARNING: Untested.
+	#mkdir -p "$safeTmp"/package/_lib/src_arduino/"$au_arduinoVersion"
+	#cp -a "$scriptLib"/src_arduino/"$au_arduinoVersion"/. "$safeTmp"/package/_lib/src_arduino/"$au_arduinoVersion"/
+	
+	
+	
+	mkdir -p "$safeTmp"/package/_local/arduino
+	cp -a "$au_arduinoLocal"/. "$safeTmp"/package/_local/arduino/
+	
+	# WARNING: Untested.
+	#mkdir -p "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"
+	#cp -a "$au_arduinoLocal"/"$au_arduinoVersion"/. "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/
+	
+	# WARNING: Untested.
+	#rm "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable
+	#mkdir -p "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable
+	#cp -a "$au_arduinoLocal"/.arduino15/. "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable/
+	
+	# WARNING: Untested.
+	#rm "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable/sketchbook
+	#mkdir -p "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable/sketchbook
+	#cp -a "$au_arduinoLocal"/Arduino/. "$safeTmp"/package/_local/arduino/"$au_arduinoVersion"/portable/sketchbook
+	
+	
+	_package_prog_arduino_ops
 	
 	return 0
 }
@@ -18821,6 +18946,11 @@ _deps_virt() {
 	export enUb_virt="true"
 }
 
+# Specifically intended to support shortcuts using file parameter translation.
+_deps_virt_translation() {
+	export enUb_virt_translation="true"
+}
+
 _deps_chroot() {
 	_deps_notLean
 	_deps_virt
@@ -18992,6 +19122,7 @@ _generate_compile_bash() {
 	"$scriptAbsoluteFolder"/compile.sh _compile_bash
 	
 	[[ "$objectName" == "ubiquitous_bash" ]] && "$scriptAbsoluteFolder"/compile.sh _compile_bash lean lean.sh
+	[[ "$objectName" == "ubiquitous_bash" ]] && "$scriptAbsoluteFolder"/compile.sh _compile_bash ubcore ubcore.sh
 	
 	[[ "$1" != "" ]] && "$scriptAbsoluteFolder"/compile.sh _compile_bash "$@"
 	
@@ -19027,7 +19158,38 @@ _generate_compile_bash_prog() {
 
 #Default is to include all, or run a specified configuration. For this reason, it will be more typical to override this entire function, rather than append any additional code.
 _compile_bash_deps() {
-	[[ "$1" == "lean" ]] && return 0
+	if [[ "$1" == "lean" ]]
+	then
+		#_deps_git
+		
+		#_deps_virt_translation
+		
+		#_deps_stopwatch
+		
+		return 0
+	fi
+	
+	# Specifically intended to be imported into user profile.
+	if [[ "$1" == "ubcore" ]]
+	then
+		_deps_notLean
+		
+		_deps_git
+		_deps_bup
+		
+		_deps_abstractfs
+		
+		_deps_virt_translation
+		
+		_deps_stopwatch
+		
+		
+		_deps_distro
+		_deps_linux
+		
+		# _compile_bash_deps 'core'
+		return 0
+	fi
 	
 	if [[ "$1" == "cautossh" ]]
 	then
@@ -19352,6 +19514,7 @@ _compile_bash_utilities() {
 # WARNING: Do NOT deprecate java versions for 'security' reasons - this is intended ONLY to support applications which already normally require user or root permissions.
 _compile_bash_utilities_java() {
 	[[ "$enUb_java" == "true" ]] && includeScriptList+=( "special/java"/java.sh )
+#	[[ "$enUb_java" == "true" ]] && includeScriptList+=( "special/java"/javac.sh )
 }
 
 _compile_bash_utilities_virtualization() {
@@ -19365,8 +19528,8 @@ _compile_bash_utilities_virtualization() {
 	[[ "$enUb_virt" == "true" ]] && includeScriptList+=( "virtualization"/findInfrastructure_virt.sh )
 	
 	# Any script managing MSW from UNIX may need basic file parameter translation without needing complete remapping. Example: "_vncviewer_operations" .
-	( [[ "$enUb_virt" == "true" ]] || [[ "$enUb_proxy" == "true" ]] ) && includeScriptList+=( "virtualization"/osTranslation.sh )
-	[[ "$enUb_virt" == "true" ]] && includeScriptList+=( "virtualization"/localPathTranslation.sh )
+	( [[ "$enUb_virt" == "true" ]] || [[ "$enUb_proxy" == "true" ]] || [[ "$enUb_virt_translation" == "true" ]] ) && includeScriptList+=( "virtualization"/osTranslation.sh )
+	( [[ "$enUb_virt" == "true" ]] || [[ "$enUb_virt_translation" == "true" ]] ) && includeScriptList+=( "virtualization"/localPathTranslation.sh )
 	
 	[[ "$enUb_abstractfs" == "true" ]] && includeScriptList+=( "virtualization/abstractfs"/abstractfs.sh )
 	[[ "$enUb_abstractfs" == "true" ]] && includeScriptList+=( "virtualization/abstractfs"/abstractfs_appdir_specific.sh )
@@ -19427,7 +19590,8 @@ _compile_bash_shortcuts() {
 	
 	includeScriptList+=( "shortcuts/prompt"/visualPrompt.sh )
 	
-	[[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev"/devsearch.sh )
+	#[[ "$enUb_dev_heavy" == "true" ]] && 
+	includeScriptList+=( "shortcuts/dev"/devsearch.sh )
 	
 	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devemacs.sh )
 	[[ "$enUb_fakehome" == "true" ]] && [[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "shortcuts/dev/app"/devatom.sh )
