@@ -31,6 +31,9 @@ cp ./_lib/arduinoUbiquitous/README.md ./
 cp ./_lib/arduinoUbiquitous/license.txt ./
 cp ./_lib/arduinoUbiquitous/_anchor ./
 
+#cp ./_lib/ubiquitous_bash/gpl-3.0.txt ./gpl-3.0.txt
+cp ./_lib/ubiquitous_bash/agpl-3.0.txt ./agpl-3.0.txt
+
 cp ./_lib/arduinoUbiquitous/.gitignore ./
 
 ##### Hardcoded Configuration
