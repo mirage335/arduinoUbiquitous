@@ -3603,26 +3603,32 @@ _fetchDep_debian() {
 }
 
 #https://unix.stackexchange.com/questions/39226/how-to-run-a-script-with-systemd-right-before-shutdown
-
+# In theory, 'sleep 1892160000' should create a process that will run for at least 60 years, with 'sleep' binaries that support 'floating point' numbers of seconds, which should be tested for by timetest. This should not be depended upon unless necessary however.
 
 _here_systemd_shutdown_action() {
 
 cat << 'CZXWXcRMTo8EmM8i4d'
 [Unit]
-Description=...
-
-[Service]
-Type=oneshot
-RemainAfterExit=true
-ExecStart=/bin/true
 CZXWXcRMTo8EmM8i4d
 
-echo ExecStop="$scriptAbsoluteLocation" "$@"
+
+echo Description=$sessionid
 
 cat << 'CZXWXcRMTo8EmM8i4d'
 
+[Service]
+ExecStart=/bin/true
+CZXWXcRMTo8EmM8i4d
+
+echo ExecStop=\""$scriptAbsoluteLocation"\" "$@"
+
+cat << 'CZXWXcRMTo8EmM8i4d'
+Type=oneshot
+RemainAfterExit=true
+
 [Install]
 WantedBy=multi-user.target
+
 CZXWXcRMTo8EmM8i4d
 
 }
@@ -3631,19 +3637,26 @@ _here_systemd_shutdown() {
 
 cat << 'CZXWXcRMTo8EmM8i4d'
 [Unit]
-Description=...
-
-[Service]
-Type=oneshot
-RemainAfterExit=true
 CZXWXcRMTo8EmM8i4d
 
-echo ExecStop="$scriptAbsoluteLocation" _remoteSigTERM "$safeTmp"/.pid "$sessionid"
+
+echo Description=$sessionid
 
 cat << 'CZXWXcRMTo8EmM8i4d'
 
+[Service]
+ExecStart=/bin/true
+CZXWXcRMTo8EmM8i4d
+
+echo ExecStop=\""$scriptAbsoluteLocation"\" "$@"
+
+cat << 'CZXWXcRMTo8EmM8i4d'
+Type=oneshot
+RemainAfterExit=true
+
 [Install]
 WantedBy=multi-user.target
+
 CZXWXcRMTo8EmM8i4d
 
 }
@@ -3887,14 +3900,22 @@ _java_openjdk8_check_filter() {
 }
 _java_openjdk8_debian_check() {
 	local current_java_path='/usr/lib/jvm/java-8-openjdk-amd64/bin/java'
+	if type "$current_java_path"
+	then
+		_set_java_arbitrary "$current_java_path"
+		#! "$current_java_path" -version 2>&1 | _java_openjdk8_check_filter > /dev/null 2>&1 && return 1
+		return 0
+	fi
 	
-	! type "$current_java_path" > /dev/null 2>&1 && return 1
+	local current_java_path='/usr/lib/jvm/adoptopenjdk-8-hotspot-amd64/bin/java'
+	if type "$current_java_path"
+	then
+		_set_java_arbitrary "$current_java_path"
+		#! "$current_java_path" -version 2>&1 | _java_openjdk8_check_filter > /dev/null 2>&1 && return 1
+		return 0
+	fi
 	
-	#! "$current_java_path" -version 2>&1 | _java_openjdk8_check_filter > /dev/null 2>&1 && return 1
-	
-	_set_java_arbitrary "$current_java_path"
-	
-	return 0
+	return 1
 }
 _java_openjdk8_debian() {
 	if _java_openjdk8_debian_check
@@ -4934,17 +4955,23 @@ _abstractfs() {
 	
 	[[ "$ubAbstractFS_enable_CLD" == 'true' ]] && [[ "$ubASD_CLD" != '' ]] && current_abstractfs_base_args+=( "$ubASD_PRJ" "$ubASD_CLD" )
 	
-	# WARNING: Enabling may allow a misplaced 'project.afs' file in "/" , "$HOME' , or similar, to override a legitimate directory.
-	# However, such a misplaced file may already cause wrong directory collisions with abstractfs.
-	# Historically not enabled by default. Consider enabling by default equivalent to at least a minor version bump - be wary of any possible broken use cases.
-	[[ "$abstractfs_projectafs_dir" != "" ]] && [[ "$ubAbstractFS_enable_projectafs_dir" == 'true' ]] && current_abstractfs_base_args+=( "$abstractfs_projectafs_dir" )
-	#[[ "$abstractfs_projectafs_dir" != "" ]] && [[ "$ubAbstractFS_enable_projectafs_dir" != 'false' ]] && current_abstractfs_base_args+=( "$abstractfs_projectafs_dir" )
-	
 	_base_abstractfs "${current_abstractfs_base_args[@]}"
 	
 	
 	_name_abstractfs > /dev/null 2>&1
 	[[ "$abstractfs_name" == "" ]] && return 1
+	
+	
+	# WARNING: Enabling may allow a misplaced 'project.afs' file in "/" , "$HOME' , or similar, to override a legitimate directory.
+	# WARNING: Conflicting 'project.afs' files may break 'scope' use cases relying on "$ubASD_CLD" or similar.
+	# However, such a misplaced file may already cause wrong directory collisions with abstractfs.
+	# Historically not enabled by default. Consider enabling by default equivalent to at least a minor version bump - be wary of any possible broken use cases.
+	if [[ "$abstractfs_projectafs" != "" ]]
+	then
+		export abstractfs_projectafs_dir=$(_getAbsoluteFolder "$abstractfs_projectafs")
+		[[ "$ubAbstractFS_enable_projectafs_dir" == 'true' ]] && current_abstractfs_base_args+=( "$abstractfs_projectafs_dir" ) && _base_abstractfs "${current_abstractfs_base_args[@]}" > /dev/null 2>&1
+		#[[ "$ubAbstractFS_enable_projectafs_dir" != 'false' ]] && current_abstractfs_base_args+=( "$abstractfs_projectafs_dir" ) && _base_abstractfs "${current_abstractfs_base_args[@]}" > /dev/null 2>&1
+	fi
 	
 	export abstractfs="$abstractfs_root"/"$abstractfs_name"
 	
@@ -5581,7 +5608,166 @@ _projectAFS_here() {
 	cat << CZXWXcRMTo8EmM8i4d
 #!/usr/bin/env bash
 
+# $abstractfs_root/$abstractfs_name
+
 export abstractfs_name="$abstractfs_name"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+if [[ "\$1" != "--noexec" ]]
+then
+	
+#####
+CZXWXcRMTo8EmM8i4d
+
+
+	typeset -f _getScriptAbsoluteLocation
+	typeset -f _getScriptAbsoluteFolder
+	
+	
+	
+	typeset -f _checkBaseDirRemote_common_localOnly
+	typeset -f _checkBaseDirRemote_common_remoteOnly
+	
+	
+	
+	typeset -f _checkBaseDirRemote
+	
+	
+	
+	typeset -f _compat_realpath
+	typeset -f _compat_realpath_run
+	
+	typeset -f _getAbsoluteLocation
+	typeset -f _realpath_L_s
+	typeset -f _getAbsoluteFolder
+	
+	
+	typeset -f _findDir
+	
+	
+	
+	typeset -f _safeEcho_newline
+	
+	typeset -f _searchBaseDir
+	
+	
+	
+	typeset -f _checkBaseDirRemote
+	#_typeset -f _safeEcho_newline
+	typeset -f _safeEcho
+	
+	typeset -f _localDir
+	
+	
+	
+	#_typeset -f _safeEcho_newline
+	
+	
+	
+	#_typeset -f _safeEcho_newline
+	
+	typeset -f _slashBackToForward
+	
+	
+	
+	typeset -f _checkBaseDirRemote_app_localOnly
+	typeset -f _checkBaseDirRemote_app_remoteOnly
+	typeset -f _pathPartOf
+	typeset -f _realpath_L
+	
+	typeset -f _virtUser
+	
+	
+	
+	typeset -f _x11_clipboard_sendText
+	typeset -f _removeFilePrefix
+	
+
+cat << CZXWXcRMTo8EmM8i4d	
+	
+#####
+	
+	
+#####
+	
+	cd "\$(_getScriptAbsoluteFolder)"
+	
+	
+	export standalone_abstractfs="$abstractfs_root"/"$abstractfs_name"
+	export standalone_abstractfs_base=\$(_getScriptAbsoluteFolder)
+	
+	
+	export sharedHostProjectDir="\$standalone_abstractfs_base"
+	export sharedGuestProjectDir="\$standalone_abstractfs"
+	
+	current_x11_clipboard=\$(xclip -out -selection clipboard)
+	current_x11_clipboard=\$(_removeFilePrefix "\$current_x11_clipboard")
+	
+	# Replace ./../.. ... /../home/user/ ... with /home/"\$USER"/ .
+	#current_x11_clipboard=\${current_x11_clipboard/*\/home\//\/home\/}
+	#current_x11_clipboard=\$(_safeEcho "\$current_x11_clipboard" | sed 's/^\([\.\/]\)*home\//\/home\//')
+	#current_x11_clipboard=\$(_safeEcho "\$current_x11_clipboard" | sed 's/^\([\.\/]\)*home\/'"$USER"'/\/home\/'"$USER"'/')
+	#current_x11_clipboard=\$(_safeEcho "\$current_x11_clipboard" | sed 's/^\([\.\/]\)*home\/[a-zA-Z0-9_\-]*/\/home\/'"$USER"'/')
+	current_x11_clipboard=\$(_safeEcho "\$current_x11_clipboard" | sed 's/^\([\.\/]\)*home\/[^/]*/\/home\/'"$USER"'/')
+	
+	#if [[ -e "\${processedArgs[0]}" ]]
+	if [[ -e "\$current_x11_clipboard" ]]
+	then
+		_virtUser "\$current_x11_clipboard"
+		_safeEcho "\${processedArgs[0]}" | _x11_clipboard_sendText
+	fi
+fi
+
 CZXWXcRMTo8EmM8i4d
 }
 
@@ -5589,6 +5775,20 @@ _write_projectAFS() {
 	local testAbstractfsBase
 	testAbstractfsBase="$abstractfs_base"
 	[[ "$1" != "" ]] && testAbstractfsBase=$(_getAbsoluteLocation "$1")
+	
+	# ATTENTION: Hardcoded paths to prevent accidental creation of 'project.afs' file in user's home or similar directories
+	# Keep in mind even within a 'chroot' or similar virtualized environment, a 'project' directory would typically be used.
+	[[ "$testAbstractfsBase" == /home/"$USER" ]] && return 1
+	[[ "$testAbstractfsBase" == /home/"$USER"/ ]] && return 1
+	[[ "$testAbstractfsBase" == /root ]] && return 1
+	[[ "$testAbstractfsBase" == /root/ ]] && return 1
+	[[ "$testAbstractfsBase" == /tmp ]] && return 1
+	[[ "$testAbstractfsBase" == /tmp/ ]] && return 1
+	[[ "$testAbstractfsBase" == /dev ]] && return 1
+	[[ "$testAbstractfsBase" == /dev/ ]] && return 1
+	[[ "$testAbstractfsBase" == /dev/shm ]] && return 1
+	[[ "$testAbstractfsBase" == /dev/shm/ ]] && return 1
+	[[ "$testAbstractfsBase" == / ]] && return 1
 	
 	( [[ "$nofs" == "true" ]] || [[ "$afs_nofs" == "true" ]] || [[ "$nofs_write" == "true" ]] || [[ "$afs_nofs_write" == "true" ]] ) && return 0
 	_projectAFS_here > "$testAbstractfsBase"/project.afs
@@ -6202,10 +6402,12 @@ _determine_rawFileRootPartition() {
 	fi
 	
 	#Platform defaults.
+	export ubVirtImageEFI=""
 	export ubVirtImagePartition=""
 	[[ "$ubVirtPlatform" == "x64-bios" ]] && export ubVirtImagePartition=p1
-	[[ "$ubVirtPlatform" == "x64-efi" ]] && export ubVirtImagePartition=p3
+	[[ "$ubVirtPlatform" == "x64-efi" ]] && export ubVirtImagePartition=p3 && export ubVirtImageEFI=p2
 	[[ "$ubVirtPlatform" == "raspbian" ]] && export ubVirtImagePartition=p2
+	
 	
 	#Default.
 	# DANGER: Do NOT set blank.
@@ -6299,8 +6501,10 @@ _loopImage_procedure_losetup() {
 		return 0
 	fi
 	
+	sleep 1
 	sudo -n losetup -f -P --show "$1" > "$safeTmp"/imagedev 2> /dev/null || _stop 1
 	sudo -n partprobe > /dev/null 2>&1
+	sleep 1
 	
 	cp -n "$safeTmp"/imagedev "$2" > /dev/null 2>&1 || _stop 1
 	return 0
@@ -6429,7 +6633,11 @@ _mountImageFS_sequence() {
 	
 	
 	sudo -n mount "$current_imagepart" "$currentDestinationDir" || _stop 1
+	sleep 1
 	
+	! mountpoint "$currentDestinationDir" > /dev/null 2>&1 && sleep 3
+	! mountpoint "$currentDestinationDir" > /dev/null 2>&1 && sleep 6
+	! mountpoint "$currentDestinationDir" > /dev/null 2>&1 && sleep 9
 	mountpoint "$currentDestinationDir" > /dev/null 2>&1 || _stop 1
 	
 	_stop 0
@@ -6553,6 +6761,9 @@ _umountImage() {
 	#Uniquely, it is desirable to allow unmounting to proceed a little further if the filesystem was not mounted to begin with. Enables manual intervention.
 	
 	#Filesystem must be unmounted before proceeding.
+	_readyImage "$currentDestinationDir" && sleep 1 && sudo -n umount "$currentDestinationDir" > /dev/null 2>&1
+	_readyImage "$currentDestinationDir" && sleep 3 && sudo -n umount "$currentDestinationDir" > /dev/null 2>&1
+	_readyImage "$currentDestinationDir" && sleep 9 && sudo -n umount "$currentDestinationDir" > /dev/null 2>&1
 	_readyImage "$currentDestinationDir" && return 1
 	
 	! _umountLoop && return 1
@@ -7402,13 +7613,21 @@ _detect_deviceAsChRootImage() {
 _mountChRoot() {
 	_mustGetSudo
 	
+	[[ ! -e "$1" ]] && sleep 3
 	[[ ! -e "$1" ]] && return 1
 	
 	local absolute1
 	absolute1=$(_getAbsoluteLocation "$1")
 	
+	[[ "$absolute1" == "" ]] && return 1
+	[[ "$absolute1" == "/" ]] && return 1
+	[[ ! -e "$absolute1" ]] && return 1
+	
 	_bindMountManager "/dev" "$absolute1"/dev
-	_bindMountManager "/proc" "$absolute1"/proc
+	
+	#_bindMountManager "/proc" "$absolute1"/proc
+	sudo -n mount -t proc none "$absolute1"/proc
+	
 	_bindMountManager "/sys" "$absolute1"/sys
 	
 	_bindMountManager "/dev/pts" "$absolute1"/dev/pts
@@ -7476,12 +7695,39 @@ _umountChRoot() {
 	_wait_umount "$absolute1"/dev/shm
 	_wait_umount "$absolute1"/dev/pts
 	
-	_wait_umount "$absolute1"/proc
+	
+	if [[ -e "$absolute1"/proc/sys/fs/binfmt_misc ]] && mountpoint "$absolute1"/proc/sys/fs/binfmt_misc > /dev/null 2>&1
+	then
+		_wait_umount "$absolute1"/proc/sys/fs/binfmt_misc
+	fi
+	
+	
+	sudo -n umount "$absolute1"/proc
 	_wait_umount "$absolute1"/sys
 	
 	_wait_umount "$absolute1"/tmp
 	
 	_wait_umount "$absolute1"/dev
+	
+	if mountpoint "$absolute1"/proc > /dev/null 2>&1
+	then
+		sleep 6
+		if mountpoint "$absolute1"/proc > /dev/null 2>&1
+		then
+			sudo -n umount "$absolute1"/proc
+			if mountpoint "$absolute1"/proc > /dev/null 2>&1
+			then
+				sleep 6
+				if mountpoint "$absolute1"/proc > /dev/null 2>&1
+				then
+					sudo -n umount "$absolute1"/proc
+					
+					sleep 1
+					mountpoint "$absolute1"/proc > /dev/null 2>&1 && _wait_umount "$absolute1"/proc
+				fi
+			fi
+		fi
+	fi
 	
 	# Full umount of chroot directory may be done by standard '_umountImage'.
 	#_wait_umount "$absolute1" >/dev/null 2>&1
@@ -7509,9 +7755,17 @@ _readyChRoot() {
 }
 
 # ATTENTION: Override with "core.sh" or similar.
-# WARNING: Must return true to complete mount/umount procedure
+# WARNING: Must return true to complete mount/umount procedure.
 _mountChRoot_image_raspbian_prog() {
 	true
+	
+	#local current_imagedev
+	#current_imagedev=$(cat "$scriptLocal"/imagedev)
+	
+	#mkdir -p "$globalVirtFS"/../boot
+	#sudo -n mount "$current_imagedev"p1 "$globalVirtFS"/../boot
+	
+	return 0
 }
 
 _mountChRoot_image_raspbian() {
@@ -7538,7 +7792,10 @@ _mountChRoot_image_raspbian() {
 	sudo -n cp -n "$chrootDir"/etc/ld.so.preload "$chrootDir"/etc/ld.so.preload.orig
 	echo | sudo -n tee "$chrootDir"/etc/ld.so.preload > /dev/null 2>&1
 	
-	! _mountChRoot_image_raspbian_prog && _stop 1
+	
+	local chrootimagedev
+	chrootimagedev=$(cat "$scriptLocal"/imagedev)
+	! _mountChRoot_image_raspbian_prog "$chrootimagedev" && _stop 1
 	
 	
 	return 0
@@ -7552,6 +7809,43 @@ _umountChRoot_directory_raspbian() {
 	
 	sudo -n cp "$chrootDir"/etc/ld.so.preload.orig "$chrootDir"/etc/ld.so.preload
 	
+}
+
+_mountChRoot_image_x64_efi() {
+	[[ "$ubVirtPlatform" != "x64-efi" ]] && return 1
+	[[ "$ubVirtImageEFI" == "" ]] && return 1
+	
+	local current_imagedev
+	current_imagedev=$(cat "$scriptLocal"/imagedev)
+	
+	_determine_rawFileRootPartition "$current_imagedev" > /dev/null 2>&1
+	
+	local loopdevfs
+	loopdevfs=$(sudo -n blkid -s TYPE -o value "$current_imagedev""$ubVirtImageEFI" | tr -dc 'a-zA-Z0-9')
+	
+	! [[ "$loopdevfs" == "vfat" ]] && _stop 1
+	
+	
+	mkdir -p "$globalVirtFS"/boot/efi
+	
+	sudo -n mount "$current_imagedev""$ubVirtImageEFI" "$globalVirtFS"/boot/efi
+	
+	return 0
+}
+
+# ATTENTION: Override with "core.sh" or similar.
+# WARNING: Must return true to complete mount/umount procedure.
+# By default attempts to mount EFI partition as specified by "$current_imagedev""$ubVirtImageEFI" .
+_mountChRoot_image_x64_prog() {
+	true
+	
+	if [[ "$ubVirtPlatform" == "x64-efi" ]]
+	then
+		_mountChRoot_image_x64_efi "$@"
+		return
+	fi
+	
+	return 0
 }
 
 # ATTENTION: Mounts image containing only root partiton.
@@ -7572,6 +7866,11 @@ _mountChRoot_image_x64() {
 	_mountChRoot "$chrootDir"
 	
 	_readyChRoot "$chrootDir" || _stop 1
+	
+	
+	local chrootimagedev
+	chrootimagedev=$(cat "$scriptLocal"/imagedev)
+	! _mountChRoot_image_x64_prog "$chrootimagedev" && _stop 1
 	
 	return 0
 }
@@ -7640,20 +7939,30 @@ _umountChRoot_directory() {
 }
 
 # ATTENTION: Override with "core.sh" or similar.
-# WARNING: Must return true to complete mount/umount procedure
+# WARNING: Must return true to complete mount/umount procedure.
 _umountChRoot_image_prog() {
 	true
+	
+	#[[ -d "$globalVirtFS"/../boot ]] && mountpoint "$globalVirtFS"/../boot >/dev/null 2>&1 && sudo -n umount "$globalVirtFS"/../boot >/dev/null 2>&1
+	
+	#[[ -d "$globalVirtFS"/boot/efi ]] && mountpoint "$globalVirtFS"/boot/efi >/dev/null 2>&1 && sudo -n umount "$globalVirtFS"/boot/efi >/dev/null 2>&1
+	#[[ -d "$globalVirtFS"/boot ]] && mountpoint "$globalVirtFS"/boot >/dev/null 2>&1 && sudo -n umount "$globalVirtFS"/boot >/dev/null 2>&1
 }
 
 _umountChRoot_image() {
 	_mustGetSudo || return 1
 	
+	# x64-efi (typical)
+	[[ -d "$globalVirtFS"/boot/efi ]] && mountpoint "$globalVirtFS"/boot/efi >/dev/null 2>&1 && sudo -n umount "$globalVirtFS"/boot/efi >/dev/null 2>&1
+	[[ -d "$globalVirtFS"/boot ]] && mountpoint "$globalVirtFS"/boot >/dev/null 2>&1 && sudo -n umount "$globalVirtFS"/boot >/dev/null 2>&1
+	
+	
 	! _umountChRoot_directory "$chrootDir" && return 1
 	
 	! _umountChRoot_image_prog && return 1
 	
+	# raspbian (typical)
 	[[ -d "$globalVirtFS"/../boot ]] && mountpoint "$globalVirtFS"/../boot >/dev/null 2>&1 && sudo -n umount "$globalVirtFS"/../boot >/dev/null 2>&1
-	
 	
 	_umountImage "$chrootDir"
 	
@@ -8254,6 +8563,9 @@ _testQEMU_x64-x64() {
 	_getDep qemu-img
 	
 	_getDep smbd
+	
+	_wantGetDep /usr/share/OVMF/OVMF_CODE.fd
+	_wantGetDep /usr/share/qemu/OVMF.fd
 }
 
 _qemu-system() {
@@ -8291,6 +8603,45 @@ _integratedQemu_imagefilename() {
 	return 0
 }
 
+# ATTENTION: Override with 'ops' or similar.
+_integratedQemu_x64_display() {
+	
+	#qemuArgs+=(-device virtio-vga,virgl=on -display gtk,gl=on)
+	
+	
+	
+	true
+	
+	#
+	
+	# https://www.kraxel.org/blog/2019/09/display-devices-in-qemu/
+	[[ "$qemuOStype" == "" ]] && [[ "$vboxOStype" != "" ]] && qemuOStype="$vboxOStype"
+	if [[ "$qemuOStype" == 'Debian_64' ]] || [[ "$qemuOStype" == 'Gentoo_64' ]]
+	then
+		# Not yet enabled (virtio-vga) by default for a few reasons.
+		# *) May need to specify 'gtk' or 'sdl' to enable OpenGL acceleration. If these backends are missing, qemu may fail.
+		# *) Some guest configurations (eg. LXDE and Linux 4.x instead of KDE/Plasma and Linux 5.x) may not continue updating guest display resize requests, ultimately causing guest to remain at low resolution (ie. 640x480) .
+		# *) Hardware graphics should only be necessary for a few specific applications (eg. FreeCAD, VR).
+		# https://github.com/mate-desktop/marco/issues/338
+		if [[ "$qemuNoGL" == 'true' ]]
+		then
+			qemuArgs+=(-device qxl)
+			#qemuArgs+=(-device virtio-vga,virgl=on -display gtk,gl=off)
+		else
+			qemuArgs+=(-device qxl)
+			#qemuArgs+=(-device virtio-vga,virgl=on -display gtk,gl=on)
+		fi
+	elif [[ "$qemuOStype" == 'Windows10_64' ]]
+	then
+		qemuArgs+=(-device qxl)
+	elif [[ "$qemuOStype" == 'WindowsXP' ]] || [[ "$qemuOStype" == 'legacy-obsolete' ]]
+	then
+		qemuArgs+=(-vga cirrus)
+	else
+		qemuArgs+=(-vga std)
+	fi
+}
+
 _integratedQemu_x64() {
 	_messagePlain_nominal 'init: _integratedQemu_x64'
 	
@@ -8314,6 +8665,8 @@ _integratedQemu_x64() {
 	#https://askubuntu.com/questions/614098/unable-to-get-execute-bit-on-samba-share-working-with-windows-7-client
 	#https://unix.stackexchange.com/questions/165554/shared-folder-between-qemu-windows-guest-and-linux-host
 	#https://linux.die.net/man/1/qemu-kvm
+	
+	qemuArgs+=(-usb)
 	
 	if _testQEMU_hostArch_x64_nested
 	then
@@ -8344,7 +8697,16 @@ _integratedQemu_x64() {
 	
 	#https://superuser.com/questions/342719/how-to-boot-a-physical-windows-partition-with-qemu
 	#qemuUserArgs+=(-drive format=raw,file="$scriptLocal"/vm.img)
-	qemuUserArgs+=(-drive format=raw,file="$current_imagefilename")
+	#qemuUserArgs+=(-drive format=raw,file="$current_imagefilename")
+	if [[ "$ub_override_qemu_livecd" != '' ]]
+	then
+		qemuUserArgs+=(-drive file="$ub_override_qemu_livecd",media=cdrom)
+	elif false
+	then
+		true
+	else
+		qemuUserArgs+=(-drive format=raw,file="$current_imagefilename")
+	fi
 	
 	qemuUserArgs+=(-drive file="$hostToGuestISO",media=cdrom -boot c)
 	
@@ -8355,9 +8717,14 @@ _integratedQemu_x64() {
 	
 	qemuUserArgs+=(-net nic,model=rtl8139 -net user,restrict="$qemuUserArgs_netRestrict",smb="$sharedHostProjectDir")
 	
-	qemuArgs+=(-usbdevice tablet)
+	#qemuArgs+=(-usbdevice tablet)
+	qemuArgs+=(-device usb-tablet)
 	
-	qemuArgs+=(-vga cirrus)
+	
+	
+	_integratedQemu_x64_display
+	
+	
 	
 	[[ "$qemuArgs_audio" == "" ]] && qemuArgs+=(-device ich9-intel-hda -device hda-duplex)
 	
@@ -8369,6 +8736,29 @@ _integratedQemu_x64() {
 		qemuArgs+=(-machine accel=kvm)
 	else
 		_messagePlain_warn 'missing: kvm'
+	fi
+	
+	
+	# https://blog.matejc.com/blogs/myblog/playing-on-qemu
+	# https://www.kraxel.org/repos/jenkins/edk2/
+	# https://www.kraxel.org/repos/
+	# https://unix.stackexchange.com/questions/52996/how-to-boot-efi-kernel-using-qemu-kvm
+	# https://blog.hartwork.org/posts/get-qemu-to-boot-efi/
+	# https://www.kraxel.org/repos/jenkins/edk2/
+	# https://www.kraxel.org/repos/jenkins/edk2/edk2.git-ovmf-x64-0-20200515.1447.g317d84abe3.noarch.rpm
+	if [[ "$ubVirtPlatform" == "x64-efi" ]] && [[ "$ub_override_qemu_livecd" == '' ]]
+	then
+		if [[ -e "$HOME"/core/installations/ovmf/OVMF_CODE-pure-efi.fd ]] && [[ -e "$HOME"/core/installations/ovmf/OVMF_VARS-pure-efi.fd ]]
+		then
+			qemuArgs+=(-drive if=pflash,format=raw,readonly,file="$HOME"/core/installations/ovmf/OVMF_CODE-pure-efi.fd -drive if=pflash,format=raw,file="$HOME"/core/installations/ovmf/OVMF_VARS-pure-efi.fd)
+		elif [[ -e /usr/share/OVMF/OVMF_CODE.fd ]]
+		then
+			qemuArgs+=(-bios /usr/share/OVMF/OVMF_CODE.fd)
+		else
+			# Bootloader is not declared as other than legacy bios type.
+			# Do nothing by default. Loading an EFI bootloader with CSM module may cause unwanted delay.
+			true
+		fi
 	fi
 	
 	qemuArgs+=("${qemuSpecialArgs[@]}" "${qemuUserArgs[@]}")
@@ -8466,6 +8856,12 @@ _integratedQemu() {
 		return "$?"
 	fi
 	
+	if [[ "$ubVirtPlatform" == "x64-efi" ]]
+	then
+		_integratedQemu_x64 "$@"
+		return "$?"
+	fi
+	
 	# TODO: 'efi' .
 	#https://unix.stackexchange.com/questions/52996/how-to-boot-efi-kernel-using-qemu-kvm
 	
@@ -8476,6 +8872,11 @@ _integratedQemu() {
 	fi
 	
 	#Default x64 .
+	if [[ "$ub_keepInstance" == 'true' ]]
+	then
+		_integratedQemu_x64 "$@"
+		return "$?"
+	fi
 	"$scriptAbsoluteLocation" _integratedQemu_x64 "$@"
 	return "$?"
 }
@@ -8499,6 +8900,11 @@ _userQemu() {
 	_findInfrastructure_virtImage ${FUNCNAME[0]} "$@"
 	[[ "$ubVirtImageLocal" == "false" ]] && return
 	
+	if [[ "$ub_keepInstance" == 'true' ]]
+	then
+		_userQemu_sequence "$@"
+		return
+	fi
 	"$scriptAbsoluteLocation" _userQemu_sequence "$@"
 }
 
@@ -8532,6 +8938,11 @@ _editQemu() {
 	_findInfrastructure_virtImage ${FUNCNAME[0]} "$@"
 	[[ "$ubVirtImageLocal" == "false" ]] && return
 	
+	if [[ "$ub_keepInstance" == 'true' ]]
+	then
+		_editQemu_sequence "$@"
+		return
+	fi
 	"$scriptAbsoluteLocation" _editQemu_sequence "$@"
 }
 
@@ -9123,10 +9534,31 @@ _create_instance_vbox_storageattach_ide() {
 	[[ "$vboxDiskMtype" == "" ]] && export vboxDiskMtype="immutable"
 	_messagePlain_probe 'vboxDiskMtype= '"$vboxDiskMtype"
 	
-	_messagePlain_probe VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype"
-	! VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype" && _messagePlain_bad 'fail: VBoxManage... attach vboxInstanceDiskImage= '"$vboxInstanceDiskImage"
+	
+	
+	if [[ "$ub_override_vbox_livecd" != '' ]]
+	then
+		_messagePlain_probe VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 0 --device 0 --type dvddrive --medium "$ub_override_vbox_livecd"
+		! VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 0 --device 0 --type dvddrive --medium "$ub_override_vbox_livecd" && _messagePlain_bad 'fail: VBoxManage... attach vboxInstanceDiskImage= '"$vboxInstanceDiskImage"
+	elif false
+	then
+		true
+	else
+		_messagePlain_probe VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype"
+		! VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype" && _messagePlain_bad 'fail: VBoxManage... attach vboxInstanceDiskImage= '"$vboxInstanceDiskImage"
+	fi
+	
+	
 	
 	[[ -e "$hostToGuestISO" ]] && ! VBoxManage storageattach "$sessionid" --storagectl "IDE Controller" --port 1 --device 0 --type dvddrive --medium "$hostToGuestISO" && _messagePlain_bad 'fail: VBoxManage... attach hostToGuestISO= '"$hostToGuestISO"
+	
+	# Due to some EFI systems occasionally needing a Live bootloader image (ie. super grub2), it may be best to ensure disk is always booted preferentially if possible.
+	VBoxManage modifyvm "$sessionid" --boot1 disk
+	VBoxManage modifyvm "$sessionid" --boot2 floppy
+	VBoxManage modifyvm "$sessionid" --boot3 dvd
+	VBoxManage modifyvm "$sessionid" --boot4 none
+	
+	return 0
 }
 
 _create_instance_vbox_storageattach_sata() {
@@ -9138,10 +9570,33 @@ _create_instance_vbox_storageattach_sata() {
 	[[ "$vboxDiskMtype" == "" ]] && export vboxDiskMtype="immutable"
 	_messagePlain_probe 'vboxDiskMtype= '"$vboxDiskMtype"
 	
-	_messagePlain_probe VBoxManage storageattach "$sessionid" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype"
-	! VBoxManage storageattach "$sessionid" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype" && _messagePlain_bad 'fail: VBoxManage... attach vboxInstanceDiskImage= '"$vboxInstanceDiskImage"
+	
+	
+	
+	if [[ "$ub_override_vbox_livecd" != '' ]]
+	then
+		_messagePlain_probe VBoxManage storageattach "$sessionid" --storagectl "SATA Controller" --port 0 --device 0 --type dvddrive --medium "$ub_override_vbox_livecd"
+		! VBoxManage storageattach "$sessionid" --storagectl "SATA Controller" --port 0 --device 0 --type dvddrive --medium "$ub_override_vbox_livecd" && _messagePlain_bad 'fail: VBoxManage... attach vboxInstanceDiskImage= '"$vboxInstanceDiskImage"
+	elif false
+	then
+		true
+	else
+		_messagePlain_probe VBoxManage storageattach "$sessionid" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype"
+		! VBoxManage storageattach "$sessionid" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "$vboxInstanceDiskImage" --mtype "$vboxDiskMtype" && _messagePlain_bad 'fail: VBoxManage... attach vboxInstanceDiskImage= '"$vboxInstanceDiskImage"
+	fi
+	
+	
+	
 	
 	[[ -e "$hostToGuestISO" ]] && ! VBoxManage storageattach "$sessionid" --storagectl "SATA Controller" --port 1 --device 0 --type dvddrive --medium "$hostToGuestISO" && _messagePlain_bad 'fail: VBoxManage... attach hostToGuestISO= '"$hostToGuestISO"
+	
+	# Due to some EFI systems occasionally needing a Live bootloader image (ie. super grub2), it may be best to ensure disk is always booted preferentially if possible.
+	VBoxManage modifyvm "$sessionid" --boot1 disk
+	VBoxManage modifyvm "$sessionid" --boot2 floppy
+	VBoxManage modifyvm "$sessionid" --boot3 dvd
+	VBoxManage modifyvm "$sessionid" --boot4 none
+	
+	return 0
 }
 
 _create_instance_vbox_storageattach() {
@@ -9234,8 +9689,15 @@ _user_instance_vbox_sequence() {
 	_stop
 }
 
+# Keep instance should only be set by end-user functions which require overriding of internal functions.
 _user_instance_vbox() {
+	if [[ "$ub_keepInstance" == 'true' ]]
+	then
+		_user_instance_vbox_sequence "$@"
+		return
+	fi
 	"$scriptAbsoluteLocation" _user_instance_vbox_sequence "$@"
+	return
 }
 
 _userVBox() {
@@ -9278,7 +9740,13 @@ _edit_instance_vbox_sequence() {
 }
 
 _edit_instance_vbox() {
+	if [[ "$ub_keepInstance" == 'true' ]]
+	then
+		_edit_instance_vbox_sequence "$@"
+		return
+	fi
 	"$scriptAbsoluteLocation" _edit_instance_vbox_sequence "$@"
+	return
 }
 
 _editVBox() {
@@ -12397,6 +12865,7 @@ _gitClone_ubiquitous() {
 _selfCloneUbiquitous() {
 	"$scriptBin"/.ubrgbin.sh _ubrgbin_cpA "$scriptBin" "$ubcoreUBdir"/ > /dev/null 2>&1
 	cp -a "$scriptAbsoluteFolder"/lean.sh "$ubcoreUBdir"/lean.sh > /dev/null 2>&1
+	cp -a "$scriptAbsoluteFolder"/lean.sh "$ubcoreUBdir"/ubcore.sh > /dev/null 2>&1
 	cp -a "$scriptAbsoluteLocation" "$ubcoreUBdir"/ubiquitous_bash.sh
 }
 
@@ -12644,15 +13113,17 @@ _anchor_configure() {
 	cp "$ubAnchorTemplateCurrent" "$scriptAbsoluteFolder"/_anchor.tmp1
 	cp "$ubAnchorTemplateCurrent" "$scriptAbsoluteFolder"/_anchor.tmp2
 	
+	cat "$scriptAbsoluteFolder"/_anchor.tmp  | sed 's/^export anchorSourceDir\=.*$/export anchorSourceDir\=\"'"$objectName"'\"/g' > "$scriptAbsoluteFolder"/_anchor.tmp1
+	#perl -p -e 's/export anchorSourceDir=.*/export anchorSourceDir="$ENV{objectName}"/g' "$scriptAbsoluteFolder"/_anchor.tmp > "$scriptAbsoluteFolder"/_anchor.tmp1
 	
-	perl -p -e 's/export anchorSourceDir=.*/export anchorSourceDir="$ENV{objectName}"/g' "$scriptAbsoluteFolder"/_anchor.tmp > "$scriptAbsoluteFolder"/_anchor.tmp1
-	
-	perl -p -e 's/SET "MSWanchorSourceDir=.*/SET "MSWanchorSourceDir=$ENV{objectName}"/g' "$scriptAbsoluteFolder"/_anchor.tmp1 > "$scriptAbsoluteFolder"/_anchor.tmp2
+	cat "$scriptAbsoluteFolder"/_anchor.tmp1 | sed 's/^SET \"MSWanchorSourceDir\=.*$/^SET \"MSWanchorSourceDir\=\"'"$objectName"'\"/g' > "$scriptAbsoluteFolder"/_anchor.tmp2
+	#perl -p -e 's/SET "MSWanchorSourceDir=.*/SET "MSWanchorSourceDir=$ENV{objectName}"/g' "$scriptAbsoluteFolder"/_anchor.tmp1 > "$scriptAbsoluteFolder"/_anchor.tmp2
 	
 	
 	mv "$scriptAbsoluteFolder"/_anchor.tmp2 "$ubAnchorTemplateCurrent"
 	rm -f "$scriptAbsoluteFolder"/_anchor.tmp "$scriptAbsoluteFolder"/_anchor.tmp1 "$scriptAbsoluteFolder"/_anchor.tmp2 > /dev/null 2>&1
 }
+
 
 _anchor() {
 	_anchor_autoupgrade
@@ -16170,6 +16641,78 @@ _testarglength() {
 	_messagePASS
 }
 
+_uid_test() {
+	local current_uid_1
+	local current_uid_2
+	local current_uid_3
+	
+	current_uid_1=$(_uid)
+	current_uid_2=$(_uid)
+	current_uid_3_char=$(_uid 8 | wc -c)
+	
+	if [[ "$current_uid_1" == "" ]]
+	then
+		_messageFAIL
+		_stop 1
+	fi
+	
+	if [[ "$current_uid_2" == "" ]]
+	then
+		_messageFAIL
+		_stop 1
+	fi
+	
+	if [[ "$current_uid_1" == "$current_uid_2" ]]
+	then
+		_messageFAIL
+		_stop 1
+	fi
+	
+	if [[ "$current_uid_3_char" != "8" ]]
+	then
+		_messageFAIL
+		_stop 1
+	fi
+	
+	return 0
+}
+
+
+# Creating a function from within a function may be relied upon for some overrides.
+# Enumerating a function's text with 'typeset -f' may be relied upon by some 'here document' functions.
+_define_function_test() {
+	local current_uid_1
+	current_uid_1=$(_uid)
+	
+	local current_uid_2
+	current_uid_2=$(_uid)
+	
+	# https://stackoverflow.com/questions/7145337/bash-how-do-i-create-function-from-variable
+	eval "__$current_uid_1() { __$current_uid_2() { echo $ubiquitiousBashID; }; }"
+	
+	if [[ $(typeset -f __$current_uid_1 | wc -c) -lt 50 ]]
+	then
+		_messageFAIL
+		_stop 1
+	fi
+	
+	if [[ $(typeset -f __$current_uid_2 | wc -c) -gt 0 ]]
+	then
+		_messageFAIL
+		_stop 1
+	fi
+	
+	__$current_uid_1
+	
+	if [[ $(typeset -f __$current_uid_2 | wc -c) -lt 15 ]]
+	then
+		_messageFAIL
+		_stop 1
+	fi
+	
+	return 0
+}
+
 #_test_prog() {
 #	true
 #}
@@ -16230,6 +16773,13 @@ _test() {
 	fi
 	rm -f "$safeTmp"/working
 	rm -f "$safeTmp"/broken
+	
+	
+	
+	_uid_test
+	
+	_define_function_test
+	
 	
 	
 	# WARNING: Not tested by default, due to lack of use except where faults are tolerable, and slim possibility of useful embedded systems not able to pass.
@@ -16642,6 +17192,10 @@ _package_procedure() {
 	cp "$scriptAbsoluteFolder"/gpl.txt "$safeTmp"/package/ > /dev/null 2>&1
 	cp "$scriptAbsoluteFolder"/gpl-*.txt "$safeTmp"/package/ > /dev/null 2>&1
 	cp "$scriptAbsoluteFolder"/gpl-3.0.txt "$safeTmp"/package/ > /dev/null 2>&1
+	
+	cp "$scriptAbsoluteFolder"/agpl.txt "$safeTmp"/package/ > /dev/null 2>&1
+	cp "$scriptAbsoluteFolder"/agpl-*.txt "$safeTmp"/package/ > /dev/null 2>&1
+	cp "$scriptAbsoluteFolder"/agpl-3.0.txt "$safeTmp"/package/ > /dev/null 2>&1
 	
 	cp "$scriptAbsoluteFolder"/license.txt "$safeTmp"/package/ > /dev/null 2>&1
 	cp "$scriptAbsoluteFolder"/license*.txt "$safeTmp"/package/ > /dev/null 2>&1
