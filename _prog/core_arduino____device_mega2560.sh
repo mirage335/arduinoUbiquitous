@@ -45,7 +45,7 @@ _arduino_upload_serial_avrdude_mega2560() {
 	! arduinoSerialPort=$(_get_arduino_serialport_avrdude_typical) && return 1
 
 	_set_arduino_fakeHome
-	_fakeHome "$au_avrdudeStatic" -C"$au_avrdudeStaticConf" -v -patmega2560 -cwiring -P"$arduinoSerialPort" -b115200 -D -Uflash:w:"$au_arduinoFirmware_hex":i
+	_fakeHome "$au_avrdudeStatic" -C"$au_avrdudeStaticConf" -v -patmega2560 -cwiring -P/dev/"$arduinoSerialPort" -b115200 -D -Uflash:w:"$au_arduinoFirmware_hex":i
 }
 
 
