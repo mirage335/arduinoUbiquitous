@@ -35,6 +35,7 @@ cp ./_lib/arduinoUbiquitous/_anchor ./
 cp ./_lib/ubiquitous_bash/agpl-3.0.txt ./agpl-3.0.txt
 
 cp ./_lib/arduinoUbiquitous/.gitignore ./
+cp ./_lib/arduinoUbiquitous/.gitattributes ./
 
 ##### Hardcoded Configuration
 mkdir -p ./_config
