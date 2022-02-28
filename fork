@@ -23,6 +23,14 @@ cd ./_lib/arduinoUbiquitous
 git submodule update --init --depth 1 ./_lib/ubiquitous_bash
 cd "$workingDir"/"$variantName"
 
+
+
+cd ./_lib/arduinoUbiquitous/_lib/openocd-static/_lib/openocd-build-script-static
+git submodule update --init --depth 9000000 --recursive
+cd "$workingDir"/"$variantName"
+
+
+
 git submodule update --init --depth 1 --recursive
 
 
