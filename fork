@@ -62,13 +62,18 @@ mkdir -p ./_local
 #Parent derivative of ubiquitous_bash.
 
 
-cp -a ./_lib/arduinoUbiquitous/_local ./
+# WARNING: Moving, rather than copying, saves much disk usage, at the risk of the submodule repository being kept incomplete.
+#cp -a ./_lib/arduinoUbiquitous/_local ./
+mv ./_lib/arduinoUbiquitous/_local ./
+
 
 #Binaries.
 cp -a ./_lib/arduinoUbiquitous/_bin ./
 
 #App configuration.
-cp -a ./_lib/arduinoUbiquitous/_lib/app ./_lib/
+# WARNING: Moving, rather than copying, saves much disk usage, at the risk of the submodule repository being kept incomplete.
+#cp -a ./_lib/arduinoUbiquitous/_lib/app ./_lib/
+mv ./_lib/arduinoUbiquitous/_lib/app ./_lib/
 
 #Examples.
 cp -a ./_lib/arduinoUbiquitous/_lib/_examples ./_lib/
