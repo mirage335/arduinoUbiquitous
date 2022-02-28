@@ -142,6 +142,11 @@ __asm__("nop\n\t");
 + ./_arduino_compile ./_lib/_examples/teensy36/Blink/
 + ./_arduino_upload ./_lib/_examples/teensy36/Blink/
 
+## c668de417187593f561bd5cfeac7cdd615e2c750
++ ./_arduino_compile ./_lib/_examples/teensy36/Blink/
++ ./_arduino_compile ./_lib/_examples/m0_as_zero/Blink/
+
+
 
 # Reference
 * https://hackaday.com/2015/07/28/embed-with-elliot-there-is-no-arduino-language/
