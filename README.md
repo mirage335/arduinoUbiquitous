@@ -202,7 +202,16 @@ All other files are part of arduinoUbiquitous . In particular, it is desired tha
 
 Entire 'recursive' clones of the 'arduinoUbiquitous' and derivative repositories may be appropriate for redistribution and preservation.
 
-git clone --recursive https://github.com/mirage335/arduinoUbiquitous
+git clone --depth 1 git@github.com:mirage335/arduinoUbiquitous.git
+cd mirage335_documents/
+git submodule update --init --depth 1 --recursive
+
+Usual &#39;git clone --recursive&39; is not recommended if storage or bandwidth are significant concerns, due to git apparently ignoring &#39;shallow&#39; configuration when submodules themselves have submodules.
+
+https://stackoverflow.com/questions/2144406/how-to-make-shallow-git-submodules
+	&#39;git-fetch allows to fetch arbitrary sha1, so as a workaround you can run a fetch after the recursive clone by using "git submodule update" as that will use fetches after the initial clone&#39;
+
+
 
 
 Distributing a 'binary' version with a separate means to obtain a 'source' copy is *strongly discouraged*.
@@ -210,6 +219,7 @@ Distributing a 'binary' version with a separate means to obtain a 'source' copy 
 Without relevant source code, it may become infeasible to compile, upload, or interact with, firmware projects, with updated software or hardware. Entire point of 'arduinoUbiquitous' project, is to ensure 'Arduino' and related software, is reliable enough to depend upon for its ongoing use in large, complex, specialized resources, notably including the widespread use of 3D printing.
 
 For 'development' work, the approximately '2GB' compressed is a necessity which modern data storage and bandwidth is easily able to accommodate.
+
 
 
 
