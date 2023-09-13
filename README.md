@@ -125,6 +125,14 @@ __asm__("nop\n\t");
 
 # Certification
 
+## ddec7a68cae4bf96d61c108bcb61601b06ece7b9
+
++ ./_arduino_compile ./_lib/_examples/teensy36/Blink/
++ ./_arduino_compile ./_lib/_examples/m0_as_zero/Blink/
+
+* Previously certified commits were not still usable, possibly due to the interaction between inappropriate 'export TMPDIR' and inconsistent WSL2/fakeHome '$safeTmp' path . Both those issues were corrected upstream as commits to 'ubiquitous_bash' .
+
+
 ## c06893ac341567f6fa06a868e874f8b596eb4e58
 
 + Upload Arduino Zero bootloader via SWD to Ardunin M0 as Arduino Zero.
