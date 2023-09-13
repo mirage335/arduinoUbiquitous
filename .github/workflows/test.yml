@@ -67,6 +67,12 @@ jobs:
         timeout-minutes: 90
 
 
+      - name: _test
+        shell: bash
+        run: |
+          ./ubiquitous_bash.sh _test
+
+
       - name: test! _arduino_compile! m0_as_zero
         shell: bash
         run: |
