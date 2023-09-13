@@ -67,9 +67,13 @@ jobs:
         timeout-minutes: 90
         
         
-      - name: test! _arduino_compile
+      - name: test! _arduino_compile! teensy36
         shell: bash
         run: |
           ./_arduino_compile ./_lib/_examples/teensy36/Blink/
+
+      - name: test! _arduino_compile! m0_as_zero
+        shell: bash
+        run: |
           ./_arduino_compile ./_lib/_examples/m0_as_zero/Blink/
 
