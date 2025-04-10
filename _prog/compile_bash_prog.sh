@@ -154,6 +154,8 @@ _compile_bash_program_prog() {
 	includeScriptList+=( installation_prog_arduino.sh )
 	
 	includeScriptList+=( _special.sh )
+	
+	includeScriptList+=( knowledge.sh )
 }
 
 _compile_bash_config_prog() {	
