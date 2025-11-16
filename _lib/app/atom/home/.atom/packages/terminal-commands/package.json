@@ -55,7 +55,7 @@
   "description": "Setup commands to run in the terminal",
   "devDependencies": {
     "atom-jasmine3-test-runner": "^3.1.0",
-    "eslint": "4.19.1",
+    "eslint": "9.39.1",
     "temp": "0.8.3"
   },
   "engines": {
